@@ -47,7 +47,8 @@ public class MutationResolver implements GraphQLMutationResolver {
         userDTO.setManagerId(input.getManagerId());
         
         var created = userService.createUser(userDTO);
-        return userRepository.findById(created.getId()).orElse(null);
+        Long tenantId = com.performancemanagement.config.TenantContext.getCurrentTenantId();
+        return userRepository.findByIdAndTenantId(created.getId(), tenantId).orElse(null);
     }
 
     public User updateUser(Long id, UserInput input) {
@@ -59,7 +60,8 @@ public class MutationResolver implements GraphQLMutationResolver {
         userDTO.setManagerId(input.getManagerId());
         
         var updated = userService.updateUser(id, userDTO);
-        return userRepository.findById(updated.getId()).orElse(null);
+        Long tenantId = com.performancemanagement.config.TenantContext.getCurrentTenantId();
+        return userRepository.findByIdAndTenantId(updated.getId(), tenantId).orElse(null);
     }
 
     public Boolean deleteUser(Long id) {
@@ -88,7 +90,8 @@ public class MutationResolver implements GraphQLMutationResolver {
         goalDTO.setParentGoalId(input.getParentGoalId());
         
         var created = goalService.createGoal(goalDTO);
-        return goalRepository.findById(created.getId()).orElse(null);
+        Long tenantId = com.performancemanagement.config.TenantContext.getCurrentTenantId();
+        return goalRepository.findByIdAndTenantId(created.getId(), tenantId).orElse(null);
     }
 
     public Goal updateGoal(Long id, GoalInput input) {
@@ -103,12 +106,14 @@ public class MutationResolver implements GraphQLMutationResolver {
         goalDTO.setParentGoalId(input.getParentGoalId());
         
         var updated = goalService.updateGoal(id, goalDTO);
-        return goalRepository.findById(updated.getId()).orElse(null);
+        Long tenantId = com.performancemanagement.config.TenantContext.getCurrentTenantId();
+        return goalRepository.findByIdAndTenantId(updated.getId(), tenantId).orElse(null);
     }
 
     public Goal assignGoalToUser(Long goalId, String userEmail) {
         var goalDTO = goalService.assignGoalToUser(goalId, userEmail);
-        return goalRepository.findById(goalDTO.getId()).orElse(null);
+        Long tenantId = com.performancemanagement.config.TenantContext.getCurrentTenantId();
+        return goalRepository.findByIdAndTenantId(goalDTO.getId(), tenantId).orElse(null);
     }
 
     public Boolean deleteGoal(Long id) {
@@ -135,7 +140,8 @@ public class MutationResolver implements GraphQLMutationResolver {
         deptDTO.setParentDepartmentId(input.getParentDepartmentId());
         
         var created = departmentService.createDepartment(deptDTO);
-        return departmentRepository.findById(created.getId()).orElse(null);
+        Long tenantId = com.performancemanagement.config.TenantContext.getCurrentTenantId();
+        return departmentRepository.findByIdAndTenantId(created.getId(), tenantId).orElse(null);
     }
 
     public Department updateDepartment(Long id, DepartmentInput input) {
@@ -147,12 +153,14 @@ public class MutationResolver implements GraphQLMutationResolver {
         deptDTO.setParentDepartmentId(input.getParentDepartmentId());
         
         var updated = departmentService.updateDepartment(id, deptDTO);
-        return departmentRepository.findById(updated.getId()).orElse(null);
+        Long tenantId = com.performancemanagement.config.TenantContext.getCurrentTenantId();
+        return departmentRepository.findByIdAndTenantId(updated.getId(), tenantId).orElse(null);
     }
 
     public Department assignUserToDepartment(Long departmentId, String userEmail) {
         var deptDTO = departmentService.assignUserToDepartment(departmentId, userEmail);
-        return departmentRepository.findById(deptDTO.getId()).orElse(null);
+        Long tenantId = com.performancemanagement.config.TenantContext.getCurrentTenantId();
+        return departmentRepository.findByIdAndTenantId(deptDTO.getId(), tenantId).orElse(null);
     }
 
     public Boolean deleteDepartment(Long id) {

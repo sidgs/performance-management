@@ -1,5 +1,6 @@
 package com.performancemanagement.service;
 
+import com.performancemanagement.config.TenantContext;
 import com.performancemanagement.dto.GoalDTO;
 import com.performancemanagement.model.Goal;
 import com.performancemanagement.model.User;
@@ -24,13 +25,24 @@ public class GoalService {
 
     @Autowired
     private UserRepository userRepository;
+    
+    private Long getCurrentTenantId() {
+        Long tenantId = TenantContext.getCurrentTenantId();
+        if (tenantId == null) {
+            throw new IllegalStateException("No tenant context available");
+        }
+        return tenantId;
+    }
 
     @CacheEvict(value = {"goals", "goal", "goalsByOwner", "rootGoals"}, allEntries = true)
     public GoalDTO createGoal(GoalDTO goalDTO) {
-        User owner = userRepository.findByEmail(goalDTO.getOwnerEmail())
+        Long tenantId = getCurrentTenantId();
+        
+        User owner = userRepository.findByEmailAndTenantId(goalDTO.getOwnerEmail(), tenantId)
                 .orElseThrow(() -> new IllegalArgumentException("Owner not found"));
 
         Goal goal = new Goal();
+        goal.setTenant(TenantContext.getCurrentTenant());
         goal.setShortDescription(goalDTO.getShortDescription());
         goal.setLongDescription(goalDTO.getLongDescription());
         goal.setOwner(owner);
@@ -39,7 +51,7 @@ public class GoalService {
         goal.setStatus(goalDTO.getStatus() != null ? goalDTO.getStatus() : Goal.GoalStatus.DRAFT);
 
         if (goalDTO.getParentGoalId() != null) {
-            Goal parent = goalRepository.findById(goalDTO.getParentGoalId())
+            Goal parent = goalRepository.findByIdAndTenantId(goalDTO.getParentGoalId(), tenantId)
                     .orElseThrow(() -> new IllegalArgumentException("Parent goal not found"));
             goal.setParentGoal(parent);
         }
@@ -50,7 +62,9 @@ public class GoalService {
 
     @CacheEvict(value = {"goals", "goal", "goalsByOwner", "rootGoals"}, allEntries = true)
     public GoalDTO updateGoal(Long id, GoalDTO goalDTO) {
-        Goal goal = goalRepository.findById(id)
+        Long tenantId = getCurrentTenantId();
+        
+        Goal goal = goalRepository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> new IllegalArgumentException("Goal not found"));
 
         goal.setShortDescription(goalDTO.getShortDescription());
@@ -62,7 +76,7 @@ public class GoalService {
         }
 
         if (goalDTO.getParentGoalId() != null) {
-            Goal parent = goalRepository.findById(goalDTO.getParentGoalId())
+            Goal parent = goalRepository.findByIdAndTenantId(goalDTO.getParentGoalId(), tenantId)
                     .orElseThrow(() -> new IllegalArgumentException("Parent goal not found"));
             goal.setParentGoal(parent);
         } else {
@@ -74,36 +88,42 @@ public class GoalService {
     }
 
     public GoalDTO getGoalById(Long id) {
-        Goal goal = goalRepository.findById(id)
+        Long tenantId = getCurrentTenantId();
+        Goal goal = goalRepository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> new IllegalArgumentException("Goal not found"));
         return convertToDTO(goal);
     }
 
     @Cacheable(value = "goals")
     public List<GoalDTO> getAllGoals() {
-        return goalRepository.findAll().stream()
+        Long tenantId = getCurrentTenantId();
+        return goalRepository.findAllByTenantId(tenantId).stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
     }
 
     public List<GoalDTO> getGoalsByOwner(String email) {
-        return goalRepository.findByOwnerEmail(email).stream()
+        Long tenantId = getCurrentTenantId();
+        return goalRepository.findByOwnerEmailAndTenantId(email, tenantId).stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
     }
 
     @Cacheable(value = "rootGoals")
     public List<GoalDTO> getRootGoals() {
-        return goalRepository.findByParentGoalIsNull().stream()
+        Long tenantId = getCurrentTenantId();
+        return goalRepository.findByParentGoalIsNullAndTenantId(tenantId).stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
     }
 
     public GoalDTO assignGoalToUser(Long goalId, String userEmail) {
-        Goal goal = goalRepository.findById(goalId)
+        Long tenantId = getCurrentTenantId();
+        
+        Goal goal = goalRepository.findByIdAndTenantId(goalId, tenantId)
                 .orElseThrow(() -> new IllegalArgumentException("Goal not found"));
         
-        User user = userRepository.findByEmail(userEmail)
+        User user = userRepository.findByEmailAndTenantId(userEmail, tenantId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
         goal.getAssignedUsers().add(user);
@@ -113,7 +133,10 @@ public class GoalService {
 
     @CacheEvict(value = {"goals", "goal", "goalsByOwner", "rootGoals"}, allEntries = true)
     public void deleteGoal(Long id) {
-        goalRepository.deleteById(id);
+        Long tenantId = getCurrentTenantId();
+        Goal goal = goalRepository.findByIdAndTenantId(id, tenantId)
+                .orElseThrow(() -> new IllegalArgumentException("Goal not found"));
+        goalRepository.delete(goal);
     }
 
     private GoalDTO convertToDTO(Goal goal) {
@@ -131,14 +154,18 @@ public class GoalService {
             dto.setParentGoalId(goal.getParentGoal().getId());
         }
         
+        Long tenantId = goal.getTenant().getId();
+        
         if (goal.getChildGoals() != null && !goal.getChildGoals().isEmpty()) {
             dto.setChildGoals(goal.getChildGoals().stream()
+                    .filter(child -> child.getTenant().getId().equals(tenantId))
                     .map(this::convertToDTO)
                     .collect(Collectors.toList()));
         }
         
         if (goal.getAssignedUsers() != null && !goal.getAssignedUsers().isEmpty()) {
             dto.setAssignedUserEmails(goal.getAssignedUsers().stream()
+                    .filter(user -> user.getTenant().getId().equals(tenantId))
                     .map(User::getEmail)
                     .collect(Collectors.toList()));
         }

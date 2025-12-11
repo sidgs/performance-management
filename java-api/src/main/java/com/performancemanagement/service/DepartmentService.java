@@ -1,5 +1,6 @@
 package com.performancemanagement.service;
 
+import com.performancemanagement.config.TenantContext;
 import com.performancemanagement.dto.DepartmentDTO;
 import com.performancemanagement.model.Department;
 import com.performancemanagement.model.User;
@@ -24,13 +25,24 @@ public class DepartmentService {
 
     @Autowired
     private UserRepository userRepository;
+    
+    private Long getCurrentTenantId() {
+        Long tenantId = TenantContext.getCurrentTenantId();
+        if (tenantId == null) {
+            throw new IllegalStateException("No tenant context available");
+        }
+        return tenantId;
+    }
 
     @CacheEvict(value = {"departments", "department", "rootDepartments"}, allEntries = true)
     public DepartmentDTO createDepartment(DepartmentDTO departmentDTO) {
-        User owner = userRepository.findByEmail(departmentDTO.getOwnerEmail())
+        Long tenantId = getCurrentTenantId();
+        
+        User owner = userRepository.findByEmailAndTenantId(departmentDTO.getOwnerEmail(), tenantId)
                 .orElseThrow(() -> new IllegalArgumentException("Owner not found"));
 
         Department department = new Department();
+        department.setTenant(TenantContext.getCurrentTenant());
         department.setName(departmentDTO.getName());
         department.setSmallDescription(departmentDTO.getSmallDescription());
         department.setOwner(owner);
@@ -38,13 +50,13 @@ public class DepartmentService {
         department.setStatus(departmentDTO.getStatus() != null ? departmentDTO.getStatus() : Department.DepartmentStatus.ACTIVE);
 
         if (departmentDTO.getCoOwnerEmail() != null) {
-            User coOwner = userRepository.findByEmail(departmentDTO.getCoOwnerEmail())
+            User coOwner = userRepository.findByEmailAndTenantId(departmentDTO.getCoOwnerEmail(), tenantId)
                     .orElseThrow(() -> new IllegalArgumentException("Co-owner not found"));
             department.setCoOwner(coOwner);
         }
 
         if (departmentDTO.getParentDepartmentId() != null) {
-            Department parent = departmentRepository.findById(departmentDTO.getParentDepartmentId())
+            Department parent = departmentRepository.findByIdAndTenantId(departmentDTO.getParentDepartmentId(), tenantId)
                     .orElseThrow(() -> new IllegalArgumentException("Parent department not found"));
             department.setParentDepartment(parent);
         }
@@ -54,7 +66,9 @@ public class DepartmentService {
     }
 
     public DepartmentDTO updateDepartment(Long id, DepartmentDTO departmentDTO) {
-        Department department = departmentRepository.findById(id)
+        Long tenantId = getCurrentTenantId();
+        
+        Department department = departmentRepository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> new IllegalArgumentException("Department not found"));
 
         department.setName(departmentDTO.getName());
@@ -65,7 +79,7 @@ public class DepartmentService {
         }
 
         if (departmentDTO.getCoOwnerEmail() != null) {
-            User coOwner = userRepository.findByEmail(departmentDTO.getCoOwnerEmail())
+            User coOwner = userRepository.findByEmailAndTenantId(departmentDTO.getCoOwnerEmail(), tenantId)
                     .orElseThrow(() -> new IllegalArgumentException("Co-owner not found"));
             department.setCoOwner(coOwner);
         } else {
@@ -73,7 +87,7 @@ public class DepartmentService {
         }
 
         if (departmentDTO.getParentDepartmentId() != null) {
-            Department parent = departmentRepository.findById(departmentDTO.getParentDepartmentId())
+            Department parent = departmentRepository.findByIdAndTenantId(departmentDTO.getParentDepartmentId(), tenantId)
                     .orElseThrow(() -> new IllegalArgumentException("Parent department not found"));
             department.setParentDepartment(parent);
         } else {
@@ -86,29 +100,34 @@ public class DepartmentService {
 
     @Cacheable(value = "department", key = "#id")
     public DepartmentDTO getDepartmentById(Long id) {
-        Department department = departmentRepository.findById(id)
+        Long tenantId = getCurrentTenantId();
+        Department department = departmentRepository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> new IllegalArgumentException("Department not found"));
         return convertToDTO(department);
     }
 
     public List<DepartmentDTO> getAllDepartments() {
-        return departmentRepository.findAll().stream()
+        Long tenantId = getCurrentTenantId();
+        return departmentRepository.findAllByTenantId(tenantId).stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
     }
 
     @Cacheable(value = "rootDepartments")
     public List<DepartmentDTO> getRootDepartments() {
-        return departmentRepository.findByParentDepartmentIsNull().stream()
+        Long tenantId = getCurrentTenantId();
+        return departmentRepository.findByParentDepartmentIsNullAndTenantId(tenantId).stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
     }
 
     public DepartmentDTO assignUserToDepartment(Long departmentId, String userEmail) {
-        Department department = departmentRepository.findById(departmentId)
+        Long tenantId = getCurrentTenantId();
+        
+        Department department = departmentRepository.findByIdAndTenantId(departmentId, tenantId)
                 .orElseThrow(() -> new IllegalArgumentException("Department not found"));
         
-        User user = userRepository.findByEmail(userEmail)
+        User user = userRepository.findByEmailAndTenantId(userEmail, tenantId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
         user.setDepartment(department);
@@ -119,7 +138,10 @@ public class DepartmentService {
 
     @CacheEvict(value = {"departments", "department", "rootDepartments"}, allEntries = true)
     public void deleteDepartment(Long id) {
-        departmentRepository.deleteById(id);
+        Long tenantId = getCurrentTenantId();
+        Department department = departmentRepository.findByIdAndTenantId(id, tenantId)
+                .orElseThrow(() -> new IllegalArgumentException("Department not found"));
+        departmentRepository.delete(department);
     }
 
     private DepartmentDTO convertToDTO(Department department) {
@@ -141,14 +163,18 @@ public class DepartmentService {
             dto.setParentDepartmentId(department.getParentDepartment().getId());
         }
         
+        Long tenantId = department.getTenant().getId();
+        
         if (department.getChildDepartments() != null && !department.getChildDepartments().isEmpty()) {
             dto.setChildDepartments(department.getChildDepartments().stream()
+                    .filter(child -> child.getTenant().getId().equals(tenantId))
                     .map(this::convertToDTO)
                     .collect(Collectors.toList()));
         }
         
         if (department.getUsers() != null && !department.getUsers().isEmpty()) {
             dto.setUserEmails(department.getUsers().stream()
+                    .filter(user -> user.getTenant().getId().equals(tenantId))
                     .map(User::getEmail)
                     .collect(Collectors.toList()));
         }
