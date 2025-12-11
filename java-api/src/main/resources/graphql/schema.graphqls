@@ -1,0 +1,119 @@
+type Query {
+    # User queries
+    user(id: ID!): User
+    userByEmail(email: String!): User
+    users: [User]
+    teamMembers(managerId: ID!): [User]
+    
+    # Goal queries
+    goal(id: ID!): Goal
+    goals: [Goal]
+    goalsByOwner(email: String!): [Goal]
+    rootGoals: [Goal]
+    
+    # Department queries
+    department(id: ID!): Department
+    departments: [Department]
+    rootDepartments: [Department]
+}
+
+type Mutation {
+    # User mutations
+    createUser(input: UserInput!): User
+    updateUser(id: ID!, input: UserInput!): User
+    deleteUser(id: ID!): Boolean
+    
+    # Goal mutations
+    createGoal(input: GoalInput!): Goal
+    updateGoal(id: ID!, input: GoalInput!): Goal
+    assignGoalToUser(goalId: ID!, userEmail: String!): Goal
+    deleteGoal(id: ID!): Boolean
+    
+    # Department mutations
+    createDepartment(input: DepartmentInput!): Department
+    updateDepartment(id: ID!, input: DepartmentInput!): Department
+    assignUserToDepartment(departmentId: ID!, userEmail: String!): Department
+    deleteDepartment(id: ID!): Boolean
+}
+
+type User {
+    id: ID!
+    firstName: String!
+    lastName: String!
+    email: String!
+    title: String
+    department: Department
+    manager: User
+    teamMembers: [User]
+    assignedGoals: [Goal]
+    ownedGoals: [Goal]
+}
+
+type Goal {
+    id: ID!
+    shortDescription: String!
+    longDescription: String!
+    owner: User!
+    creationDate: String!
+    completionDate: String
+    status: GoalStatus!
+    parentGoal: Goal
+    childGoals: [Goal]
+    assignedUsers: [User]
+}
+
+enum GoalStatus {
+    DRAFT
+    APPROVED
+    PUBLISHED
+    ACHIEVED
+    RETIRED
+}
+
+type Department {
+    id: ID!
+    name: String!
+    smallDescription: String!
+    owner: User!
+    coOwner: User
+    creationDate: String!
+    status: DepartmentStatus!
+    parentDepartment: Department
+    childDepartments: [Department]
+    users: [User]
+}
+
+enum DepartmentStatus {
+    ACTIVE
+    DEPRECATED
+    RETIRED
+}
+
+input UserInput {
+    firstName: String!
+    lastName: String!
+    email: String!
+    title: String
+    managerId: ID
+    departmentId: ID
+}
+
+input GoalInput {
+    shortDescription: String!
+    longDescription: String!
+    ownerEmail: String!
+    creationDate: String
+    completionDate: String
+    status: GoalStatus
+    parentGoalId: ID
+}
+
+input DepartmentInput {
+    name: String!
+    smallDescription: String!
+    ownerEmail: String!
+    coOwnerEmail: String
+    creationDate: String
+    status: DepartmentStatus
+    parentDepartmentId: ID
+}

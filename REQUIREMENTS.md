@@ -10,9 +10,13 @@ This document outlines the requirements for a Performance Management System that
 
 **Backend (java-api)**
 - Framework: Java Spring Boot
+- Build & Dependency Management: Maven
 - Persistence: JPA (Java Persistence API)
 - Database: SQLite (local development), PostgreSQL (production)
 - API Types: REST and GraphQL
+- Server Context Path: `/api/v1/performance-management`
+- Caching: Redis (disabled in local profile, enabled in non-local profiles)
+- Build Tool: Makefile for build and run operations
 
 **Agent Layer (agents-api)**
 - Framework: Google ADK
@@ -161,9 +165,19 @@ The backend must expose:
 - **REST APIs**: Standard REST endpoints for all CRUD operations
 - **GraphQL APIs**: GraphQL schema and resolvers for all entities
 
-### 6.2 GraphQL Integration with Agent Layer
+### 6.2 API Base Path
+- All API endpoints are served under the base context path: `/api/v1/performance-management`
+- REST endpoints: `/api/v1/performance-management/users`, `/api/v1/performance-management/goals`, `/api/v1/performance-management/departments`
+- GraphQL endpoint: `/api/v1/performance-management/graphql`
+
+### 6.3 GraphQL Integration with Agent Layer
 - All GraphQL queries must be exposed as tools to the Google ADK agent layer
 - The agent layer should be able to execute GraphQL queries programmatically
+
+### 6.4 Caching Strategy
+- **Redis Caching**: Query operations are cached using Redis for improved performance
+- **Profile-Based Activation**: Redis caching is disabled when running with `local` Spring profile
+- **Cache Scope**: Only query operations are cached; mutations bypass cache or evict cache entries
 
 ## 7. User Interface Requirements
 
@@ -268,11 +282,20 @@ The UI must provide dashboards for:
 1. **NFR-DB-001**: System shall use SQLite for local development environment
 2. **NFR-DB-002**: System shall use PostgreSQL for production environment
 3. **NFR-DB-003**: System shall use JPA for database persistence
+4. **NFR-DB-004**: Database table names and column names shall use snake_case naming convention
+5. **NFR-DB-005**: Java code shall use camelCase naming convention
 
 ### 9.3 Technology
 1. **NFR-TECH-001**: Backend shall be built using Java Spring Boot
-2. **NFR-TECH-002**: Agent layer shall be built using Google ADK
-3. **NFR-TECH-003**: Frontend shall be built using React
+2. **NFR-TECH-002**: Backend shall use Maven for dependency and build management
+3. **NFR-TECH-003**: Backend shall use Makefile for build and run operations
+4. **NFR-TECH-004**: Agent layer shall be built using Google ADK
+5. **NFR-TECH-005**: Frontend shall be built using React
+
+### 9.4 Caching
+1. **NFR-CACHE-001**: System shall use Redis for query result caching
+2. **NFR-CACHE-002**: Redis caching shall be disabled when running with `local` Spring profile
+3. **NFR-CACHE-003**: Redis caching shall be enabled for all non-local profiles (dev, staging, production)
 
 ## 10. Use Cases
 
@@ -334,6 +357,11 @@ The UI must provide dashboards for:
 - Departments form a tree structure (no cycles)
 - All dates must be in yyyy-mm-dd format
 - All times must be in ISO 8601 format
+
+### 11.3 Naming Conventions
+- **Database**: Table names and column names must use snake_case (e.g., `first_name`, `creation_date`, `parent_goal_id`)
+- **Java Code**: Class names, method names, and field names must use camelCase (e.g., `firstName`, `creationDate`, `parentGoalId`)
+- **JPA Mappings**: All entity classes must explicitly specify database column names using `@Column(name = "snake_case")` annotations
 
 ## 12. Future Considerations
 

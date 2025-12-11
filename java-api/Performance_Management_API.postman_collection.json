@@ -1,0 +1,528 @@
+{
+	"info": {
+		"_postman_id": "performance-management-api",
+		"name": "Performance Management API",
+		"description": "Postman collection for testing the Performance Management System API",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Users",
+			"item": [
+				{
+					"name": "Create User",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"firstName\": \"John\",\n    \"lastName\": \"Doe\",\n    \"email\": \"john.doe@example.com\",\n    \"title\": \"Software Engineer\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/users",
+							"host": ["{{baseUrl}}"],
+							"path": ["users"]
+						}
+					}
+				},
+				{
+					"name": "Get All Users",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{baseUrl}}/api/users",
+							"host": ["{{baseUrl}}"],
+							"path": ["users"]
+						}
+					}
+				},
+				{
+					"name": "Get User by ID",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{baseUrl}}/api/users/1",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "users", "1"]
+						}
+					}
+				},
+				{
+					"name": "Get User by Email",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{baseUrl}}/api/users/email/john.doe@example.com",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "users", "email", "john.doe@example.com"]
+						}
+					}
+				},
+				{
+					"name": "Update User",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"firstName\": \"John\",\n    \"lastName\": \"Doe\",\n    \"email\": \"john.doe@example.com\",\n    \"title\": \"Senior Software Engineer\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/users/1",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "users", "1"]
+						}
+					}
+				},
+				{
+					"name": "Get Team Members",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{baseUrl}}/api/users/1/team",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "users", "1", "team"]
+						}
+					}
+				},
+				{
+					"name": "Delete User",
+					"request": {
+						"method": "DELETE",
+						"url": {
+							"raw": "{{baseUrl}}/api/users/1",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "users", "1"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Goals",
+			"item": [
+				{
+					"name": "Create Goal",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"shortDescription\": \"Improve customer satisfaction\",\n    \"longDescription\": \"Implement a comprehensive customer feedback system and improve response times to customer inquiries\",\n    \"ownerEmail\": \"john.doe@example.com\",\n    \"creationDate\": \"2024-01-15\",\n    \"status\": \"DRAFT\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/goals",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "goals"]
+						}
+					}
+				},
+				{
+					"name": "Get All Goals",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{baseUrl}}/goals",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "goals"]
+						}
+					}
+				},
+				{
+					"name": "Get Goal by ID",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{baseUrl}}/goals/1",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "goals", "1"]
+						}
+					}
+				},
+				{
+					"name": "Get Goals by Owner",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{baseUrl}}/goals/owner/john.doe@example.com",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "goals", "owner", "john.doe@example.com"]
+						}
+					}
+				},
+				{
+					"name": "Get Root Goals",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{baseUrl}}/goals/root",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "goals", "root"]
+						}
+					}
+				},
+				{
+					"name": "Update Goal",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"shortDescription\": \"Improve customer satisfaction\",\n    \"longDescription\": \"Implement a comprehensive customer feedback system and improve response times to customer inquiries\",\n    \"status\": \"APPROVED\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/goals/1",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "goals", "1"]
+						}
+					}
+				},
+				{
+					"name": "Assign Goal to User",
+					"request": {
+						"method": "POST",
+						"url": {
+							"raw": "{{baseUrl}}/goals/1/assign/jane.smith@example.com",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "goals", "1", "assign", "jane.smith@example.com"]
+						}
+					}
+				},
+				{
+					"name": "Delete Goal",
+					"request": {
+						"method": "DELETE",
+						"url": {
+							"raw": "{{baseUrl}}/goals/1",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "goals", "1"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Departments",
+			"item": [
+				{
+					"name": "Create Department",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Engineering\",\n    \"smallDescription\": \"Software development and engineering department\",\n    \"ownerEmail\": \"john.doe@example.com\",\n    \"creationDate\": \"2024-01-15\",\n    \"status\": \"ACTIVE\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/departments",
+							"host": ["{{baseUrl}}"],
+							"path": ["departments"]
+						}
+					}
+				},
+				{
+					"name": "Get All Departments",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{baseUrl}}/api/departments",
+							"host": ["{{baseUrl}}"],
+							"path": ["departments"]
+						}
+					}
+				},
+				{
+					"name": "Get Department by ID",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{baseUrl}}/api/departments/1",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "departments", "1"]
+						}
+					}
+				},
+				{
+					"name": "Get Root Departments",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{baseUrl}}/api/departments/root",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "departments", "root"]
+						}
+					}
+				},
+				{
+					"name": "Update Department",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Engineering\",\n    \"smallDescription\": \"Software development and engineering department - Updated\",\n    \"status\": \"ACTIVE\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/departments/1",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "departments", "1"]
+						}
+					}
+				},
+				{
+					"name": "Assign User to Department",
+					"request": {
+						"method": "POST",
+						"url": {
+							"raw": "{{baseUrl}}/api/departments/1/assign/jane.smith@example.com",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "departments", "1", "assign", "jane.smith@example.com"]
+						}
+					}
+				},
+				{
+					"name": "Delete Department",
+					"request": {
+						"method": "DELETE",
+						"url": {
+							"raw": "{{baseUrl}}/api/departments/1",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "departments", "1"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "GraphQL",
+			"item": [
+				{
+					"name": "Query - Get All Users",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"query\": \"query { users { id firstName lastName email title } }\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/graphql",
+							"host": ["{{baseUrl}}"],
+							"path": ["graphql"]
+						}
+					}
+				},
+				{
+					"name": "Query - Get User by Email",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"query\": \"query { userByEmail(email: \\\"john.doe@example.com\\\") { id firstName lastName email title manager { email } } }\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/graphql",
+							"host": ["{{baseUrl}}"],
+							"path": ["graphql"]
+						}
+					}
+				},
+				{
+					"name": "Query - Get All Goals",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"query\": \"query { goals { id shortDescription longDescription status owner { email } creationDate } }\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/graphql",
+							"host": ["{{baseUrl}}"],
+							"path": ["graphql"]
+						}
+					}
+				},
+				{
+					"name": "Query - Get Goals by Owner",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"query\": \"query { goalsByOwner(email: \\\"john.doe@example.com\\\") { id shortDescription status owner { email } childGoals { id shortDescription } } }\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/graphql",
+							"host": ["{{baseUrl}}"],
+							"path": ["graphql"]
+						}
+					}
+				},
+				{
+					"name": "Query - Get All Departments",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"query\": \"query { departments { id name smallDescription status owner { email } users { email } } }\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/graphql",
+							"host": ["{{baseUrl}}"],
+							"path": ["graphql"]
+						}
+					}
+				},
+				{
+					"name": "Mutation - Create User",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"query\": \"mutation { createUser(input: { firstName: \\\"Jane\\\", lastName: \\\"Smith\\\", email: \\\"jane.smith@example.com\\\", title: \\\"Product Manager\\\" }) { id firstName lastName email } }\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/graphql",
+							"host": ["{{baseUrl}}"],
+							"path": ["graphql"]
+						}
+					}
+				},
+				{
+					"name": "Mutation - Create Goal",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"query\": \"mutation { createGoal(input: { shortDescription: \\\"Increase sales by 20%\\\", longDescription: \\\"Implement new sales strategies and improve customer outreach\\\", ownerEmail: \\\"john.doe@example.com\\\", creationDate: \\\"2024-01-15\\\", status: DRAFT }) { id shortDescription status owner { email } } }\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/graphql",
+							"host": ["{{baseUrl}}"],
+							"path": ["graphql"]
+						}
+					}
+				},
+				{
+					"name": "Mutation - Assign Goal to User",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"query\": \"mutation { assignGoalToUser(goalId: 1, userEmail: \\\"jane.smith@example.com\\\") { id shortDescription assignedUsers { email } } }\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/graphql",
+							"host": ["{{baseUrl}}"],
+							"path": ["graphql"]
+						}
+					}
+				},
+				{
+					"name": "Mutation - Create Department",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"query\": \"mutation { createDepartment(input: { name: \\\"Sales\\\", smallDescription: \\\"Sales and business development department\\\", ownerEmail: \\\"john.doe@example.com\\\", creationDate: \\\"2024-01-15\\\", status: ACTIVE }) { id name status owner { email } } }\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/graphql",
+							"host": ["{{baseUrl}}"],
+							"path": ["graphql"]
+						}
+					}
+				}
+			]
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:8080/api/v1/performance-management",
+			"type": "string"
+		}
+	]
+}
