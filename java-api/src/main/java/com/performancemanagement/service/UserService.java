@@ -1,5 +1,6 @@
 package com.performancemanagement.service;
 
+import com.performancemanagement.config.TenantContext;
 import com.performancemanagement.dto.UserDTO;
 import com.performancemanagement.model.User;
 import com.performancemanagement.repository.UserRepository;
@@ -18,20 +19,31 @@ public class UserService {
 
     @Autowired
     private UserRepository userRepository;
+    
+    private Long getCurrentTenantId() {
+        Long tenantId = TenantContext.getCurrentTenantId();
+        if (tenantId == null) {
+            throw new IllegalStateException("No tenant context available");
+        }
+        return tenantId;
+    }
 
     public UserDTO createUser(UserDTO userDTO) {
-        if (userRepository.existsByEmail(userDTO.getEmail())) {
+        Long tenantId = getCurrentTenantId();
+        
+        if (userRepository.existsByEmailAndTenantId(userDTO.getEmail(), tenantId)) {
             throw new IllegalArgumentException("User with email " + userDTO.getEmail() + " already exists");
         }
 
         User user = new User();
+        user.setTenant(TenantContext.getCurrentTenant());
         user.setFirstName(userDTO.getFirstName());
         user.setLastName(userDTO.getLastName());
         user.setEmail(userDTO.getEmail());
         user.setTitle(userDTO.getTitle());
 
         if (userDTO.getManagerId() != null) {
-            User manager = userRepository.findById(userDTO.getManagerId())
+            User manager = userRepository.findByIdAndTenantId(userDTO.getManagerId(), tenantId)
                     .orElseThrow(() -> new IllegalArgumentException("Manager not found"));
             user.setManager(manager);
         }
@@ -42,7 +54,9 @@ public class UserService {
 
     @CacheEvict(value = {"users", "user", "userByEmail"}, allEntries = true)
     public UserDTO updateUser(Long id, UserDTO userDTO) {
-        User user = userRepository.findById(id)
+        Long tenantId = getCurrentTenantId();
+        
+        User user = userRepository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
         user.setFirstName(userDTO.getFirstName());
@@ -50,7 +64,7 @@ public class UserService {
         user.setTitle(userDTO.getTitle());
 
         if (userDTO.getManagerId() != null) {
-            User manager = userRepository.findById(userDTO.getManagerId())
+            User manager = userRepository.findByIdAndTenantId(userDTO.getManagerId(), tenantId)
                     .orElseThrow(() -> new IllegalArgumentException("Manager not found"));
             user.setManager(manager);
         } else {
@@ -63,33 +77,41 @@ public class UserService {
 
     @Cacheable(value = "user", key = "#id")
     public UserDTO getUserById(Long id) {
-        User user = userRepository.findById(id)
+        Long tenantId = getCurrentTenantId();
+        User user = userRepository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
         return convertToDTO(user);
     }
 
     public UserDTO getUserByEmail(String email) {
-        User user = userRepository.findByEmail(email)
+        Long tenantId = getCurrentTenantId();
+        User user = userRepository.findByEmailAndTenantId(email, tenantId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
         return convertToDTO(user);
     }
 
     @Cacheable(value = "users")
     public List<UserDTO> getAllUsers() {
-        return userRepository.findAll().stream()
+        Long tenantId = getCurrentTenantId();
+        return userRepository.findAllByTenantId(tenantId).stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
     }
 
     public void deleteUser(Long id) {
-        userRepository.deleteById(id);
+        Long tenantId = getCurrentTenantId();
+        User user = userRepository.findByIdAndTenantId(id, tenantId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+        userRepository.delete(user);
     }
 
     @Cacheable(value = "teamMembers", key = "#managerId")
     public List<UserDTO> getTeamMembers(Long managerId) {
-        User manager = userRepository.findById(managerId)
+        Long tenantId = getCurrentTenantId();
+        User manager = userRepository.findByIdAndTenantId(managerId, tenantId)
                 .orElseThrow(() -> new IllegalArgumentException("Manager not found"));
         return manager.getTeamMembers().stream()
+                .filter(teamMember -> teamMember.getTenant().getId().equals(tenantId))
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
     }
