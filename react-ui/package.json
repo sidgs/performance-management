@@ -1,45 +1,75 @@
 {
-  "name": "performance-management-application-ui",
+  "name": "@sidgs/performance-app",
   "version": "1.0.0",
-  "private": true,
-  "dependencies": {
-    "@emotion/react": "^11.11.3",
-    "@emotion/styled": "^11.11.0",
-    "@mui/icons-material": "^5.15.10",
-    "@mui/material": "^5.15.10",
-    "@mui/x-data-grid": "^7.0.0",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "react-router-dom": "^6.20.0",
-    "react-scripts": "5.0.1",
-    "typescript": "^5.3.3"
+  "description": "Enterprise Performance Management Application",
+  "type": "module",
+  "main": "./dist/sidgs-performance.umd.js",
+  "module": "./dist/sidgs-performance.es.js",
+  "types": "./dist/types/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "import": "./dist/sidgs-performance.es.js",
+      "require": "./dist/sidgs-performance.umd.js",
+      "types": "./dist/types/index.d.ts"
+    },
+    "./theme": {
+      "import": "./dist/types/theme.d.ts",
+      "require": "./dist/types/theme.d.ts"
+    }
+  },
+  "peerDependencies": {
+    "@emotion/react": "^11.0.0",
+    "@emotion/styled": "^11.0.0",
+    "@mui/icons-material": "^5.0.0",
+    "@mui/material": "^5.0.0",
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0",
+    "react-router-dom": "^6.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@mui/material": {
+      "optional": false
+    },
+    "@mui/icons-material": {
+      "optional": false
+    }
   },
   "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject"
-  },
-  "eslintConfig": {
-    "extends": [
-      "react-app",
-      "react-app/jest"
-    ]
-  },
-  "browserslist": {
-    "production": [
-      ">0.2%",
-      "not dead",
-      "not op_mini all"
-    ],
-    "development": [
-      "last 1 chrome version",
-      "last 1 firefox version",
-      "last 1 safari version"
-    ]
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "clean": "rm -rf dist",
+    "prebuild": "npm run clean"
   },
   "devDependencies": {
+    "@types/node": "^25.0.3",
     "@types/react": "^18.2.45",
-    "@types/react-dom": "^18.2.18"
+    "@types/react-dom": "^18.2.18",
+    "@vitejs/plugin-react": "^4.2.1",
+    "terser": "^5.44.1",
+    "typescript": "^5.2.2",
+    "vite": "^5.0.8",
+    "vite-plugin-dts": "^3.9.1"
+  },
+  "keywords": [
+    "performance",
+    "management",
+    "enterprise",
+    "goals",
+    "okrs",
+    "react",
+    "typescript"
+  ],
+  "author": "SID Global Solutions",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sidgs/performance-app.git"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com/"
   }
 }

@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Grid,
@@ -8,7 +9,6 @@ import {
   Button,
   LinearProgress,
   Chip,
-  AvatarGroup,
   Avatar,
   InputBase,
   IconButton,
@@ -17,12 +17,13 @@ import {
   Fade,
   Slide,
   Badge,
+  AvatarGroup,
 } from '@mui/material';
 import {
-  TrendingUp as TrendingUpIcon,
+  //TrendingUp as TrendingUpIcon,
   People as PeopleIcon,
   Assessment as AssessmentIcon,
-  NotificationsActive as NotificationsActiveIcon,
+  //NotificationsActive as NotificationsActiveIcon,
   ArrowForward as ArrowForwardIcon,
   Search as SearchIcon,
   Close as CloseIcon,
@@ -31,13 +32,33 @@ import {
   SmartToy as BotIcon,
   Person as PersonIcon,
   Close as CloseChatIcon,
+  CheckCircle as CheckCircleIcon,
+  Pending as PendingIcon,
+  PublishedWithChanges as PublishedIcon,
+  Drafts as DraftIcon,
 } from '@mui/icons-material';
 
-interface PerformanceItem {
-  id: number;
+// Types based on your GraphQL schema
+type GoalStatus = 'DRAFT' | 'APPROVED' | 'PUBLISHED' | 'ACHIEVED' | 'RETIRED';
+
+interface User {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
   title: string;
-  progress: number;
-  description: string;
+}
+
+interface Goal {
+  id: string;
+  shortDescription: string;
+  longDescription: string;
+  owner: User;
+  creationDate: string;
+  completionDate?: string;
+  status: GoalStatus;
+  childGoals: Goal[];
+  assignedUsers: User[];
 }
 
 interface ChatMessage {
@@ -47,9 +68,127 @@ interface ChatMessage {
   timestamp: Date;
 }
 
+// Mock data from GoalsPage
+const mockUsers: User[] = [
+  { id: '1', firstName: 'John', lastName: 'Doe', email: 'john.doe@sidgs.com', title: 'Senior Manager' },
+  { id: '2', firstName: 'Sarah', lastName: 'Johnson', email: 'sarah.j@sidgs.com', title: 'Engineering Lead' },
+  { id: '3', firstName: 'Michael', lastName: 'Chen', email: 'michael.c@sidgs.com', title: 'Product Manager' },
+  { id: '4', firstName: 'Emma', lastName: 'Wilson', email: 'emma.w@sidgs.com', title: 'UX Designer' },
+  { id: '5', firstName: 'David', lastName: 'Lee', email: 'david.l@sidgs.com', title: 'Software Engineer' },
+];
+
+const mockGoals: Goal[] = [
+  {
+    id: '1',
+    shortDescription: 'Improve code quality standards',
+    longDescription: 'Implement comprehensive code review processes and establish quality metrics for all engineering teams.',
+    owner: mockUsers[0],
+    creationDate: '2024-01-15',
+    status: 'PUBLISHED',
+    assignedUsers: [mockUsers[1], mockUsers[4]],
+    childGoals: [
+      {
+        id: '1-1',
+        shortDescription: 'Establish code review guidelines',
+        longDescription: 'Create and document standard code review procedures for all teams.',
+        owner: mockUsers[1],
+        creationDate: '2024-01-20',
+        status: 'ACHIEVED',
+        assignedUsers: [mockUsers[4]],
+        childGoals: [],
+      },
+      {
+        id: '1-2',
+        shortDescription: 'Implement automated testing',
+        longDescription: 'Set up automated testing pipeline with 90% coverage target.',
+        owner: mockUsers[1],
+        creationDate: '2024-01-25',
+        status: 'APPROVED',
+        assignedUsers: [mockUsers[4]],
+        childGoals: [],
+      },
+    ],
+  },
+  {
+    id: '2',
+    shortDescription: 'Launch new mobile application',
+    longDescription: 'Develop and launch mobile app for iOS and Android platforms',
+    owner: mockUsers[2],
+    creationDate: '2024-02-01',
+    status: 'APPROVED',
+    assignedUsers: [mockUsers[1], mockUsers[3], mockUsers[4]],
+    childGoals: [],
+  },
+  {
+    id: '3',
+    shortDescription: 'Increase customer satisfaction score',
+    longDescription: 'Improve overall customer satisfaction through better support and product quality enhancements.',
+    owner: mockUsers[0],
+    creationDate: '2024-01-10',
+    completionDate: '2024-03-31',
+    status: 'ACHIEVED',
+    assignedUsers: [mockUsers[2], mockUsers[3]],
+    childGoals: [
+      {
+        id: '3-1',
+        shortDescription: 'Customer feedback system',
+        longDescription: 'Implement new customer feedback collection and analysis system.',
+        owner: mockUsers[3],
+        creationDate: '2024-01-12',
+        status: 'ACHIEVED',
+        assignedUsers: [],
+        childGoals: [],
+      },
+    ],
+  },
+  {
+    id: '4',
+    shortDescription: 'Q1 Revenue Targets',
+    longDescription: 'Achieve Q1 revenue targets through new customer acquisition and upselling.',
+    owner: mockUsers[2],
+    creationDate: '2024-01-05',
+    status: 'DRAFT',
+    assignedUsers: [mockUsers[0]],
+    childGoals: [],
+  },
+  {
+    id: '5',
+    shortDescription: 'Team skill development program',
+    longDescription: 'Develop comprehensive training program for engineering team skill enhancement.',
+    owner: mockUsers[1],
+    creationDate: '2024-02-10',
+    status: 'RETIRED',
+    assignedUsers: [mockUsers[4]],
+    childGoals: [],
+  },
+];
+
+// Calculate progress for a goal
+const calculateGoalProgress = (goal: Goal): number => {
+  if (goal.childGoals.length === 0) {
+    return goal.status === 'ACHIEVED' ? 100 : 
+           goal.status === 'RETIRED' ? 0 : 
+           goal.status === 'DRAFT' ? 10 :
+           goal.status === 'APPROVED' ? 30 : 60;
+  }
+  
+  const completedChildren = goal.childGoals.filter(child => child.status === 'ACHIEVED').length;
+  return Math.round((completedChildren / goal.childGoals.length) * 100);
+};
+
+// Status configuration
+const statusConfig = {
+  DRAFT: { label: 'Draft', color: 'default' as const, icon: <DraftIcon /> },
+  APPROVED: { label: 'Approved', color: 'info' as const, icon: <CheckCircleIcon /> },
+  PUBLISHED: { label: 'Published', color: 'primary' as const, icon: <PublishedIcon /> },
+  ACHIEVED: { label: 'Achieved', color: 'success' as const, icon: <CheckCircleIcon /> },
+  RETIRED: { label: 'Retired', color: 'warning' as const, icon: <PendingIcon /> },
+};
+
 const HomePage: React.FC = () => {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
-  const [filteredPerformance, setFilteredPerformance] = useState<PerformanceItem[]>([]);
+  const [filteredGoals, setFilteredGoals] = useState<Goal[]>(mockGoals);
   const [showAll, setShowAll] = useState(true);
   
   // Chatbot states
@@ -66,27 +205,19 @@ const HomePage: React.FC = () => {
   const [unreadMessages, setUnreadMessages] = useState(0);
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
-  // Performance items data
-  const performanceItems: PerformanceItem[] = [
-    { id: 1, title: 'Q1 Goals', progress: 85, description: 'Quarter 1 objectives and targets' },
-    { id: 2, title: 'Skill Development', progress: 92, description: 'Employee skill enhancement programs' },
-    { id: 3, title: 'Project Delivery', progress: 78, description: 'Timely project completion metrics' },
-    { id: 4, title: 'Team Collaboration', progress: 95, description: 'Teamwork and cooperation metrics' },
-    { id: 5, title: 'Client Satisfaction', progress: 88, description: 'Client feedback and satisfaction scores' },
-    { id: 6, title: 'Innovation Initiatives', progress: 75, description: 'New ideas and innovation projects' },
-  ];
-
-  // Filter performance items based on search query
+  // Filter goals based on search query
   useEffect(() => {
     if (!searchQuery.trim()) {
-      setFilteredPerformance(performanceItems);
+      setFilteredGoals(mockGoals);
       setShowAll(true);
     } else {
-      const filtered = performanceItems.filter(item =>
-        item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.description.toLowerCase().includes(searchQuery.toLowerCase())
+      const filtered = mockGoals.filter(goal =>
+        goal.shortDescription.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        goal.longDescription.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        goal.owner.firstName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        goal.owner.lastName.toLowerCase().includes(searchQuery.toLowerCase())
       );
-      setFilteredPerformance(filtered);
+      setFilteredGoals(filtered);
       setShowAll(false);
     }
   }, [searchQuery]);
@@ -111,7 +242,7 @@ const HomePage: React.FC = () => {
     setShowAll(true);
   };
 
-  // Chatbot functions
+  // Chatbot functions (unchanged)
   const handleSendMessage = async () => {
     if (!newMessage.trim()) return;
 
@@ -155,45 +286,57 @@ const HomePage: React.FC = () => {
     setIsChatOpen(!isChatOpen);
   };
 
-  // Stats data
+  // Calculate dashboard statistics from goals data
   const stats = [
     {
-      title: 'Overall Performance',
-      value: '87%',
-      change: '+5.2%',
-      icon: <TrendingUpIcon />,
+      title: 'Total Goals',
+      value: mockGoals.length.toString(),
+      change: '+2',
+      icon: <AssessmentIcon />,
       color: 'primary.main',
     },
     {
-      title: 'Active Reviews',
-      value: '42',
-      change: '+12',
-      icon: <AssessmentIcon />,
+      title: 'Goals Published',
+      value: mockGoals.filter(g => g.status === 'PUBLISHED').length.toString(),
+      change: '+1',
+      icon: <PublishedIcon />,
       color: 'secondary.main',
     },
     {
-      title: 'Pending Feedback',
-      value: '18',
-      change: '-3',
-      icon: <NotificationsActiveIcon />,
-      color: 'warning.main',
+      title: 'Goals Achieved',
+      value: mockGoals.filter(g => g.status === 'ACHIEVED').length.toString(),
+      change: '+3',
+      icon: <CheckCircleIcon />,
+      color: 'success.main',
     },
     {
-      title: 'Team Members',
-      value: '156',
-      change: '+8',
+      title: 'Active Users',
+      value: mockUsers.length.toString(),
+      change: '+2',
       icon: <PeopleIcon />,
-      color: 'success.main',
+      color: 'info.main',
     },
   ];
 
-  // Recent activities
+  // Recent activities from goal updates
   const recentActivities = [
-    { user: 'Sarah Johnson', action: 'completed quarterly review', time: '2 hours ago' },
-    { user: 'Michael Chen', action: 'submitted performance goals', time: '4 hours ago' },
-    { user: 'Emma Wilson', action: 'gave feedback to team member', time: '1 day ago' },
-    { user: 'David Lee', action: 'updated OKRs for Q1', time: '2 days ago' },
+    { user: 'Sarah Johnson', action: 'completed code review guidelines', time: '2 hours ago' },
+    { user: 'Michael Chen', action: 'approved mobile app launch goal', time: '4 hours ago' },
+    { user: 'Emma Wilson', action: 'achieved customer feedback system goal', time: '1 day ago' },
+    { user: 'David Lee', action: 'assigned to improve code quality standards', time: '2 days ago' },
   ];
+
+  // Format date
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+    });
+  };
+
+  const handleExploreGoals = () => {
+    navigate('/goals');
+  };
 
   return (
     <Box>
@@ -236,7 +379,7 @@ const HomePage: React.FC = () => {
         </Box>
       </Fade>
 
-      {/* Chatbot Interface */}
+      {/* Chatbot Interface - UNCHANGED */}
       <Slide direction="up" in={isChatOpen} mountOnEnter unmountOnExit>
         <Paper
           elevation={10}
@@ -400,20 +543,20 @@ const HomePage: React.FC = () => {
           Performance Intelligence
         </Typography>
         <Typography variant="h5" color="text.secondary" sx={{ mb: 3 }}>
-          AI-driven insights to elevate your team's performance. 
-          Built on a foundation of absolute trust.
+          Track, manage, and achieve organizational goals with AI-driven insights.
         </Typography>
         <Button
           variant="contained"
           size="large"
           endIcon={<ArrowForwardIcon />}
+          onClick={handleExploreGoals}
           sx={{ mr: 2 }}
         >
-          Get Started
+          Explore Goals
         </Button>
-        <Button variant="outlined" size="large">
-          View Demo
-        </Button>
+        {/* <Button variant="outlined" size="large">
+          View Analytics
+        </Button> */}
       </Box>
 
       {/* Stats Cards */}
@@ -463,21 +606,21 @@ const HomePage: React.FC = () => {
       </Grid>
 
       <Grid container spacing={3}>
-        {/* Performance Overview */}
+        {/* Goals Overview */}
         <Grid item xs={12} md={8}>
           <Card sx={{ height: '100%' }}>
             <CardContent>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                 <Box>
                   <Typography variant="h5" gutterBottom>
-                    Performance Overview
+                    Goals Overview
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    Track team performance metrics and progress toward goals
+                    Track organizational goals and progress toward objectives
                   </Typography>
                 </Box>
                 
-                {/* Search within Performance Overview */}
+                {/* Search within Goals Overview */}
                 <Box
                   sx={{
                     display: 'flex',
@@ -492,7 +635,7 @@ const HomePage: React.FC = () => {
                 >
                   <SearchIcon sx={{ color: 'text.secondary', mr: 1 }} />
                   <InputBase
-                    placeholder="Search items..."
+                    placeholder="Search goals..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     sx={{ flex: 1 }}
@@ -517,74 +660,136 @@ const HomePage: React.FC = () => {
                 </Box>
               </Box>
               
-              {/* Performance Items */}
+              {/* Goals List */}
               <Box sx={{ mt: 3 }}>
                 {showAll ? (
-                  // Show all items
-                  performanceItems.map((item) => (
-                    <Box key={item.id} sx={{ mb: 3 }}>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                        <Box>
-                          <Typography variant="body1" fontWeight={500}>
-                            {item.title}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            {item.description}
-                          </Typography>
-                        </Box>
-                        <Typography variant="body2" fontWeight={500}>
-                          {item.progress}%
-                        </Typography>
-                      </Box>
-                      <LinearProgress
-                        variant="determinate"
-                        value={item.progress}
-                        sx={{
-                          height: 8,
-                          borderRadius: 4,
-                          backgroundColor: 'grey.200',
-                          '& .MuiLinearProgress-bar': {
-                            backgroundColor: item.progress >= 80 ? 'success.main' : 
-                                           item.progress >= 60 ? 'primary.main' : 'warning.main',
-                            borderRadius: 4,
-                          },
-                        }}
-                      />
-                    </Box>
-                  ))
-                ) : filteredPerformance.length > 0 ? (
-                  // Show filtered items
-                  filteredPerformance.map((item) => (
-                    <Box key={item.id} sx={{ mb: 3 }}>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                        <Box>
-                          <Typography variant="body1" fontWeight={500}>
-                            {item.title}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            {item.description}
+                  // Show all goals
+                  mockGoals.map((goal) => {
+                    const progress = calculateGoalProgress(goal);
+                    return (
+                      <Box key={goal.id} sx={{ mb: 3 }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
+                          <Box sx={{ flex: 1 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                              <Typography variant="body1" fontWeight={500}>
+                                {goal.shortDescription}
+                              </Typography>
+                              <Chip
+                                label={statusConfig[goal.status].label}
+                                color={statusConfig[goal.status].color}
+                                size="small"
+                                variant="outlined"
+                              />
+                            </Box>
+                            <Typography variant="caption" color="text.secondary">
+                              Owner: {goal.owner.firstName} {goal.owner.lastName} • Created: {formatDate(goal.creationDate)}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                              {goal.longDescription.substring(0, 120)}...
+                            </Typography>
+                          </Box>
+                          <Typography variant="body2" fontWeight={500}>
+                            {progress}%
                           </Typography>
                         </Box>
-                        <Typography variant="body2" fontWeight={500}>
-                          {item.progress}%
-                        </Typography>
-                      </Box>
-                      <LinearProgress
-                        variant="determinate"
-                        value={item.progress}
-                        sx={{
-                          height: 8,
-                          borderRadius: 4,
-                          backgroundColor: 'grey.200',
-                          '& .MuiLinearProgress-bar': {
-                            backgroundColor: item.progress >= 80 ? 'success.main' : 
-                                           item.progress >= 60 ? 'primary.main' : 'warning.main',
+                        <LinearProgress
+                          variant="determinate"
+                          value={progress}
+                          sx={{
+                            height: 8,
                             borderRadius: 4,
-                          },
-                        }}
-                      />
-                    </Box>
-                  ))
+                            backgroundColor: 'grey.200',
+                            '& .MuiLinearProgress-bar': {
+                              backgroundColor: progress === 100 ? 'success.main' : 
+                                             progress >= 70 ? 'primary.main' : 'warning.main',
+                              borderRadius: 4,
+                            },
+                          }}
+                        />
+                        {goal.assignedUsers.length > 0 && (
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
+                            <Typography variant="caption" color="text.secondary">
+                              Assigned to:
+                            </Typography>
+                            <AvatarGroup max={3}>
+                              {goal.assignedUsers.map((user) => (
+                                <Avatar
+                                  key={user.id}
+                                  sx={{ width: 24, height: 24, bgcolor: 'secondary.main' }}
+                                >
+                                  {user.firstName[0]}
+                                </Avatar>
+                              ))}
+                            </AvatarGroup>
+                          </Box>
+                        )}
+                      </Box>
+                    );
+                  })
+                ) : filteredGoals.length > 0 ? (
+                  // Show filtered goals
+                  filteredGoals.map((goal) => {
+                    const progress = calculateGoalProgress(goal);
+                    return (
+                      <Box key={goal.id} sx={{ mb: 3 }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
+                          <Box sx={{ flex: 1 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                              <Typography variant="body1" fontWeight={500}>
+                                {goal.shortDescription}
+                              </Typography>
+                              <Chip
+                                label={statusConfig[goal.status].label}
+                                color={statusConfig[goal.status].color}
+                                size="small"
+                                variant="outlined"
+                              />
+                            </Box>
+                            <Typography variant="caption" color="text.secondary">
+                              Owner: {goal.owner.firstName} {goal.owner.lastName} • Created: {formatDate(goal.creationDate)}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                              {goal.longDescription.substring(0, 120)}...
+                            </Typography>
+                          </Box>
+                          <Typography variant="body2" fontWeight={500}>
+                            {progress}%
+                          </Typography>
+                        </Box>
+                        <LinearProgress
+                          variant="determinate"
+                          value={progress}
+                          sx={{
+                            height: 8,
+                            borderRadius: 4,
+                            backgroundColor: 'grey.200',
+                            '& .MuiLinearProgress-bar': {
+                              backgroundColor: progress === 100 ? 'success.main' : 
+                                             progress >= 70 ? 'primary.main' : 'warning.main',
+                              borderRadius: 4,
+                            },
+                          }}
+                        />
+                        {goal.assignedUsers.length > 0 && (
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
+                            <Typography variant="caption" color="text.secondary">
+                              Assigned to:
+                            </Typography>
+                            <AvatarGroup max={3}>
+                              {goal.assignedUsers.map((user) => (
+                                <Avatar
+                                  key={user.id}
+                                  sx={{ width: 24, height: 24, bgcolor: 'secondary.main' }}
+                                >
+                                  {user.firstName[0]}
+                                </Avatar>
+                              ))}
+                            </AvatarGroup>
+                          </Box>
+                        )}
+                      </Box>
+                    );
+                  })
                 ) : (
                   // No results found
                   <Box sx={{ textAlign: 'center', py: 4 }}>
@@ -592,7 +797,7 @@ const HomePage: React.FC = () => {
                       No results found for "{searchQuery}"
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                      Try searching for: Q1 Goals, Skill Development, Project Delivery, etc.
+                      Try searching for: Improve code quality, Launch mobile app, Customer satisfaction, etc.
                     </Typography>
                     <Button 
                       onClick={handleClearSearch} 
@@ -616,7 +821,7 @@ const HomePage: React.FC = () => {
                 Recent Activity
               </Typography>
               <Typography variant="body2" color="text.secondary" gutterBottom>
-                Latest updates from your team
+                Latest goal updates and team activities
               </Typography>
               
               <Box sx={{ mt: 2 }}>
@@ -646,32 +851,53 @@ const HomePage: React.FC = () => {
                 ))}
               </Box>
 
-              {/* Team Avatar Group */}
+              {/* Active Users */}
               <Box sx={{ mt: 3, pt: 2, borderTop: '1px solid', borderColor: 'divider' }}>
                 <Typography variant="body2" color="text.secondary" gutterBottom>
                   Active Team Members
                 </Typography>
                 <AvatarGroup max={6} sx={{ justifyContent: 'flex-start' }}>
-                  {['JD', 'SJ', 'MC', 'EW', 'DL', 'AB', 'KR', 'PT'].map((initials, index) => (
-                    <Avatar
-                      key={index}
-                      sx={{
-                        width: 36,
-                        height: 36,
-                        bgcolor: [
-                          'primary.main',
-                          'secondary.main',
-                          'success.main',
-                          'warning.main',
-                          'error.main',
-                          'info.main',
-                        ][index % 6],
-                      }}
-                    >
-                      {initials}
-                    </Avatar>
-                  ))}
+                  {/* {mockUsers.map((user) => (
+                    <Tooltip key={user.id} title={`${user.firstName} ${user.lastName}`}>
+                      <Avatar
+                        sx={{
+                          width: 36,
+                          height: 36,
+                          bgcolor: 'primary.main',
+                        }}
+                      >
+                        {user.firstName[0]}
+                      </Avatar>
+                    </Tooltip>
+                  ))} */}
                 </AvatarGroup>
+                <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                  {mockUsers.length} team members managing goals
+                </Typography>
+              </Box>
+
+              {/* Goal Status Summary */}
+              <Box sx={{ mt: 3, pt: 2, borderTop: '1px solid', borderColor: 'divider' }}>
+                <Typography variant="body2" color="text.secondary" gutterBottom>
+                  Goal Status Distribution
+                </Typography>
+                <Box sx={{ mt: 1 }}>
+                  {Object.entries(statusConfig).map(([status, config]) => {
+                    const count = mockGoals.filter(g => g.status === status).length;
+                    const percentage = Math.round((count / mockGoals.length) * 100);
+                    return (
+                      <Box key={status} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Box sx={{ color: config.color }}>{config.icon}</Box>
+                          <Typography variant="body2">{config.label}</Typography>
+                        </Box>
+                        <Typography variant="body2" fontWeight={500}>
+                          {count} ({percentage}%)
+                        </Typography>
+                      </Box>
+                    );
+                  })}
+                </Box>
               </Box>
             </CardContent>
           </Card>
@@ -681,13 +907,13 @@ const HomePage: React.FC = () => {
       {/* CTA Section */}
       <Box sx={{ mt: 4, textAlign: 'center' }}>
         <Typography variant="h4" gutterBottom>
-          Ready to accelerate your team's performance?
+          Ready to achieve your organizational goals?
         </Typography>
         <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-          Join 100+ Fortune 500 companies transforming their workforce with our platform.
+          Track progress, assign responsibilities, and drive success with our comprehensive goals management platform.
         </Typography>
         <Button variant="contained" size="large">
-          Schedule a Demo
+          Explore All Goals
         </Button>
       </Box>
     </Box>

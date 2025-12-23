@@ -12,17 +12,17 @@ import {
   Divider,
 } from '@mui/material';
 import {
-  Dashboard as DashboardIcon,
-  Assessment as AssessmentIcon,
+  //Dashboard as DashboardIcon,
+  //Assessment as AssessmentIcon,
   BarChart as BarChartIcon,
-  People as PeopleIcon,
+  //People as PeopleIcon,
   Settings as SettingsIcon,
   ExpandLess,
   ExpandMore,
   Home as HomeIcon,
   TrendingUp as TrendingUpIcon,
   Report as ReportIcon,
-  NotificationsActive as NotificationsActiveIcon,
+  //NotificationsActive as NotificationsActiveIcon,
 } from '@mui/icons-material';
 import { useLocation, useNavigate } from 'react-router-dom';
 
@@ -39,7 +39,7 @@ const SideNavigation: React.FC = () => {
 
   const performanceMenuItems = [
     // { text: 'Performance Reviews', icon: <AssessmentIcon />, path: '/performance/reviews' },
-    { text: 'Goals & OKRs', icon: <TrendingUpIcon />, path: '/performance/goals' },
+    { text: 'Goals', icon: <TrendingUpIcon />, path: '/goals' },
     // { text: 'Feedback', icon: <NotificationsActiveIcon />, path: '/performance/feedback' },
   ];
 

@@ -5,16 +5,16 @@ import {
   IconButton,
   Typography,
   Box,
-  Avatar,
+  //Avatar,
   Badge,
-  InputBase,
+  //InputBase,
 } from '@mui/material';
 import {
   Menu as MenuIcon,
-  Search as SearchIcon,
+  //Search as SearchIcon,
   Notifications as NotificationsIcon,
   Help as HelpIcon,
-  Close as CloseIcon,
+  //Close as CloseIcon,
 } from '@mui/icons-material';
 
 // Define the search context type
@@ -35,19 +35,19 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({ onSearchChange }) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [showClearButton, setShowClearButton] = useState(false);
+  const [, setShowClearButton] = useState(false);
 
   // Handle search input change
-  const handleSearchChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-    const query = event.target.value;
-    setSearchQuery(query);
-    setShowClearButton(query.length > 0);
+  // const handleSearchChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+  //   const query = event.target.value;
+  //   setSearchQuery(query);
+  //   setShowClearButton(query.length > 0);
     
-    // Notify parent component about search change
-    if (onSearchChange) {
-      onSearchChange(query);
-    }
-  }, [onSearchChange]);
+  //   // Notify parent component about search change
+  //   if (onSearchChange) {
+  //     onSearchChange(query);
+  //   }
+  // }, [onSearchChange]);
 
   // Handle clear search
   const handleClearSearch = useCallback(() => {
@@ -61,11 +61,11 @@ const Header: React.FC<HeaderProps> = ({ onSearchChange }) => {
   }, [onSearchChange]);
 
   // Handle search submission
-  const handleSearchSubmit = useCallback((event: React.FormEvent) => {
-    event.preventDefault();
-    // You can add additional search submission logic here
-    console.log('Search submitted:', searchQuery);
-  }, [searchQuery]);
+  // const handleSearchSubmit = useCallback((event: React.FormEvent) => {
+  //   event.preventDefault();
+  //   // You can add additional search submission logic here
+  //   console.log('Search submitted:', searchQuery);
+  // }, [searchQuery]);
 
   const sidgsLogo = (
     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
