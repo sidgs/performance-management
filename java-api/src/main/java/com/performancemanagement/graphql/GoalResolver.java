@@ -1,6 +1,7 @@
 package com.performancemanagement.graphql;
 
 import com.performancemanagement.config.TenantContext;
+import com.performancemanagement.config.UserContext;
 import com.performancemanagement.model.Goal;
 import com.performancemanagement.model.KPI;
 import com.performancemanagement.model.User;
@@ -13,6 +14,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Objects;
 
 @Component
 public class GoalResolver implements GraphQLResolver<Goal> {
@@ -142,5 +144,47 @@ public class GoalResolver implements GraphQLResolver<Goal> {
         }
         // Use repository to get KPIs filtered by tenant
         return kpiRepository.findByGoalIdAndTenantId(goal.getId(), tenantId);
+    }
+    
+    /**
+     * Check if current user can view confidential goal details
+     */
+    private boolean canViewConfidentialGoal(Goal goal) {
+        if (goal.getConfidential() == null || !goal.getConfidential()) {
+            return true; // Not confidential, can view
+        }
+        
+        User currentUser = UserContext.getCurrentUser();
+        if (currentUser == null) {
+            return false;
+        }
+        
+        // Check if user is owner
+        boolean isOwner = goal.getOwner() != null && 
+                         Objects.equals(goal.getOwner().getId(), currentUser.getId());
+        
+        // Check if user is assigned
+        boolean isAssigned = goal.getAssignedUsers().stream()
+                .anyMatch(user -> Objects.equals(user.getId(), currentUser.getId()));
+        
+        return isOwner || isAssigned;
+    }
+    
+    @Transactional(readOnly = true)
+    public String shortDescription(Goal goal) {
+        goal = entityManager.merge(goal);
+        if (!canViewConfidentialGoal(goal)) {
+            return "Confidential Goal";
+        }
+        return goal.getShortDescription();
+    }
+    
+    @Transactional(readOnly = true)
+    public String longDescription(Goal goal) {
+        goal = entityManager.merge(goal);
+        if (!canViewConfidentialGoal(goal)) {
+            return "This goal is confidential and you do not have access to view its details.";
+        }
+        return goal.getLongDescription();
     }
 }

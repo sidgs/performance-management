@@ -9,7 +9,7 @@ type Query {
     goal(id: ID!): Goal
     goals: [Goal]
     goalsByOwner(email: String!): [Goal]
-    rootGoals: [Goal]
+    allGoalsForHR: [Goal]
     
     # Department queries
     department(id: ID!): Department
@@ -67,11 +67,19 @@ type User {
     lastName: String!
     email: String!
     title: String
+    role: UserRole
     department: Department
     manager: User
     teamMembers: [User]
     assignedGoals: [Goal]
     ownedGoals: [Goal]
+}
+
+enum UserRole {
+    EPM_ADMIN
+    HR_ADMIN
+    USER
+    MANAGER_ASSISTANT
 }
 
 type Goal {
@@ -88,6 +96,7 @@ type Goal {
     childGoals: [Goal]
     assignedUsers: [User]
     locked: Boolean!
+    confidential: Boolean!
     kpis: [KPI!]!
 }
 
@@ -114,6 +123,7 @@ enum GoalStatus {
     APPROVED
     PUBLISHED
     ACHIEVED
+    ARCHIVED
     RETIRED
 }
 
@@ -121,7 +131,7 @@ type Department {
     id: ID!
     name: String!
     smallDescription: String!
-    manager: User!
+    manager: User
     managerAssistant: User
     coOwner: User
     creationDate: String!
@@ -162,6 +172,7 @@ input GoalInput {
     targetCompletionDate: String
     status: GoalStatus
     parentGoalId: ID
+    confidential: Boolean
     kpis: [KPIInput!]
 }
 
@@ -182,7 +193,7 @@ input KPIUpdateInput {
 input DepartmentInput {
     name: String!
     smallDescription: String!
-    managerEmail: String!
+    managerEmail: String
     managerAssistantEmail: String
     coOwnerEmail: String
     creationDate: String

@@ -262,7 +262,7 @@ const DepartmentManagementPage: React.FC = () => {
                                     {goal.owner ? `${goal.owner.firstName} ${goal.owner.lastName}` : 'N/A'}
                                   </TableCell>
                                   <TableCell>
-                                    {goal.assignedUsers.map((u) => `${u.firstName} ${u.lastName}`).join(', ')}
+                                    {goal.assignedUsers?.map((u) => `${u.firstName} ${u.lastName}`).join(', ') || 'N/A'}
                                   </TableCell>
                                   <TableCell>
                                     <Button
@@ -306,7 +306,7 @@ const DepartmentManagementPage: React.FC = () => {
                                       sx={{ mr: 1 }}
                                       color={goal.status === 'APPROVED' ? 'success' : 'default'}
                                     />
-                                    Assigned to: {goal.assignedUsers.map((u) => `${u.firstName} ${u.lastName}`).join(', ')}
+                                    Assigned to: {goal.assignedUsers?.map((u) => `${u.firstName} ${u.lastName}`).join(', ') || 'N/A'}
                                   </Box>
                                 }
                               />

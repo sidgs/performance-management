@@ -25,6 +25,25 @@ public interface GoalRepository extends JpaRepository<Goal, Long> {
     @Query("SELECT g FROM Goal g WHERE g.tenant.fqdn = :tenantId")
     List<Goal> findAllByTenantId(@Param("tenantId") String tenantId);
     
+    @Query("SELECT DISTINCT g FROM Goal g " +
+           "LEFT JOIN g.assignedUsers au " +
+           "WHERE g.tenant.fqdn = :tenantId " +
+           "AND (" +
+           "  g.owner.id = :userId " +
+           "  OR au.id = :userId " +
+           "  OR (g.owner.department IS NOT NULL AND g.owner.department.id = :departmentId) " +
+           "  OR (au.department IS NOT NULL AND au.department.id = :departmentId)" +
+           ")")
+    List<Goal> findGoalsForUserAndDepartment(@Param("tenantId") String tenantId, 
+                                              @Param("userId") Long userId, 
+                                              @Param("departmentId") Long departmentId);
+    
+    @Query("SELECT DISTINCT g FROM Goal g " +
+           "LEFT JOIN g.assignedUsers au " +
+           "WHERE g.tenant.fqdn = :tenantId " +
+           "AND (g.owner.id = :userId OR au.id = :userId)")
+    List<Goal> findGoalsForUser(@Param("tenantId") String tenantId, @Param("userId") Long userId);
+    
     // Legacy methods for backward compatibility - will be filtered by service layer
     List<Goal> findByOwnerEmail(String email);
     List<Goal> findByParentGoalId(Long parentGoalId);

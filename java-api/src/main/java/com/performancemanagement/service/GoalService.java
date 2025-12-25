@@ -51,7 +51,7 @@ public class GoalService {
         return tenantId;
     }
 
-    @CacheEvict(value = {"goals", "goal", "goalsByOwner", "rootGoals"}, allEntries = true)
+    @CacheEvict(value = {"goals", "goal", "goalsByOwner"}, allEntries = true)
     public GoalDTO createGoal(GoalDTO goalDTO) {
         String tenantId = requireTenantId(); // Mutations require tenant
         
@@ -67,6 +67,7 @@ public class GoalService {
         goal.setCompletionDate(goalDTO.getCompletionDate());
         goal.setTargetCompletionDate(goalDTO.getTargetCompletionDate());
         goal.setStatus(goalDTO.getStatus() != null ? goalDTO.getStatus() : Goal.GoalStatus.DRAFT);
+        goal.setConfidential(goalDTO.getConfidential() != null ? goalDTO.getConfidential() : false);
 
         if (goalDTO.getParentGoalId() != null) {
             Goal parent = goalRepository.findByIdAndTenantId(goalDTO.getParentGoalId(), tenantId)
@@ -96,7 +97,7 @@ public class GoalService {
         return convertToDTO(savedGoal);
     }
 
-    @CacheEvict(value = {"goals", "goal", "goalsByOwner", "rootGoals"}, allEntries = true)
+    @CacheEvict(value = {"goals", "goal", "goalsByOwner"}, allEntries = true)
     public GoalDTO updateGoal(Long id, GoalDTO goalDTO) {
         String tenantId = requireTenantId(); // Mutations require tenant
         
@@ -105,6 +106,37 @@ public class GoalService {
 
         if (goal.getLocked()) {
             throw new IllegalStateException("Cannot update a locked goal. Only the owner can unlock it.");
+        }
+
+        // Business rule: A goal in PUBLISHED or APPROVED state cannot be moved to DRAFT, ARCHIVED, or RETIRED
+        // if it has child goals which are in PUBLISHED or APPROVED state
+        if (goalDTO.getStatus() != null && goalDTO.getStatus() != goal.getStatus()) {
+            Goal.GoalStatus currentStatus = goal.getStatus();
+            Goal.GoalStatus newStatus = goalDTO.getStatus();
+            
+            // Check if trying to move from PUBLISHED or APPROVED to DRAFT, ARCHIVED, or RETIRED
+            boolean isMovingFromPublishedOrApproved = (currentStatus == Goal.GoalStatus.PUBLISHED || 
+                                                       currentStatus == Goal.GoalStatus.APPROVED);
+            boolean isMovingToRestrictedStatus = (newStatus == Goal.GoalStatus.DRAFT || 
+                                                 newStatus == Goal.GoalStatus.ARCHIVED ||
+                                                 newStatus == Goal.GoalStatus.RETIRED);
+            
+            if (isMovingFromPublishedOrApproved && isMovingToRestrictedStatus) {
+                // Check if goal has child goals in PUBLISHED or APPROVED state
+                if (goal.getChildGoals() != null && !goal.getChildGoals().isEmpty()) {
+                    boolean hasPublishedOrApprovedChild = goal.getChildGoals().stream()
+                            .anyMatch(child -> child.getStatus() == Goal.GoalStatus.PUBLISHED || 
+                                            child.getStatus() == Goal.GoalStatus.APPROVED);
+                    
+                    if (hasPublishedOrApprovedChild) {
+                        throw new IllegalStateException(
+                            "Cannot change goal status from " + currentStatus + " to " + newStatus + 
+                            ". This goal has child goals that are in PUBLISHED or APPROVED state. " +
+                            "Please change the status of child goals first."
+                        );
+                    }
+                }
+            }
         }
 
         goal.setShortDescription(goalDTO.getShortDescription());
@@ -117,6 +149,10 @@ public class GoalService {
         
         if (goalDTO.getStatus() != null) {
             goal.setStatus(goalDTO.getStatus());
+        }
+        
+        if (goalDTO.getConfidential() != null) {
+            goal.setConfidential(goalDTO.getConfidential());
         }
 
         if (goalDTO.getParentGoalId() != null) {
@@ -147,8 +183,84 @@ public class GoalService {
         if (tenantId == null) {
             return List.of(); // Tenant validation disabled - return empty list
         }
-        return goalRepository.findAllByTenantId(tenantId).stream()
+        
+        // Get current logged-in user
+        User currentUser = UserContext.getCurrentUser();
+        if (currentUser == null) {
+            // If no user is logged in, return empty list
+            return List.of();
+        }
+        
+        // Filter goals to only include:
+        // 1. Goals owned by the current user
+        // 2. Goals assigned to the current user
+        // 3. Goals owned by users in the current user's department
+        // 4. Goals assigned to users in the current user's department
+        Department userDepartment = currentUser.getDepartment();
+        List<Goal> goals;
+        if (userDepartment != null) {
+            goals = goalRepository.findGoalsForUserAndDepartment(
+                tenantId, 
+                currentUser.getId(), 
+                userDepartment.getId()
+            );
+        } else {
+            // User has no department, only return goals owned by or assigned to the user
+            goals = goalRepository.findGoalsForUser(tenantId, currentUser.getId());
+        }
+        
+        // Filter confidential goals: only show if user is owner or assigned
+        return goals.stream()
+                .filter(goal -> {
+                    if (goal.getConfidential() != null && goal.getConfidential()) {
+                        // Confidential goal: only show if user is owner or assigned
+                        boolean isOwner = goal.getOwner().getId().equals(currentUser.getId());
+                        boolean isAssigned = goal.getAssignedUsers().stream()
+                                .anyMatch(user -> user.getId().equals(currentUser.getId()));
+                        return isOwner || isAssigned;
+                    }
+                    // Non-confidential goal: show based on existing department filtering
+                    return true;
+                })
                 .map(this::convertToDTO)
+                .collect(Collectors.toList());
+    }
+    
+    public List<GoalDTO> getAllGoalsForHR() {
+        String tenantId = getCurrentTenantId();
+        if (tenantId == null) {
+            return List.of();
+        }
+        
+        // Get current logged-in user
+        User currentUser = UserContext.getCurrentUser();
+        if (currentUser == null) {
+            return List.of();
+        }
+        
+        // Get all goals for the tenant
+        List<Goal> allGoals = goalRepository.findAllByTenantId(tenantId);
+        
+        // For HR admins, return all goals but mask confidential details for goals they can't access
+        return allGoals.stream()
+                .map(goal -> {
+                    GoalDTO dto = convertToDTO(goal);
+                    
+                    // If goal is confidential and user is not owner or assigned, mask the details
+                    if (goal.getConfidential() != null && goal.getConfidential()) {
+                        boolean isOwner = goal.getOwner().getId().equals(currentUser.getId());
+                        boolean isAssigned = goal.getAssignedUsers().stream()
+                                .anyMatch(user -> user.getId().equals(currentUser.getId()));
+                        
+                        if (!isOwner && !isAssigned) {
+                            // Mask confidential details
+                            dto.setShortDescription("Confidential Goal");
+                            dto.setLongDescription("This goal is confidential and you do not have access to view its details.");
+                        }
+                    }
+                    
+                    return dto;
+                })
                 .collect(Collectors.toList());
     }
 
@@ -158,17 +270,6 @@ public class GoalService {
             return List.of(); // Tenant validation disabled - return empty list
         }
         return goalRepository.findByOwnerEmailAndTenantId(email, tenantId).stream()
-                .map(this::convertToDTO)
-                .collect(Collectors.toList());
-    }
-
-    @Cacheable(value = "rootGoals")
-    public List<GoalDTO> getRootGoals() {
-        String tenantId = getCurrentTenantId();
-        if (tenantId == null) {
-            return List.of(); // Tenant validation disabled - return empty list
-        }
-        return goalRepository.findByParentGoalIsNullAndTenantId(tenantId).stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
     }
@@ -192,10 +293,28 @@ public class GoalService {
         User user = userRepository.findByEmailAndTenantId(userEmail, tenantId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
+        // Validate that the user being assigned is either the goal owner or a member of the goal owner's department
+        User goalOwner = goal.getOwner();
+        boolean isOwner = Objects.equals(user.getId(), goalOwner.getId());
+        boolean isInOwnerDepartment = false;
+        
+        if (!isOwner && goalOwner.getDepartment() != null) {
+            Department ownerDepartment = goalOwner.getDepartment();
+            if (user.getDepartment() != null) {
+                isInOwnerDepartment = Objects.equals(user.getDepartment().getId(), ownerDepartment.getId());
+            }
+        }
+        
+        if (!isOwner && !isInOwnerDepartment) {
+            throw new IllegalStateException(
+                "Goals can only be assigned to the goal owner or members of the goal owner's department. " +
+                "The user you are trying to assign is not the goal owner and is not in the same department."
+            );
+        }
+
         // Check if user belongs to a department and if approval is needed
         Department userDepartment = user.getDepartment();
         if (userDepartment != null) {
-            User goalOwner = goal.getOwner();
             User departmentManager = userDepartment.getManager();
             User managerAssistant = userDepartment.getManagerAssistant();
             
@@ -261,7 +380,7 @@ public class GoalService {
         return convertToDTO(savedGoal);
     }
 
-    @CacheEvict(value = {"goals", "goal", "goalsByOwner", "rootGoals"}, allEntries = true)
+    @CacheEvict(value = {"goals", "goal", "goalsByOwner"}, allEntries = true)
     public void deleteGoal(Long id) {
         String tenantId = requireTenantId(); // Mutations require tenant
         Goal goal = goalRepository.findByIdAndTenantId(id, tenantId)
@@ -301,11 +420,12 @@ public class GoalService {
         }
         
         dto.setLocked(goal.getLocked() != null ? goal.getLocked() : false);
+        dto.setConfidential(goal.getConfidential() != null ? goal.getConfidential() : false);
         
         return dto;
     }
     
-    @CacheEvict(value = {"goals", "goal", "goalsByOwner", "rootGoals"}, allEntries = true)
+    @CacheEvict(value = {"goals", "goal", "goalsByOwner"}, allEntries = true)
     public GoalDTO updateTargetCompletionDate(Long goalId, LocalDate targetCompletionDate) {
         String tenantId = requireTenantId();
         
@@ -317,7 +437,7 @@ public class GoalService {
         return convertToDTO(savedGoal);
     }
 
-    @CacheEvict(value = {"goals", "goal", "goalsByOwner", "rootGoals"}, allEntries = true)
+    @CacheEvict(value = {"goals", "goal", "goalsByOwner"}, allEntries = true)
     public GoalDTO approveGoal(Long goalId) {
         String tenantId = requireTenantId();
         

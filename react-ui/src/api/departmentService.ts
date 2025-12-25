@@ -43,7 +43,31 @@ async function apiRequest<T>(
 }
 
 export async function getAllDepartments(): Promise<Department[]> {
-  return apiRequest<Department[]>('/departments');
+  const departments = await apiRequest<any[]>('/departments');
+  
+  // Map parentDepartmentId to parentDepartment object
+  return departments.map(dept => {
+    const parentDept = dept.parentDepartmentId 
+      ? departments.find(d => d.id === dept.parentDepartmentId)
+      : null;
+    
+    return {
+      ...dept,
+      id: String(dept.id),
+      parentDepartment: parentDept ? {
+        id: String(parentDept.id),
+        name: parentDept.name,
+        smallDescription: parentDept.smallDescription,
+        manager: parentDept.manager,
+        creationDate: parentDept.creationDate,
+        status: parentDept.status,
+        childDepartments: [],
+        users: [],
+      } : undefined,
+      childDepartments: dept.childDepartments || [],
+      users: dept.users || [],
+    } as Department;
+  });
 }
 
 export async function getDepartmentById(id: string): Promise<Department> {
@@ -57,7 +81,7 @@ export async function getRootDepartments(): Promise<Department[]> {
 export async function createDepartment(department: {
   name: string;
   smallDescription: string;
-  managerEmail: string;
+  managerEmail?: string;
   managerAssistantEmail?: string;
   coOwnerEmail?: string;
   creationDate?: string;
@@ -135,5 +159,9 @@ export async function moveUserToDepartment(
 
 export async function getDepartmentMembers(departmentId: string): Promise<User[]> {
   return apiRequest<User[]>(`/departments/${departmentId}/members`);
+}
+
+export async function getEligibleManagersForDepartment(departmentId: string): Promise<User[]> {
+  return apiRequest<User[]>(`/departments/${departmentId}/eligible-managers`);
 }
 

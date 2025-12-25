@@ -16,17 +16,18 @@ import {
   //Assessment as AssessmentIcon,
   BarChart as BarChartIcon,
   People as PeopleIcon,
-  Settings as SettingsIcon,
   ExpandLess,
   ExpandMore,
   Home as HomeIcon,
   TrendingUp as TrendingUpIcon,
   Report as ReportIcon,
   CloudUpload as CloudUploadIcon,
+  AutoAwesome as AutoAwesomeIcon,
+  Search as SearchIcon,
   //NotificationsActive as NotificationsActiveIcon,
 } from '@mui/icons-material';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { isEpmAdmin, isHrAdmin } from '../../api/authService';
+import { isHrAdmin } from '../../api/authService';
 import { isWidgetMode } from '../../utils/widgetMode';
 import BusinessIcon from '@mui/icons-material/Business';
 import GroupsIcon from '@mui/icons-material/Groups';
@@ -37,7 +38,7 @@ interface SideNavigationProps {
 }
 
 const SideNavigation: React.FC<SideNavigationProps> = ({ open, onClose }) => {
-  const [openPerformance, setOpenPerformance] = useState(false);
+  const [openPerformance, setOpenPerformance] = useState(true);
   const location = useLocation();
   const navigate = useNavigate();
   const drawerWidth = 260;
@@ -55,29 +56,19 @@ const SideNavigation: React.FC<SideNavigationProps> = ({ open, onClose }) => {
   const performanceMenuItems = [
     // { text: 'Performance Reviews', icon: <AssessmentIcon />, path: '/performance/reviews' },
     { text: 'Goals', icon: <TrendingUpIcon />, path: '/goals' },
-    { text: 'My Team', icon: <PeopleIcon />, path: '/team' },
-    // { text: 'Feedback', icon: <NotificationsActiveIcon />, path: '/performance/feedback' },
-  ];
-
-  const otherMenuItems = [
+    { text: 'Goal AI Assistant', icon: <AutoAwesomeIcon />, path: '/goal-ai' },
     { text: 'Reports', icon: <ReportIcon />, path: '/reports' },
-    // { text: 'Team Management', icon: <PeopleIcon />, path: '/team' },
-    { text: 'Settings', icon: <SettingsIcon />, path: '/settings' },
+    { text: 'My Departments', icon: <GroupsIcon />, path: '/departments' },
+    // { text: 'Feedback', icon: <NotificationsActiveIcon />, path: '/performance/feedback' },
   ];
 
   // Add HR Admin menu for HR_ADMIN users
   const hrAdminMenuItems = isHrAdmin()
-    ? [{ text: 'HR Admin', icon: <BusinessIcon />, path: '/hr-admin' }]
-    : [];
-
-  // Add My Departments menu for department managers
-  const departmentManagerMenuItems = [
-    { text: 'My Departments', icon: <GroupsIcon />, path: '/departments' }
-  ];
-
-  // Add Bulk Upload only for EPM_ADMIN users
-  const adminMenuItems = isEpmAdmin()
-    ? [{ text: 'Bulk Upload', icon: <CloudUploadIcon />, path: '/bulk-upload' }]
+    ? [
+        { text: 'HR Admin', icon: <BusinessIcon />, path: '/hr-admin' },
+        { text: 'Goal Search', icon: <SearchIcon />, path: '/hr-admin/goal-search' },
+        { text: 'Bulk Upload', icon: <CloudUploadIcon />, path: '/bulk-upload' },
+      ]
     : [];
 
   return (
@@ -273,149 +264,6 @@ const SideNavigation: React.FC<SideNavigationProps> = ({ open, onClose }) => {
           </>
         )}
 
-        {departmentManagerMenuItems.length > 0 && (
-          <>
-            <Typography
-              variant="overline"
-              sx={{
-                color: 'text.secondary',
-                fontWeight: 600,
-                letterSpacing: 1,
-                mb: 1,
-                display: 'block',
-              }}
-            >
-              Department Management
-            </Typography>
-            <List>
-              {departmentManagerMenuItems.map((item) => (
-                <ListItem key={item.text} disablePadding>
-                  <ListItemButton
-                    selected={location.pathname === item.path}
-                    onClick={() => {
-                      navigate(item.path);
-                      if (widgetMode && drawerVariant === 'temporary' && onClose) {
-                        onClose();
-                      }
-                    }}
-                    sx={{
-                      borderRadius: 2,
-                      mb: 0.5,
-                      '&.Mui-selected': {
-                        backgroundColor: 'primary.main',
-                        color: 'white',
-                        '&:hover': {
-                          backgroundColor: 'primary.dark',
-                        },
-                      },
-                    }}
-                  >
-                    <ListItemIcon
-                      sx={{
-                        color: location.pathname === item.path ? 'white' : 'inherit',
-                      }}
-                    >
-                      {item.icon}
-                    </ListItemIcon>
-                    <ListItemText primary={item.text} />
-                  </ListItemButton>
-                </ListItem>
-              ))}
-            </List>
-            <Divider sx={{ my: 2 }} />
-          </>
-        )}
-
-        {adminMenuItems.length > 0 && (
-          <>
-            <Typography
-              variant="overline"
-              sx={{
-                color: 'text.secondary',
-                fontWeight: 600,
-                letterSpacing: 1,
-                mb: 1,
-                display: 'block',
-              }}
-            >
-              Administration
-            </Typography>
-            <List>
-              {adminMenuItems.map((item) => (
-                <ListItem key={item.text} disablePadding>
-                  <ListItemButton
-                    selected={location.pathname === item.path}
-                    onClick={() => {
-                      navigate(item.path);
-                      // Close drawer in widget mode after navigation
-                      if (widgetMode && drawerVariant === 'temporary' && onClose) {
-                        onClose();
-                      }
-                    }}
-                    sx={{
-                      borderRadius: 2,
-                      mb: 0.5,
-                      '&.Mui-selected': {
-                        backgroundColor: 'primary.main',
-                        color: 'white',
-                        '&:hover': {
-                          backgroundColor: 'primary.dark',
-                        },
-                      },
-                    }}
-                  >
-                    <ListItemIcon
-                      sx={{
-                        color: location.pathname === item.path ? 'white' : 'inherit',
-                      }}
-                    >
-                      {item.icon}
-                    </ListItemIcon>
-                    <ListItemText primary={item.text} />
-                  </ListItemButton>
-                </ListItem>
-              ))}
-            </List>
-            <Divider sx={{ my: 2 }} />
-          </>
-        )}
-
-        <List>
-          {otherMenuItems.map((item) => (
-            <ListItem key={item.text} disablePadding>
-              <ListItemButton
-                selected={location.pathname === item.path}
-                onClick={() => {
-                  navigate(item.path);
-                  // Close drawer in widget mode after navigation
-                  if (widgetMode && drawerVariant === 'temporary' && onClose) {
-                    onClose();
-                  }
-                }}
-                sx={{
-                  borderRadius: 2,
-                  mb: 0.5,
-                  '&.Mui-selected': {
-                    backgroundColor: 'primary.main',
-                    color: 'white',
-                    '&:hover': {
-                      backgroundColor: 'primary.dark',
-                    },
-                  },
-                }}
-              >
-                <ListItemIcon
-                  sx={{
-                    color: location.pathname === item.path ? 'white' : 'inherit',
-                  }}
-                >
-                  {item.icon}
-                </ListItemIcon>
-                <ListItemText primary={item.text} />
-              </ListItemButton>
-            </ListItem>
-          ))}
-        </List>
       </Box>
     </Drawer>
   );

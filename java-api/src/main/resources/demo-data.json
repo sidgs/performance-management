@@ -10,7 +10,8 @@
       "lastName": "Chen",
       "email": "sarah.chen@techconsult.demo",
       "title": "Chief Executive Officer",
-      "role": "EPM_ADMIN"
+      "role": "EPM_ADMIN",
+      "departmentName": null
     },
     {
       "firstName": "Michael",
@@ -18,7 +19,7 @@
       "email": "michael.rodriguez@techconsult.demo",
       "title": "VP of Engineering",
       "role": "USER",
-      "managerEmail": "sarah.chen@techconsult.demo"
+      "departmentName": "Engineering"
     },
     {
       "firstName": "Emily",
@@ -26,7 +27,7 @@
       "email": "emily.watson@techconsult.demo",
       "title": "VP of Consulting",
       "role": "USER",
-      "managerEmail": "sarah.chen@techconsult.demo"
+      "departmentName": "Consulting"
     },
     {
       "firstName": "David",
@@ -34,7 +35,7 @@
       "email": "david.kim@techconsult.demo",
       "title": "VP of Sales",
       "role": "USER",
-      "managerEmail": "sarah.chen@techconsult.demo"
+      "departmentName": "Sales"
     },
     {
       "firstName": "Jennifer",
@@ -42,7 +43,7 @@
       "email": "jennifer.martinez@techconsult.demo",
       "title": "VP of Human Resources",
       "role": "HR_ADMIN",
-      "managerEmail": "sarah.chen@techconsult.demo"
+      "departmentName": "HR"
     },
     {
       "firstName": "Robert",
@@ -50,7 +51,7 @@
       "email": "robert.taylor@techconsult.demo",
       "title": "VP of Operations",
       "role": "USER",
-      "managerEmail": "sarah.chen@techconsult.demo"
+      "departmentName": "Operations"
     },
     {
       "firstName": "Amanda",
@@ -58,7 +59,7 @@
       "email": "amanda.johnson@techconsult.demo",
       "title": "Engineering Manager",
       "role": "USER",
-      "managerEmail": "michael.rodriguez@techconsult.demo"
+      "departmentName": "Engineering"
     },
     {
       "firstName": "James",
@@ -66,7 +67,7 @@
       "email": "james.brown@techconsult.demo",
       "title": "Senior Software Engineer",
       "role": "USER",
-      "managerEmail": "amanda.johnson@techconsult.demo"
+      "departmentName": "Engineering"
     },
     {
       "firstName": "Lisa",
@@ -74,7 +75,7 @@
       "email": "lisa.anderson@techconsult.demo",
       "title": "Software Engineer",
       "role": "USER",
-      "managerEmail": "amanda.johnson@techconsult.demo"
+      "departmentName": "Engineering"
     },
     {
       "firstName": "Christopher",
@@ -82,7 +83,7 @@
       "email": "christopher.lee@techconsult.demo",
       "title": "Consulting Manager",
       "role": "USER",
-      "managerEmail": "emily.watson@techconsult.demo"
+      "departmentName": "Consulting"
     },
     {
       "firstName": "Jessica",
@@ -90,7 +91,7 @@
       "email": "jessica.white@techconsult.demo",
       "title": "Senior Consultant",
       "role": "USER",
-      "managerEmail": "christopher.lee@techconsult.demo"
+      "departmentName": "Consulting"
     },
     {
       "firstName": "Daniel",
@@ -98,7 +99,7 @@
       "email": "daniel.harris@techconsult.demo",
       "title": "Consultant",
       "role": "USER",
-      "managerEmail": "christopher.lee@techconsult.demo"
+      "departmentName": "Consulting"
     },
     {
       "firstName": "Michelle",
@@ -106,7 +107,7 @@
       "email": "michelle.clark@techconsult.demo",
       "title": "Sales Manager",
       "role": "USER",
-      "managerEmail": "david.kim@techconsult.demo"
+      "departmentName": "Sales"
     },
     {
       "firstName": "Matthew",
@@ -114,7 +115,7 @@
       "email": "matthew.lewis@techconsult.demo",
       "title": "Account Executive",
       "role": "USER",
-      "managerEmail": "michelle.clark@techconsult.demo"
+      "departmentName": "Sales"
     },
     {
       "firstName": "Nicole",
@@ -122,7 +123,7 @@
       "email": "nicole.walker@techconsult.demo",
       "title": "Business Development Representative",
       "role": "USER",
-      "managerEmail": "michelle.clark@techconsult.demo"
+      "departmentName": "Sales"
     },
     {
       "firstName": "Kevin",
@@ -130,7 +131,7 @@
       "email": "kevin.hall@techconsult.demo",
       "title": "HR Manager",
       "role": "HR_ADMIN",
-      "managerEmail": "jennifer.martinez@techconsult.demo"
+      "departmentName": "HR"
     },
     {
       "firstName": "Stephanie",
@@ -138,7 +139,7 @@
       "email": "stephanie.allen@techconsult.demo",
       "title": "HR Coordinator",
       "role": "MANAGER_ASSISTANT",
-      "managerEmail": "kevin.hall@techconsult.demo"
+      "departmentName": "HR"
     },
     {
       "firstName": "Ryan",
@@ -146,7 +147,7 @@
       "email": "ryan.young@techconsult.demo",
       "title": "Operations Manager",
       "role": "USER",
-      "managerEmail": "robert.taylor@techconsult.demo"
+      "departmentName": "Operations"
     },
     {
       "firstName": "Ashley",
@@ -154,7 +155,7 @@
       "email": "ashley.king@techconsult.demo",
       "title": "Operations Coordinator",
       "role": "USER",
-      "managerEmail": "ryan.young@techconsult.demo"
+      "departmentName": "Operations"
     }
   ],
   "departments": [
@@ -206,10 +207,7 @@
       "creationDate": "2024-01-01",
       "targetCompletionDate": "2024-03-31",
       "status": "PUBLISHED",
-      "assignedUserEmails": [
-        "david.kim@techconsult.demo",
-        "emily.watson@techconsult.demo"
-      ],
+      "assignedUserEmails": [],
       "kpis": [
         {
           "description": "Close 5 new enterprise deals worth $500K+ each",
@@ -360,6 +358,71 @@
           "status": "IN_PROGRESS",
           "completionPercentage": 50,
           "dueDate": "2024-05-31"
+        }
+      ]
+    },
+    {
+      "shortDescription": "Increase sales pipeline by 40%",
+      "longDescription": "Build a robust sales pipeline through strategic prospecting, relationship building, and effective lead qualification. Focus on high-value opportunities and improve conversion rates.",
+      "ownerEmail": "david.kim@techconsult.demo",
+      "creationDate": "2024-01-12",
+      "targetCompletionDate": "2024-06-30",
+      "status": "PUBLISHED",
+      "assignedUserEmails": [
+        "michelle.clark@techconsult.demo",
+        "matthew.lewis@techconsult.demo",
+        "nicole.walker@techconsult.demo"
+      ],
+      "kpis": [
+        {
+          "description": "Generate 50 new qualified leads per month",
+          "status": "IN_PROGRESS",
+          "completionPercentage": 45,
+          "dueDate": "2024-06-30"
+        },
+        {
+          "description": "Achieve 25% lead-to-opportunity conversion rate",
+          "status": "IN_PROGRESS",
+          "completionPercentage": 60,
+          "dueDate": "2024-06-30"
+        },
+        {
+          "description": "Close 15 new deals in Q2",
+          "status": "NOT_STARTED",
+          "completionPercentage": 0,
+          "dueDate": "2024-06-30"
+        }
+      ]
+    },
+    {
+      "shortDescription": "Implement code quality standards",
+      "longDescription": "Establish and enforce coding standards, implement automated testing, and improve code review processes to ensure high-quality software delivery.",
+      "ownerEmail": "amanda.johnson@techconsult.demo",
+      "creationDate": "2024-01-15",
+      "targetCompletionDate": "2024-04-30",
+      "status": "DRAFT",
+      "assignedUserEmails": [
+        "james.brown@techconsult.demo",
+        "lisa.anderson@techconsult.demo"
+      ],
+      "kpis": [
+        {
+          "description": "Achieve 80% code coverage with unit tests",
+          "status": "NOT_STARTED",
+          "completionPercentage": 0,
+          "dueDate": "2024-04-30"
+        },
+        {
+          "description": "Implement automated code review process",
+          "status": "NOT_STARTED",
+          "completionPercentage": 0,
+          "dueDate": "2024-03-31"
+        },
+        {
+          "description": "Reduce bug rate by 30%",
+          "status": "NOT_STARTED",
+          "completionPercentage": 0,
+          "dueDate": "2024-04-30"
         }
       ]
     }

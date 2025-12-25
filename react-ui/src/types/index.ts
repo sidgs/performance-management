@@ -1,4 +1,4 @@
-export type GoalStatus = 'DRAFT' | 'PENDING_APPROVAL' | 'APPROVED' | 'PUBLISHED' | 'ACHIEVED' | 'RETIRED';
+export type GoalStatus = 'DRAFT' | 'PENDING_APPROVAL' | 'APPROVED' | 'PUBLISHED' | 'ACHIEVED' | 'ARCHIVED' | 'RETIRED';
 export type DepartmentStatus = 'ACTIVE' | 'DEPRECATED' | 'RETIRED';
 
 export interface User {
@@ -26,6 +26,7 @@ export interface Goal {
   childGoals: Goal[];
   assignedUsers: User[];
   locked: boolean;
+  confidential: boolean;
   kpis: KPI[];
 }
 
@@ -50,7 +51,7 @@ export interface Department {
   id: string;
   name: string;
   smallDescription: string;
-  manager: User;
+  manager?: User;
   managerAssistant?: User;
   coOwner?: User;
   creationDate: string;

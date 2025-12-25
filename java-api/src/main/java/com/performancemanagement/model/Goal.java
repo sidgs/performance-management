@@ -3,6 +3,7 @@ package com.performancemanagement.model;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
@@ -14,6 +15,7 @@ import java.util.Set;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@EqualsAndHashCode(exclude = {"owner", "parentGoal", "childGoals", "assignedUsers", "kpis"})
 public class Goal {
 
     @Id
@@ -68,6 +70,9 @@ public class Goal {
     @Column(name = "target_completion_date")
     private LocalDate targetCompletionDate;
 
+    @Column(name = "confidential", nullable = false)
+    private Boolean confidential = false;
+
     @OneToMany(mappedBy = "goal", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<KPI> kpis = new HashSet<>();
 
@@ -77,6 +82,7 @@ public class Goal {
         APPROVED,
         PUBLISHED,
         ACHIEVED,
+        ARCHIVED,
         RETIRED
     }
 }

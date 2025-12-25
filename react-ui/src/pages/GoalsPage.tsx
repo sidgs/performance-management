@@ -29,8 +29,6 @@ import {
   DialogActions,
   Alert,
   Stack,
-  Tabs,
-  Tab,
   Avatar,
   Tooltip,
   Checkbox,
@@ -62,7 +60,7 @@ import {
 import { graphqlRequest } from '../api/graphqlClient';
 import { getCurrentUserEmail } from '../api/authService';
 import { approveGoal } from '../api/goalService';
-import type { Goal, GoalStatus, User } from '../types';
+import type { Goal, GoalStatus, User, KPI, KPIStatus } from '../types';
 import LockIcon from '@mui/icons-material/Lock';
 import LockOpenIcon from '@mui/icons-material/LockOpen';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
@@ -75,7 +73,6 @@ const GoalsPage: React.FC = () => {
   const [filterStatus, setFilterStatus] = useState<GoalStatus | 'all'>('all');
   const [filterOwner, setFilterOwner] = useState<string>('all');
   const [expandedGoals, setExpandedGoals] = useState<Set<string>>(new Set());
-  const [selectedTab, setSelectedTab] = useState(0);
   const [openDialog, setOpenDialog] = useState(false);
   const [selectedGoal, setSelectedGoal] = useState<Goal | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'hierarchy'>('list');
@@ -90,6 +87,7 @@ const GoalsPage: React.FC = () => {
   const [editOwnerEmail, setEditOwnerEmail] = useState('');
   const [editStatus, setEditStatus] = useState<GoalStatus>('DRAFT');
   const [editCompletionDate, setEditCompletionDate] = useState('');
+  const [editConfidential, setEditConfidential] = useState(false);
   const [editLoading, setEditLoading] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
   
@@ -109,6 +107,7 @@ const GoalsPage: React.FC = () => {
   const [newGoalLongDesc, setNewGoalLongDesc] = useState('');
   const [newGoalOwnerEmail, setNewGoalOwnerEmail] = useState('');
   const [newGoalStatus, setNewGoalStatus] = useState<GoalStatus>('DRAFT');
+  const [newGoalConfidential, setNewGoalConfidential] = useState(false);
   const [newGoalAssignedUsers, setNewGoalAssignedUsers] = useState<string[]>([]);
   const [createGoalLoading, setCreateGoalLoading] = useState(false);
   const [createGoalError, setCreateGoalError] = useState<string | null>(null);
@@ -124,6 +123,20 @@ const GoalsPage: React.FC = () => {
   
   // Approval state
   const [approvingGoalId, setApprovingGoalId] = useState<string | null>(null);
+
+  // KPI management state
+  const [kpiDialogOpen, setKpiDialogOpen] = useState(false);
+  const [editingKpi, setEditingKpi] = useState<KPI | null>(null);
+  const [kpiGoalId, setKpiGoalId] = useState<string | null>(null);
+  const [kpiDescription, setKpiDescription] = useState('');
+  const [kpiStatus, setKpiStatus] = useState<KPIStatus>('NOT_STARTED');
+  const [kpiCompletionPercentage, setKpiCompletionPercentage] = useState<number>(0);
+  const [kpiDueDate, setKpiDueDate] = useState('');
+  const [kpiLoading, setKpiLoading] = useState(false);
+  const [kpiError, setKpiError] = useState<string | null>(null);
+  const [deleteKpiDialogOpen, setDeleteKpiDialogOpen] = useState(false);
+  const [deletingKpiId, setDeletingKpiId] = useState<string | null>(null);
+  const [deleteKpiLoading, setDeleteKpiLoading] = useState(false);
 
   // Load goals and users from GraphQL API
   useEffect(() => {
@@ -142,6 +155,7 @@ const GoalsPage: React.FC = () => {
                 completionDate
                 status
                 locked
+                confidential
                 owner {
                   id
                   firstName
@@ -172,6 +186,13 @@ const GoalsPage: React.FC = () => {
                   email
                   title
                 }
+                kpis {
+                  id
+                  description
+                  status
+                  completionPercentage
+                  dueDate
+                }
               }
               users {
                 id
@@ -200,6 +221,17 @@ const GoalsPage: React.FC = () => {
                     lastName
                     email
                     title
+                    department {
+                      id
+                      name
+                      users {
+                        id
+                        firstName
+                        lastName
+                        email
+                        title
+                      }
+                    }
                     teamMembers {
                       id
                       firstName
@@ -257,6 +289,15 @@ const GoalsPage: React.FC = () => {
     RETIRED: { label: 'Retired', color: 'warning' as const, icon: <PendingIcon /> },
   };
 
+  // KPI Status configuration
+  const kpiStatusConfig = {
+    NOT_STARTED: { label: 'Not Started', color: 'default' as const },
+    IN_PROGRESS: { label: 'In Progress', color: 'primary' as const },
+    ACHIEVED: { label: 'Achieved', color: 'success' as const },
+    NOT_ACHIEVED: { label: 'Not Achieved', color: 'error' as const },
+    COMPLETED: { label: 'Completed', color: 'success' as const },
+  };
+
   // Toggle goal expansion
   const toggleGoalExpansion = (goalId: string) => {
     const newExpanded = new Set(expandedGoals);
@@ -292,6 +333,7 @@ const GoalsPage: React.FC = () => {
     setEditOwnerEmail(goal.owner.email);
     setEditStatus(goal.status);
     setEditCompletionDate(goal.completionDate || '');
+    setEditConfidential(goal.confidential || false);
     setEditError(null);
     setEditDialogOpen(true);
   };
@@ -349,6 +391,13 @@ const GoalsPage: React.FC = () => {
                 email
                 title
               }
+              kpis {
+                id
+                description
+                status
+                completionPercentage
+                dueDate
+              }
             }
           }
         `,
@@ -361,6 +410,7 @@ const GoalsPage: React.FC = () => {
             status: editStatus,
             completionDate: editCompletionDate || null,
             parentGoalId: editingGoal.parentGoal?.id || null,
+            confidential: editConfidential,
           },
         }
       );
@@ -392,6 +442,7 @@ const GoalsPage: React.FC = () => {
                 completionDate
                 status
                 locked
+                confidential
                 owner {
                   id
                   firstName
@@ -406,6 +457,13 @@ const GoalsPage: React.FC = () => {
                 lastName
                 email
                 title
+              }
+              kpis {
+                id
+                description
+                status
+                completionPercentage
+                dueDate
               }
             }
           }
@@ -465,6 +523,13 @@ const GoalsPage: React.FC = () => {
                 lastName
                 email
                 title
+              }
+              kpis {
+                id
+                description
+                status
+                completionPercentage
+                dueDate
               }
             }
           }
@@ -533,6 +598,7 @@ const GoalsPage: React.FC = () => {
     setNewGoalLongDesc('');
     setNewGoalOwnerEmail(defaultOwnerEmail);
     setNewGoalStatus('DRAFT');
+    setNewGoalConfidential(false);
     setNewGoalAssignedUsers([]);
     setCreateGoalError(null);
     setCreateDialogOpen(true);
@@ -584,18 +650,26 @@ const GoalsPage: React.FC = () => {
               email
               title
             }
+            kpis {
+              id
+              description
+              status
+              completionPercentage
+              dueDate
+            }
           }
         }
       `;
 
       const variables = {
-        input: {
-          shortDescription: newGoalShortDesc.trim(),
-          longDescription: newGoalLongDesc.trim(),
-          ownerEmail: newGoalOwnerEmail.trim(),
-          status: newGoalStatus,
-          parentGoalId: selectedParentGoal && selectedParentGoal !== 'root' ? selectedParentGoal : null,
-        },
+          input: {
+            shortDescription: newGoalShortDesc.trim(),
+            longDescription: newGoalLongDesc.trim(),
+            ownerEmail: newGoalOwnerEmail.trim(),
+            status: newGoalStatus,
+            parentGoalId: selectedParentGoal && selectedParentGoal !== 'root' ? selectedParentGoal : null,
+            confidential: newGoalConfidential,
+          },
       };
 
       const createResult = await graphqlRequest<{ createGoal: Goal }>(mutation, variables);
@@ -647,6 +721,7 @@ const GoalsPage: React.FC = () => {
                 completionDate
                 status
                 locked
+                confidential
                 owner {
                   id
                   firstName
@@ -661,6 +736,13 @@ const GoalsPage: React.FC = () => {
                 lastName
                 email
                 title
+              }
+              kpis {
+                id
+                description
+                status
+                completionPercentage
+                dueDate
               }
             }
             users {
@@ -694,14 +776,37 @@ const GoalsPage: React.FC = () => {
       assignable.push(currentUser);
     }
     
-    // Add team members
-    teamMembers.forEach(member => {
-      if (!assignable.find(u => u.email === member.email)) {
-        assignable.push(member);
-      }
-    });
+    // Add department members
+    if (currentUser?.department?.users) {
+      currentUser.department.users.forEach(member => {
+        if (!assignable.find(u => u.email === member.email)) {
+          assignable.push(member);
+        }
+      });
+    }
     
     return assignable;
+  };
+
+  // Get filterable owners (current user + department members)
+  const getFilterableOwners = (): User[] => {
+    const filterable: User[] = [];
+    
+    // Add current user
+    if (currentUser) {
+      filterable.push(currentUser);
+    }
+    
+    // Add department members
+    if (currentUser?.department?.users) {
+      currentUser.department.users.forEach(user => {
+        if (!filterable.find(u => u.id === user.id)) {
+          filterable.push(user);
+        }
+      });
+    }
+    
+    return filterable;
   };
 
   // Format date
@@ -724,6 +829,238 @@ const GoalsPage: React.FC = () => {
     
     const completedChildren = goal.childGoals.filter(child => child.status === 'ACHIEVED').length;
     return Math.round((completedChildren / goal.childGoals.length) * 100);
+  };
+
+  // Handle create/update KPI
+  const handleSaveKPI = async () => {
+    if (!kpiGoalId || !kpiDescription.trim() || !kpiDueDate) {
+      setKpiError('Description and due date are required.');
+      return;
+    }
+
+    setKpiLoading(true);
+    setKpiError(null);
+
+    try {
+      if (editingKpi) {
+        // Update existing KPI
+        await graphqlRequest<{ updateKPI: KPI }>(
+          `
+            mutation UpdateKPI($id: ID!, $input: KPIUpdateInput!) {
+              updateKPI(id: $id, input: $input) {
+                id
+                description
+                status
+                completionPercentage
+                dueDate
+              }
+            }
+          `,
+          {
+            id: editingKpi.id,
+            input: {
+              description: kpiDescription.trim(),
+              status: kpiStatus,
+              completionPercentage: kpiCompletionPercentage,
+              dueDate: kpiDueDate,
+            },
+          }
+        );
+      } else {
+        // Create new KPI
+        await graphqlRequest<{ createKPI: KPI }>(
+          `
+            mutation CreateKPI($goalId: ID!, $input: KPIInput!) {
+              createKPI(goalId: $goalId, input: $input) {
+                id
+                description
+                status
+                completionPercentage
+                dueDate
+              }
+            }
+          `,
+          {
+            goalId: kpiGoalId,
+            input: {
+              description: kpiDescription.trim(),
+              status: kpiStatus,
+              completionPercentage: kpiCompletionPercentage,
+              dueDate: kpiDueDate,
+            },
+          }
+        );
+      }
+
+      // Refresh goals to get updated KPIs
+      const refreshData = await graphqlRequest<{ goals: Goal[] }>(
+        `
+          query GetGoals {
+            goals {
+              id
+              shortDescription
+              longDescription
+              creationDate
+              completionDate
+              status
+              locked
+              owner {
+                id
+                firstName
+                lastName
+                email
+                title
+              }
+              childGoals {
+                id
+                shortDescription
+                longDescription
+                creationDate
+                completionDate
+                status
+                locked
+                confidential
+                owner {
+                  id
+                  firstName
+                  lastName
+                  email
+                  title
+                }
+              }
+              assignedUsers {
+                id
+                firstName
+                lastName
+                email
+                title
+              }
+              kpis {
+                id
+                description
+                status
+                completionPercentage
+                dueDate
+              }
+            }
+          }
+        `
+      );
+
+      setGoals(refreshData.goals ?? []);
+      
+      // Update selectedGoal if it's the one we just modified
+      if (selectedGoal && selectedGoal.id === kpiGoalId) {
+        const updatedGoal = refreshData.goals?.find(g => g.id === kpiGoalId);
+        if (updatedGoal) {
+          setSelectedGoal(updatedGoal);
+        }
+      }
+
+      setKpiDialogOpen(false);
+      setEditingKpi(null);
+      setKpiDescription('');
+      setKpiStatus('NOT_STARTED');
+      setKpiCompletionPercentage(0);
+      setKpiDueDate('');
+    } catch (err) {
+      setKpiError(err instanceof Error ? err.message : 'Failed to save KPI');
+    } finally {
+      setKpiLoading(false);
+    }
+  };
+
+  // Handle delete KPI
+  const handleConfirmDeleteKPI = async () => {
+    if (!deletingKpiId) return;
+
+    setDeleteKpiLoading(true);
+    try {
+      const result = await graphqlRequest<{ deleteKPI: boolean }>(
+        `
+          mutation DeleteKPI($id: ID!) {
+            deleteKPI(id: $id)
+          }
+        `,
+        { id: deletingKpiId }
+      );
+
+      if (result.deleteKPI) {
+        // Refresh goals to get updated KPIs
+        const refreshData = await graphqlRequest<{ goals: Goal[] }>(
+          `
+            query GetGoals {
+              goals {
+                id
+                shortDescription
+                longDescription
+                creationDate
+                completionDate
+                status
+                locked
+                confidential
+                owner {
+                  id
+                  firstName
+                  lastName
+                  email
+                  title
+                }
+                childGoals {
+                  id
+                  shortDescription
+                  longDescription
+                  creationDate
+                  completionDate
+                  status
+                  locked
+                  owner {
+                    id
+                    firstName
+                    lastName
+                    email
+                    title
+                  }
+                }
+                assignedUsers {
+                  id
+                  firstName
+                  lastName
+                  email
+                  title
+                }
+                kpis {
+                  id
+                  description
+                  status
+                  completionPercentage
+                  dueDate
+                }
+              }
+            }
+          `
+        );
+
+        setGoals(refreshData.goals ?? []);
+        
+        // Update selectedGoal if it's the one we just modified
+        if (selectedGoal) {
+          const updatedGoal = refreshData.goals?.find(g => g.id === selectedGoal.id);
+          if (updatedGoal) {
+            setSelectedGoal(updatedGoal);
+          }
+        }
+
+        setDeleteKpiDialogOpen(false);
+        setDeletingKpiId(null);
+      } else {
+        setKpiError('Failed to delete KPI');
+      }
+    } catch (err) {
+      setKpiError(err instanceof Error ? err.message : 'Failed to delete KPI');
+    } finally {
+      setDeleteKpiLoading(false);
+    }
   };
 
   // Custom Avatar Group Component
@@ -836,7 +1173,7 @@ const GoalsPage: React.FC = () => {
                     {goal.locked ? <LockIcon /> : <LockOpenIcon />}
                   </IconButton>
                 </Tooltip>
-                <Tooltip title="Assign to Team Member">
+                <Tooltip title="Assign to Department Member">
                   <IconButton
                     size="small"
                     onClick={() => {
@@ -882,8 +1219,20 @@ const GoalsPage: React.FC = () => {
             {/* Progress and assigned users */}
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Box sx={{ flex: 1, mr: 2 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                  <Typography variant="body2">Progress</Typography>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Typography variant="body2">Progress</Typography>
+                    {goal.kpis && goal.kpis.length > 0 && (
+                      <Tooltip title={`${goal.kpis.length} KPI${goal.kpis.length !== 1 ? 's' : ''}`}>
+                        <Chip
+                          label={`${goal.kpis.length} KPI${goal.kpis.length !== 1 ? 's' : ''}`}
+                          size="small"
+                          variant="outlined"
+                          sx={{ height: 20, fontSize: '0.65rem' }}
+                        />
+                      </Tooltip>
+                    )}
+                  </Box>
                   <Typography variant="body2" fontWeight={500}>{progress}%</Typography>
                 </Box>
                 <LinearProgress
@@ -927,6 +1276,7 @@ const GoalsPage: React.FC = () => {
             <TableCell>Goal Description</TableCell>
             <TableCell>Owner</TableCell>
             <TableCell>Status</TableCell>
+            <TableCell>KPIs</TableCell>
             <TableCell>Created</TableCell>
             <TableCell>Assigned To</TableCell>
             <TableCell>Child Goals</TableCell>
@@ -969,6 +1319,24 @@ const GoalsPage: React.FC = () => {
                     icon={statusConfig[goal.status].icon}
                     size="small"
                   />
+                </TableCell>
+                <TableCell>
+                  {goal.kpis && goal.kpis.length > 0 ? (
+                    <Tooltip title={`${goal.kpis.length} KPI${goal.kpis.length !== 1 ? 's' : ''} - Click to view details`}>
+                      <Chip
+                        label={`${goal.kpis.length} KPI${goal.kpis.length !== 1 ? 's' : ''}`}
+                        size="small"
+                        variant="outlined"
+                        color="primary"
+                        onClick={() => handleViewDetails(goal)}
+                        sx={{ cursor: 'pointer' }}
+                      />
+                    </Tooltip>
+                  ) : (
+                    <Typography variant="body2" color="text.secondary">
+                      None
+                    </Typography>
+                  )}
                 </TableCell>
                 <TableCell>
                   {formatDate(goal.creationDate)}
@@ -1017,7 +1385,7 @@ const GoalsPage: React.FC = () => {
                         {goal.locked ? <LockIcon /> : <LockOpenIcon />}
                       </IconButton>
                     </Tooltip>
-                    <Tooltip title="Assign to Team Member">
+                    <Tooltip title="Assign to Department Member">
                       <IconButton
                         size="small"
                         onClick={() => {
@@ -1060,7 +1428,7 @@ const GoalsPage: React.FC = () => {
               {/* Child goals in table */}
               {goal.childGoals.length > 0 && expandedGoals.has(goal.id) && (
                 <TableRow>
-                  <TableCell colSpan={7} sx={{ backgroundColor: 'grey.50', py: 2 }}>
+                  <TableCell colSpan={8} sx={{ backgroundColor: 'grey.50', py: 2 }}>
                     <Typography variant="subtitle2" gutterBottom>
                       Child Goals
                     </Typography>
@@ -1234,7 +1602,7 @@ const GoalsPage: React.FC = () => {
                   onChange={(e) => setFilterOwner(e.target.value)}
                 >
                   <MenuItem value="all">All Owners</MenuItem>
-                  {users.map((user) => (
+                  {getFilterableOwners().map((user) => (
                     <MenuItem key={user.id} value={user.id}>
                       {user.firstName} {user.lastName}
                     </MenuItem>
@@ -1264,16 +1632,6 @@ const GoalsPage: React.FC = () => {
               </Button>
             </Grid>
           </Grid>
-
-          {/* View Tabs */}
-          <Box sx={{ mt: 3 }}>
-            <Tabs value={selectedTab} onChange={(_, newValue) => setSelectedTab(newValue)}>
-              <Tab label="All Goals" />
-              <Tab label="My Goals" />
-              <Tab label="Team Goals" />
-              <Tab label="Root Goals" />
-            </Tabs>
-          </Box>
         </CardContent>
       </Card>
 
@@ -1463,20 +1821,132 @@ const GoalsPage: React.FC = () => {
                   </Box>
                 )}
 
-                {/* API Integration Note */}
-                <Alert severity="info">
-                  <Typography variant="body2">
-                    <strong>API Integration Ready:</strong> This component is built to match your GraphQL schema.
-                    Replace mock data with API calls to `goals`, `goalsByOwner`, and `rootGoals` queries.
-                  </Typography>
-                </Alert>
+                {/* KPIs */}
+                <Box>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                    <Typography variant="subtitle2" color="text.secondary">
+                      Key Performance Indicators ({selectedGoal.kpis?.length || 0})
+                    </Typography>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      startIcon={<AddIcon />}
+                      onClick={() => {
+                        setEditingKpi(null);
+                        setKpiGoalId(selectedGoal.id);
+                        setKpiDescription('');
+                        setKpiStatus('NOT_STARTED');
+                        setKpiCompletionPercentage(0);
+                        setKpiDueDate('');
+                        setKpiError(null);
+                        setKpiDialogOpen(true);
+                      }}
+                    >
+                      Add KPI
+                    </Button>
+                  </Box>
+                  {selectedGoal.kpis && selectedGoal.kpis.length > 0 ? (
+                    <TableContainer component={Paper} variant="outlined">
+                      <Table size="small">
+                        <TableHead>
+                          <TableRow>
+                            <TableCell>Description</TableCell>
+                            <TableCell>Status</TableCell>
+                            <TableCell>Progress</TableCell>
+                            <TableCell>Due Date</TableCell>
+                            <TableCell align="right">Actions</TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {selectedGoal.kpis.map((kpi) => (
+                            <TableRow key={kpi.id}>
+                              <TableCell>{kpi.description}</TableCell>
+                              <TableCell>
+                                <Chip
+                                  label={kpiStatusConfig[kpi.status as KPIStatus]?.label || kpi.status}
+                                  color={kpiStatusConfig[kpi.status as KPIStatus]?.color || 'default'}
+                                  size="small"
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 120 }}>
+                                  <LinearProgress
+                                    variant="determinate"
+                                    value={kpi.completionPercentage}
+                                    sx={{
+                                      flex: 1,
+                                      height: 6,
+                                      borderRadius: 3,
+                                      backgroundColor: 'grey.200',
+                                      '& .MuiLinearProgress-bar': {
+                                        backgroundColor: kpi.completionPercentage === 100 ? 'success.main' : 
+                                                       kpi.completionPercentage >= 70 ? 'primary.main' : 'warning.main',
+                                      },
+                                    }}
+                                  />
+                                  <Typography variant="body2" sx={{ minWidth: 35 }}>
+                                    {kpi.completionPercentage}%
+                                  </Typography>
+                                </Box>
+                              </TableCell>
+                              <TableCell>{formatDate(kpi.dueDate)}</TableCell>
+                              <TableCell align="right">
+                                <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'flex-end' }}>
+                                  <Tooltip title="Edit KPI">
+                                    <IconButton
+                                      size="small"
+                                      onClick={() => {
+                                        setEditingKpi(kpi);
+                                        setKpiGoalId(selectedGoal.id);
+                                        setKpiDescription(kpi.description);
+                                        setKpiStatus(kpi.status as KPIStatus);
+                                        setKpiCompletionPercentage(kpi.completionPercentage);
+                                        setKpiDueDate(kpi.dueDate.split('T')[0]);
+                                        setKpiError(null);
+                                        setKpiDialogOpen(true);
+                                      }}
+                                      color="primary"
+                                    >
+                                      <EditIcon fontSize="small" />
+                                    </IconButton>
+                                  </Tooltip>
+                                  <Tooltip title="Delete KPI">
+                                    <IconButton
+                                      size="small"
+                                      onClick={() => {
+                                        setDeletingKpiId(kpi.id);
+                                        setDeleteKpiDialogOpen(true);
+                                      }}
+                                      color="error"
+                                    >
+                                      <DeleteIcon fontSize="small" />
+                                    </IconButton>
+                                  </Tooltip>
+                                </Box>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                  ) : (
+                    <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic', py: 2 }}>
+                      No KPIs defined for this goal
+                    </Typography>
+                  )}
+                </Box>
+
               </Stack>
             </DialogContent>
             <DialogActions>
               <Button onClick={() => setOpenDialog(false)}>Close</Button>
               <Button 
                 variant="contained" 
-                onClick={() => alert('Edit functionality will be implemented with API integration')}
+                onClick={() => {
+                  setOpenDialog(false);
+                  handleEditGoal(selectedGoal);
+                }}
+                startIcon={<EditIcon />}
               >
                 Edit Goal
               </Button>
@@ -1532,7 +2002,7 @@ const GoalsPage: React.FC = () => {
                 required
                 error={!editOwnerEmail}
               >
-                {users.map((user) => (
+                {getFilterableOwners().map((user) => (
                   <MenuItem key={user.id} value={user.email}>
                     {user.firstName} {user.lastName} ({user.email})
                   </MenuItem>
@@ -1540,19 +2010,72 @@ const GoalsPage: React.FC = () => {
               </Select>
             </FormControl>
 
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={editConfidential}
+                  onChange={(e) => setEditConfidential(e.target.checked)}
+                />
+              }
+              label="Confidential Goal"
+            />
+
             <FormControl fullWidth>
               <InputLabel>Status</InputLabel>
               <Select
-                value={editStatus}
+                value={editStatus || 'DRAFT'}
                 label="Status"
                 onChange={(e) => setEditStatus(e.target.value as GoalStatus)}
               >
-                <MenuItem value="DRAFT">Draft</MenuItem>
-                <MenuItem value="APPROVED">Approved</MenuItem>
-                <MenuItem value="PUBLISHED">Published</MenuItem>
-                <MenuItem value="ACHIEVED">Achieved</MenuItem>
-                <MenuItem value="RETIRED">Retired</MenuItem>
+                {(() => {
+                  // Check if goal has child goals in PUBLISHED or APPROVED state
+                  const hasPublishedOrApprovedChildren = editingGoal && 
+                    (editingGoal.status === 'PUBLISHED' || editingGoal.status === 'APPROVED') &&
+                    editingGoal.childGoals && 
+                    editingGoal.childGoals.some(child => 
+                      child.status === 'PUBLISHED' || child.status === 'APPROVED'
+                    );
+                  
+                  return (
+                    <>
+                      <MenuItem 
+                        value="DRAFT"
+                        disabled={!!hasPublishedOrApprovedChildren}
+                      >
+                        Draft
+                        {hasPublishedOrApprovedChildren && ' (Cannot change: has published/approved child goals)'}
+                      </MenuItem>
+                      <MenuItem value="PENDING_APPROVAL">Pending Approval</MenuItem>
+                      <MenuItem value="APPROVED">Approved</MenuItem>
+                      <MenuItem value="PUBLISHED">Published</MenuItem>
+                      <MenuItem value="ACHIEVED">Achieved</MenuItem>
+                      <MenuItem 
+                        value="ARCHIVED"
+                        disabled={!!hasPublishedOrApprovedChildren}
+                      >
+                        Archived
+                        {hasPublishedOrApprovedChildren && ' (Cannot change: has published/approved child goals)'}
+                      </MenuItem>
+                      <MenuItem 
+                        value="RETIRED"
+                        disabled={!!hasPublishedOrApprovedChildren}
+                      >
+                        Retired
+                        {hasPublishedOrApprovedChildren && ' (Cannot change: has published/approved child goals)'}
+                      </MenuItem>
+                    </>
+                  );
+                })()}
               </Select>
+              {editingGoal && (editingGoal.status === 'PUBLISHED' || editingGoal.status === 'APPROVED') && 
+               editingGoal.childGoals && editingGoal.childGoals.some(child => 
+                 child.status === 'PUBLISHED' || child.status === 'APPROVED'
+               ) && (
+                <Typography variant="caption" color="warning.main" sx={{ mt: 0.5, display: 'block' }}>
+                  Note: This goal has child goals in PUBLISHED or APPROVED state. 
+                  You cannot change this goal's status to DRAFT or RETIRED until the child goals' statuses are changed first.
+                </Typography>
+              )}
             </FormControl>
 
             <TextField
@@ -1691,24 +2214,34 @@ const GoalsPage: React.FC = () => {
                 required
                 error={!newGoalOwnerEmail}
               >
-                {users.length === 0 ? (
+                {getFilterableOwners().length === 0 ? (
                   <MenuItem disabled value="">
                     No users available
                   </MenuItem>
                 ) : (
-                  users.map((user) => (
+                  getFilterableOwners().map((user) => (
                     <MenuItem key={user.id} value={user.email}>
                       {user.firstName} {user.lastName} ({user.email})
                     </MenuItem>
                   ))
                 )}
               </Select>
-              {users.length === 0 && (
+              {getFilterableOwners().length === 0 && (
                 <Typography variant="caption" color="error" sx={{ mt: 0.5 }}>
                   No users found. Please create a user first.
                 </Typography>
               )}
             </FormControl>
+
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={newGoalConfidential}
+                  onChange={(e) => setNewGoalConfidential(e.target.checked)}
+                />
+              }
+              label="Confidential Goal"
+            />
 
             <FormControl fullWidth>
               <InputLabel>Status</InputLabel>
@@ -1721,6 +2254,7 @@ const GoalsPage: React.FC = () => {
                 <MenuItem value="APPROVED">Approved</MenuItem>
                 <MenuItem value="PUBLISHED">Published</MenuItem>
                 <MenuItem value="ACHIEVED">Achieved</MenuItem>
+                <MenuItem value="ARCHIVED">Archived</MenuItem>
                 <MenuItem value="RETIRED">Retired</MenuItem>
               </Select>
             </FormControl>
@@ -1728,11 +2262,11 @@ const GoalsPage: React.FC = () => {
             {/* Assign to Team Members */}
             {getAssignableUsers().length > 0 && (
               <FormControl fullWidth>
-                <InputLabel>Assign to Team Members (optional)</InputLabel>
+                <InputLabel>Assign to Department Members (optional)</InputLabel>
                 <Select
                   multiple
                   value={newGoalAssignedUsers}
-                  label="Assign to Team Members (optional)"
+                  label="Assign to Department Members (optional)"
                   onChange={(e) => setNewGoalAssignedUsers(e.target.value as string[])}
                   renderValue={(selected) => {
                     const selectedUsers = getAssignableUsers().filter(u => 
@@ -1749,7 +2283,7 @@ const GoalsPage: React.FC = () => {
                   ))}
                 </Select>
                 <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
-                  You can only assign goals to yourself or members of your team.
+                  You can only assign goals to yourself or members of your department.
                 </Typography>
               </FormControl>
             )}
@@ -1821,10 +2355,10 @@ const GoalsPage: React.FC = () => {
                 )}
 
                 <FormControl fullWidth>
-                  <InputLabel>Assign to Team Member</InputLabel>
+                  <InputLabel>Assign to Department Member</InputLabel>
                   <Select
                     value=""
-                    label="Assign to Team Member"
+                    label="Assign to Department Member"
                     onChange={(e) => {
                       const userEmail = e.target.value as string;
                       if (userEmail && !assigningGoal.assignedUsers.some(u => u.email === userEmail)) {
@@ -1841,7 +2375,7 @@ const GoalsPage: React.FC = () => {
                       ))}
                   </Select>
                   <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
-                    You can only assign goals to yourself or members of your team.
+                    You can only assign goals to yourself or members of your department.
                   </Typography>
                 </FormControl>
               </>
@@ -1858,6 +2392,136 @@ const GoalsPage: React.FC = () => {
             disabled={assignLoading}
           >
             Close
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Create/Edit KPI Dialog */}
+      <Dialog
+        open={kpiDialogOpen}
+        onClose={() => {
+          setKpiDialogOpen(false);
+          setEditingKpi(null);
+          setKpiError(null);
+        }}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>
+          {editingKpi ? 'Edit KPI' : 'Create KPI'}
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, pt: 2 }}>
+            {kpiError && (
+              <Alert severity="error">{kpiError}</Alert>
+            )}
+
+            <TextField
+              fullWidth
+              label="Description"
+              value={kpiDescription}
+              onChange={(e) => setKpiDescription(e.target.value)}
+              required
+              multiline
+              rows={3}
+              placeholder="Enter KPI description..."
+            />
+
+            <FormControl fullWidth>
+              <InputLabel>Status</InputLabel>
+              <Select
+                value={kpiStatus}
+                label="Status"
+                onChange={(e) => setKpiStatus(e.target.value as KPIStatus)}
+              >
+                <MenuItem value="NOT_STARTED">Not Started</MenuItem>
+                <MenuItem value="IN_PROGRESS">In Progress</MenuItem>
+                <MenuItem value="ACHIEVED">Achieved</MenuItem>
+                <MenuItem value="NOT_ACHIEVED">Not Achieved</MenuItem>
+                <MenuItem value="COMPLETED">Completed</MenuItem>
+              </Select>
+            </FormControl>
+
+            <TextField
+              fullWidth
+              label="Completion Percentage"
+              type="number"
+              value={kpiCompletionPercentage}
+              onChange={(e) => {
+                const value = parseInt(e.target.value) || 0;
+                setKpiCompletionPercentage(Math.min(100, Math.max(0, value)));
+              }}
+              inputProps={{ min: 0, max: 100 }}
+              helperText="Enter a value between 0 and 100"
+            />
+
+            <TextField
+              fullWidth
+              label="Due Date"
+              type="date"
+              value={kpiDueDate}
+              onChange={(e) => setKpiDueDate(e.target.value)}
+              required
+              InputLabelProps={{
+                shrink: true,
+              }}
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => {
+              setKpiDialogOpen(false);
+              setEditingKpi(null);
+              setKpiError(null);
+            }}
+            disabled={kpiLoading}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSaveKPI}
+            variant="contained"
+            disabled={kpiLoading}
+            startIcon={editingKpi ? <EditIcon /> : <AddIcon />}
+          >
+            {kpiLoading ? 'Saving...' : (editingKpi ? 'Update KPI' : 'Create KPI')}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete KPI Confirmation Dialog */}
+      <Dialog
+        open={deleteKpiDialogOpen}
+        onClose={() => {
+          setDeleteKpiDialogOpen(false);
+          setDeletingKpiId(null);
+        }}
+      >
+        <DialogTitle>Delete KPI</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to delete this KPI? This action cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => {
+              setDeleteKpiDialogOpen(false);
+              setDeletingKpiId(null);
+            }}
+            disabled={deleteKpiLoading}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleConfirmDeleteKPI}
+            variant="contained"
+            color="error"
+            disabled={deleteKpiLoading}
+            startIcon={<DeleteIcon />}
+          >
+            {deleteKpiLoading ? 'Deleting...' : 'Delete'}
           </Button>
         </DialogActions>
       </Dialog>

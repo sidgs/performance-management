@@ -7,11 +7,14 @@ import HomePage from './pages/HomePage';
 import Layout from './components/layout/Layout';
 import WidgetLayout from './components/layout/WidgetLayout';
 import GoalsPage from './pages/GoalsPage';
+import GoalAIAgentPage from './pages/GoalAIAgentPage';
+import AlertsPage from './pages/AlertsPage';
+import ReportsPage from './pages/ReportsPage';
 import LoginPage from './pages/LoginPage';
 import NotAuthenticatedPage from './pages/NotAuthenticatedPage';
 import BulkUploadPage from './pages/BulkUploadPage';
-import TeamManagementPage from './pages/TeamManagementPage';
 import HRAdminPage from './pages/HRAdminPage';
+import HRGoalSearchPage from './pages/HRGoalSearchPage';
 import DepartmentManagementPage from './pages/DepartmentManagementPage';
 import { isAuthenticated, isDevMode, setupParentTokenListener, initializeWidgetAuth } from './api/authService';
 import { isWidgetMode } from './utils/widgetMode';
@@ -93,13 +96,15 @@ function App() {
             <LayoutComponent>
               <Routes>
                 <Route path="/" element={<HomePage />} />
+                <Route path="/alerts" element={<AlertsPage />} />
                 <Route path="/dashboard" element={<div>Dashboard Page</div>} />
                 <Route path="/performance" element={<div>Performance Page</div>} />
-                <Route path="/reports" element={<div>Reports Page</div>} />
+                <Route path="/reports" element={<ReportsPage />} />
                 <Route path="/goals" element={<GoalsPage />} />
-                <Route path="/team" element={<TeamManagementPage />} />
+                <Route path="/goal-ai" element={<GoalAIAgentPage />} />
                 <Route path="/bulk-upload" element={<BulkUploadPage />} />
                 <Route path="/hr-admin" element={<HRAdminPage />} />
+                <Route path="/hr-admin/goal-search" element={<HRGoalSearchPage />} />
                 <Route path="/departments" element={<DepartmentManagementPage />} />
               </Routes>
             </LayoutComponent>

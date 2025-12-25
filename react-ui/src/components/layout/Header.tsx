@@ -81,25 +81,21 @@ const Header: React.FC<HeaderProps> = ({ onSearchChange }) => {
   //   console.log('Search submitted:', searchQuery);
   // }, [searchQuery]);
 
-  const sidgsLogo = (
+  const appTitle = (
     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
       <Typography
         variant="h6"
         sx={{
           fontWeight: 700,
           color: 'primary.main',
-          display: { xs: 'none', md: 'block' },
+          cursor: 'pointer',
+        }}
+        onClick={() => {
+          // Clear search when title is clicked (optional)
+          handleClearSearch();
         }}
       >
-        <img 
-          src="https://sidgs.com/wp-content/uploads/2023/02/SIDGS-Dark.svg" 
-          alt="SIDGS Logo" 
-          style={{ height: 40, cursor: 'pointer' }}
-          onClick={() => {
-            // Clear search when logo is clicked (optional)
-            handleClearSearch();
-          }}
-        />
+        Pulse
       </Typography>
     </Box>
   );
@@ -125,7 +121,7 @@ const Header: React.FC<HeaderProps> = ({ onSearchChange }) => {
             >
               <MenuIcon />
             </IconButton>
-            {sidgsLogo}
+            {appTitle}
             
             {/* Search Bar */}
             {/* <Box

@@ -15,7 +15,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -44,14 +46,18 @@ public class DepartmentService {
     public DepartmentDTO createDepartment(DepartmentDTO departmentDTO) {
         String tenantId = requireTenantId(); // Mutations require tenant
         
-        User manager = userRepository.findByEmailAndTenantId(departmentDTO.getManagerEmail(), tenantId)
-                .orElseThrow(() -> new IllegalArgumentException("Manager not found"));
-
         Department department = new Department();
         department.setTenant(TenantContext.getCurrentTenant());
         department.setName(departmentDTO.getName());
         department.setSmallDescription(departmentDTO.getSmallDescription());
-        department.setManager(manager);
+        
+        // Manager is optional
+        if (departmentDTO.getManagerEmail() != null && !departmentDTO.getManagerEmail().trim().isEmpty()) {
+            User manager = userRepository.findByEmailAndTenantId(departmentDTO.getManagerEmail(), tenantId)
+                    .orElseThrow(() -> new IllegalArgumentException("Manager not found"));
+            department.setManager(manager);
+        }
+        
         department.setCreationDate(departmentDTO.getCreationDate() != null ? departmentDTO.getCreationDate() : LocalDate.now());
         department.setStatus(departmentDTO.getStatus() != null ? departmentDTO.getStatus() : Department.DepartmentStatus.ACTIVE);
 
@@ -70,6 +76,16 @@ public class DepartmentService {
         if (departmentDTO.getParentDepartmentId() != null) {
             Department parent = departmentRepository.findByIdAndTenantId(departmentDTO.getParentDepartmentId(), tenantId)
                     .orElseThrow(() -> new IllegalArgumentException("Parent department not found"));
+            
+            // Validate that parent is not the department itself or a descendant
+            // This prevents circular parent relationships
+            if (hasCircularParentRelationship(department, parent)) {
+                throw new IllegalStateException(
+                    "Cannot set parent department. This would create a circular parent relationship. " +
+                    "A department cannot be its own parent or ancestor."
+                );
+            }
+            
             department.setParentDepartment(parent);
         }
 
@@ -109,6 +125,16 @@ public class DepartmentService {
         if (departmentDTO.getParentDepartmentId() != null) {
             Department parent = departmentRepository.findByIdAndTenantId(departmentDTO.getParentDepartmentId(), tenantId)
                     .orElseThrow(() -> new IllegalArgumentException("Parent department not found"));
+            
+            // Validate that parent is not the department itself or a descendant
+            // This prevents circular parent relationships
+            if (hasCircularParentRelationship(department, parent)) {
+                throw new IllegalStateException(
+                    "Cannot set parent department. This would create a circular parent relationship. " +
+                    "A department cannot be its own parent or ancestor."
+                );
+            }
+            
             department.setParentDepartment(parent);
         } else {
             department.setParentDepartment(null);
@@ -220,6 +246,29 @@ public class DepartmentService {
                 .collect(Collectors.toList());
     }
 
+    public List<UserDTO> getEligibleManagersForDepartment(Long departmentId) {
+        String tenantId = requireTenantId();
+        Department department = departmentRepository.findByIdAndTenantId(departmentId, tenantId)
+                .orElseThrow(() -> new IllegalArgumentException("Department not found"));
+        
+        // Get all users in the tenant
+        List<User> allUsers = userRepository.findAllByTenantId(tenantId);
+        
+        // Filter to only include users that would not create circular relationships
+        return allUsers.stream()
+                .filter(user -> !hasCircularManagementRelationship(user, department))
+                .map(user -> {
+                    UserDTO dto = new UserDTO();
+                    dto.setId(user.getId());
+                    dto.setFirstName(user.getFirstName());
+                    dto.setLastName(user.getLastName());
+                    dto.setEmail(user.getEmail());
+                    dto.setTitle(user.getTitle());
+                    return dto;
+                })
+                .collect(Collectors.toList());
+    }
+
     @CacheEvict(value = {"departments", "department", "rootDepartments"}, allEntries = true)
     public DepartmentDTO assignManagerAssistant(Long departmentId, String assistantEmail) {
         String tenantId = requireTenantId();
@@ -243,9 +292,102 @@ public class DepartmentService {
         User manager = userRepository.findByEmailAndTenantId(managerEmail, tenantId)
                 .orElseThrow(() -> new IllegalArgumentException("Manager not found"));
         
+        // Check for circular management relationship
+        if (hasCircularManagementRelationship(manager, department)) {
+            throw new IllegalStateException(
+                "Cannot set " + manager.getFirstName() + " " + manager.getLastName() + 
+                " as manager. This would create a circular management relationship. " +
+                "One or more department members manage this user (directly or indirectly)."
+            );
+        }
+        
         department.setManager(manager);
         Department savedDepartment = departmentRepository.save(department);
         return convertToDTO(savedDepartment);
+    }
+    
+    /**
+     * Recursively collects all users in a department and its sub-departments.
+     */
+    private Set<User> getAllUsersInDepartment(Department department) {
+        Set<User> allUsers = new HashSet<>();
+        
+        // Add direct members of the department
+        if (department.getUsers() != null) {
+            allUsers.addAll(department.getUsers());
+        }
+        
+        // Recursively add users from child departments
+        if (department.getChildDepartments() != null) {
+            for (Department childDepartment : department.getChildDepartments()) {
+                allUsers.addAll(getAllUsersInDepartment(childDepartment));
+            }
+        }
+        
+        return allUsers;
+    }
+    
+    /**
+     * Checks if setting a user as manager of a department would create a circular management relationship.
+     * A circular relationship occurs if any user in the department (including sub-departments) 
+     * manages the potential manager (directly or indirectly).
+     */
+    private boolean hasCircularManagementRelationship(User potentialManager, Department department) {
+        Set<User> allDepartmentUsers = getAllUsersInDepartment(department);
+        
+        // For each user in the department, check if they manage the potential manager
+        for (User departmentUser : allDepartmentUsers) {
+            User currentUser = departmentUser;
+            Set<User> visited = new HashSet<>(); // Prevent infinite loops in case of circular manager chains
+            
+            // Traverse manager chain upward
+            while (currentUser != null && currentUser.getManager() != null) {
+                if (visited.contains(currentUser)) {
+                    break; // Circular manager chain detected, but not our concern here
+                }
+                visited.add(currentUser);
+                
+                // Check if this user's manager is the potential manager
+                if (currentUser.getManager().getId().equals(potentialManager.getId())) {
+                    return true; // Circular relationship detected: potentialManager manages departmentUser
+                }
+                currentUser = currentUser.getManager();
+            }
+        }
+        
+        return false; // No circular relationship
+    }
+    
+    /**
+     * Checks if setting a parent department would create a circular parent relationship.
+     * A circular relationship occurs if the parent department is the department itself or 
+     * if the parent department is a descendant of the department.
+     */
+    private boolean hasCircularParentRelationship(Department department, Department potentialParent) {
+        // Cannot be its own parent
+        if (department.getId() != null && department.getId().equals(potentialParent.getId())) {
+            return true;
+        }
+        
+        // Check if potential parent is a descendant of the department
+        // Traverse up the parent chain from potentialParent to see if we reach department
+        Department current = potentialParent;
+        Set<Long> visited = new HashSet<>(); // Prevent infinite loops
+        
+        while (current != null && current.getParentDepartment() != null) {
+            if (visited.contains(current.getId())) {
+                break; // Circular parent chain detected
+            }
+            visited.add(current.getId());
+            
+            // Check if this parent is the department we're trying to set as child
+            if (department.getId() != null && current.getParentDepartment().getId().equals(department.getId())) {
+                return true; // Circular relationship: department would be parent of its own ancestor
+            }
+            current = current.getParentDepartment();
+        }
+        
+        return false; // No circular relationship
     }
 
     @CacheEvict(value = {"departments", "department", "rootDepartments"}, allEntries = true)
@@ -289,8 +431,13 @@ public class DepartmentService {
         dto.setId(department.getId());
         dto.setName(department.getName());
         dto.setSmallDescription(department.getSmallDescription());
-        dto.setManagerEmail(department.getManager().getEmail());
-        dto.setManagerName(department.getManager().getFirstName() + " " + department.getManager().getLastName());
+        
+        // Manager is optional
+        if (department.getManager() != null) {
+            dto.setManagerEmail(department.getManager().getEmail());
+            dto.setManagerName(department.getManager().getFirstName() + " " + department.getManager().getLastName());
+        }
+        
         dto.setCreationDate(department.getCreationDate());
         dto.setStatus(department.getStatus());
         

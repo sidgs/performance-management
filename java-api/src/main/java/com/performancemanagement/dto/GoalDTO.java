@@ -24,6 +24,7 @@ public class GoalDTO {
     private List<GoalDTO> childGoals;
     private List<String> assignedUserEmails;
     private Boolean locked = false;
+    private Boolean confidential = false;
     private LocalDate assignedDate;
     private LocalDate targetCompletionDate;
     private List<KPIDTO> kpis;

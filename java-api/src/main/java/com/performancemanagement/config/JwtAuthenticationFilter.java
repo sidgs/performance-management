@@ -178,7 +178,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 } else {
                     // Invalid JWT token - set authentication as null to trigger 401 from Spring Security
                     // or return 401 directly
-                    logger.warn("Invalid or expired JWT token for request: {}", path);
+                    logger.debug("JWT token received (for debugging): {}", token);
+                    logger.warn("Invalid or expired JWT token for request: {} - token parsing returned null", path);
                     try {
                         if (!response.isCommitted()) {
                             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
