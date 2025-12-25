@@ -2,10 +2,13 @@ package com.performancemanagement.service;
 
 import com.performancemanagement.config.TenantContext;
 import com.performancemanagement.dto.GoalDTO;
+import com.performancemanagement.dto.KPIDTO;
 import com.performancemanagement.model.Goal;
+import com.performancemanagement.model.KPI;
 import com.performancemanagement.model.User;
 import com.performancemanagement.repository.GoalRepository;
 import com.performancemanagement.repository.UserRepository;
+import com.performancemanagement.repository.KPIRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -25,18 +28,25 @@ public class GoalService {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private KPIRepository kpiRepository;
     
-    private Long getCurrentTenantId() {
-        Long tenantId = TenantContext.getCurrentTenantId();
+    private String getCurrentTenantId() {
+        return TenantContext.getCurrentTenantId(); // Returns null if no tenant context - tenant validation is disabled
+    }
+    
+    private String requireTenantId() {
+        String tenantId = getCurrentTenantId();
         if (tenantId == null) {
-            throw new IllegalStateException("No tenant context available");
+            throw new IllegalStateException("Tenant context required for this operation");
         }
         return tenantId;
     }
 
     @CacheEvict(value = {"goals", "goal", "goalsByOwner", "rootGoals"}, allEntries = true)
     public GoalDTO createGoal(GoalDTO goalDTO) {
-        Long tenantId = getCurrentTenantId();
+        String tenantId = requireTenantId(); // Mutations require tenant
         
         User owner = userRepository.findByEmailAndTenantId(goalDTO.getOwnerEmail(), tenantId)
                 .orElseThrow(() -> new IllegalArgumentException("Owner not found"));
@@ -48,6 +58,7 @@ public class GoalService {
         goal.setOwner(owner);
         goal.setCreationDate(goalDTO.getCreationDate() != null ? goalDTO.getCreationDate() : LocalDate.now());
         goal.setCompletionDate(goalDTO.getCompletionDate());
+        goal.setTargetCompletionDate(goalDTO.getTargetCompletionDate());
         goal.setStatus(goalDTO.getStatus() != null ? goalDTO.getStatus() : Goal.GoalStatus.DRAFT);
 
         if (goalDTO.getParentGoalId() != null) {
@@ -57,19 +68,45 @@ public class GoalService {
         }
 
         Goal savedGoal = goalRepository.save(goal);
+        
+        // Create KPIs if provided
+        if (goalDTO.getKpis() != null && !goalDTO.getKpis().isEmpty()) {
+            for (KPIDTO kpiDTO : goalDTO.getKpis()) {
+                KPI kpi = new KPI();
+                kpi.setTenant(savedGoal.getTenant());
+                kpi.setGoal(savedGoal);
+                kpi.setDescription(kpiDTO.getDescription());
+                kpi.setDueDate(kpiDTO.getDueDate());
+                kpi.setStatus(kpiDTO.getStatus() != null ? kpiDTO.getStatus() : KPI.KPIStatus.NOT_STARTED);
+                kpi.setCompletionPercentage(kpiDTO.getCompletionPercentage() != null ? kpiDTO.getCompletionPercentage() : 0);
+                if (kpi.getCompletionPercentage() == 100) {
+                    kpi.setStatus(KPI.KPIStatus.ACHIEVED);
+                }
+                kpiRepository.save(kpi);
+            }
+        }
+        
         return convertToDTO(savedGoal);
     }
 
     @CacheEvict(value = {"goals", "goal", "goalsByOwner", "rootGoals"}, allEntries = true)
     public GoalDTO updateGoal(Long id, GoalDTO goalDTO) {
-        Long tenantId = getCurrentTenantId();
+        String tenantId = requireTenantId(); // Mutations require tenant
         
         Goal goal = goalRepository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> new IllegalArgumentException("Goal not found"));
 
+        if (goal.getLocked()) {
+            throw new IllegalStateException("Cannot update a locked goal. Only the owner can unlock it.");
+        }
+
         goal.setShortDescription(goalDTO.getShortDescription());
         goal.setLongDescription(goalDTO.getLongDescription());
         goal.setCompletionDate(goalDTO.getCompletionDate());
+        
+        if (goalDTO.getTargetCompletionDate() != null) {
+            goal.setTargetCompletionDate(goalDTO.getTargetCompletionDate());
+        }
         
         if (goalDTO.getStatus() != null) {
             goal.setStatus(goalDTO.getStatus());
@@ -88,7 +125,10 @@ public class GoalService {
     }
 
     public GoalDTO getGoalById(Long id) {
-        Long tenantId = getCurrentTenantId();
+        String tenantId = getCurrentTenantId();
+        if (tenantId == null) {
+            return null; // Tenant validation disabled
+        }
         Goal goal = goalRepository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> new IllegalArgumentException("Goal not found"));
         return convertToDTO(goal);
@@ -96,14 +136,20 @@ public class GoalService {
 
     @Cacheable(value = "goals")
     public List<GoalDTO> getAllGoals() {
-        Long tenantId = getCurrentTenantId();
+        String tenantId = getCurrentTenantId();
+        if (tenantId == null) {
+            return List.of(); // Tenant validation disabled - return empty list
+        }
         return goalRepository.findAllByTenantId(tenantId).stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
     }
 
     public List<GoalDTO> getGoalsByOwner(String email) {
-        Long tenantId = getCurrentTenantId();
+        String tenantId = getCurrentTenantId();
+        if (tenantId == null) {
+            return List.of(); // Tenant validation disabled - return empty list
+        }
         return goalRepository.findByOwnerEmailAndTenantId(email, tenantId).stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
@@ -111,29 +157,89 @@ public class GoalService {
 
     @Cacheable(value = "rootGoals")
     public List<GoalDTO> getRootGoals() {
-        Long tenantId = getCurrentTenantId();
+        String tenantId = getCurrentTenantId();
+        if (tenantId == null) {
+            return List.of(); // Tenant validation disabled - return empty list
+        }
         return goalRepository.findByParentGoalIsNullAndTenantId(tenantId).stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
     }
 
     public GoalDTO assignGoalToUser(Long goalId, String userEmail) {
-        Long tenantId = getCurrentTenantId();
+        String tenantId = requireTenantId(); // Mutations require tenant
         
         Goal goal = goalRepository.findByIdAndTenantId(goalId, tenantId)
                 .orElseThrow(() -> new IllegalArgumentException("Goal not found"));
         
+        if (goal.getLocked()) {
+            throw new IllegalStateException("Cannot assign users to a locked goal");
+        }
+        
+        // Validate that goal has at least one KPI
+        List<KPI> kpis = kpiRepository.findByGoalIdAndTenantId(goalId, tenantId);
+        if (kpis == null || kpis.isEmpty()) {
+            throw new IllegalStateException("Cannot assign a goal without KPIs. A goal must have at least one KPI.");
+        }
+        
         User user = userRepository.findByEmailAndTenantId(userEmail, tenantId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
+        // Set or update assigned date
+        goal.setAssignedDate(LocalDate.now());
+        
         goal.getAssignedUsers().add(user);
+        Goal savedGoal = goalRepository.save(goal);
+        return convertToDTO(savedGoal);
+    }
+
+    public GoalDTO unassignGoalFromUser(Long goalId, String userEmail) {
+        String tenantId = requireTenantId(); // Mutations require tenant
+        
+        Goal goal = goalRepository.findByIdAndTenantId(goalId, tenantId)
+                .orElseThrow(() -> new IllegalArgumentException("Goal not found"));
+        
+        if (goal.getLocked()) {
+            throw new IllegalStateException("Cannot unassign users from a locked goal");
+        }
+        
+        User user = userRepository.findByEmailAndTenantId(userEmail, tenantId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        goal.getAssignedUsers().remove(user);
+        Goal savedGoal = goalRepository.save(goal);
+        return convertToDTO(savedGoal);
+    }
+
+    public GoalDTO lockGoal(Long goalId) {
+        String tenantId = requireTenantId(); // Mutations require tenant
+        
+        Goal goal = goalRepository.findByIdAndTenantId(goalId, tenantId)
+                .orElseThrow(() -> new IllegalArgumentException("Goal not found"));
+        
+        goal.setLocked(true);
+        Goal savedGoal = goalRepository.save(goal);
+        return convertToDTO(savedGoal);
+    }
+
+    public GoalDTO unlockGoal(Long goalId, String ownerEmail) {
+        String tenantId = requireTenantId(); // Mutations require tenant
+        
+        Goal goal = goalRepository.findByIdAndTenantId(goalId, tenantId)
+                .orElseThrow(() -> new IllegalArgumentException("Goal not found"));
+        
+        if (!goal.getOwner().getEmail().equals(ownerEmail)) {
+            throw new IllegalStateException("Only the goal owner can unlock a goal");
+        }
+        
+        goal.setLocked(false);
         Goal savedGoal = goalRepository.save(goal);
         return convertToDTO(savedGoal);
     }
 
     @CacheEvict(value = {"goals", "goal", "goalsByOwner", "rootGoals"}, allEntries = true)
     public void deleteGoal(Long id) {
-        Long tenantId = getCurrentTenantId();
+        String tenantId = requireTenantId(); // Mutations require tenant
         Goal goal = goalRepository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> new IllegalArgumentException("Goal not found"));
         goalRepository.delete(goal);
@@ -154,22 +260,36 @@ public class GoalService {
             dto.setParentGoalId(goal.getParentGoal().getId());
         }
         
-        Long tenantId = goal.getTenant().getId();
+        String tenantId = goal.getTenant().getFqdn();
         
         if (goal.getChildGoals() != null && !goal.getChildGoals().isEmpty()) {
             dto.setChildGoals(goal.getChildGoals().stream()
-                    .filter(child -> child.getTenant().getId().equals(tenantId))
+                    .filter(child -> child.getTenant().getFqdn().equals(tenantId))
                     .map(this::convertToDTO)
                     .collect(Collectors.toList()));
         }
         
         if (goal.getAssignedUsers() != null && !goal.getAssignedUsers().isEmpty()) {
             dto.setAssignedUserEmails(goal.getAssignedUsers().stream()
-                    .filter(user -> user.getTenant().getId().equals(tenantId))
+                    .filter(user -> user.getTenant().getFqdn().equals(tenantId))
                     .map(User::getEmail)
                     .collect(Collectors.toList()));
         }
         
+        dto.setLocked(goal.getLocked() != null ? goal.getLocked() : false);
+        
         return dto;
+    }
+    
+    @CacheEvict(value = {"goals", "goal", "goalsByOwner", "rootGoals"}, allEntries = true)
+    public GoalDTO updateTargetCompletionDate(Long goalId, LocalDate targetCompletionDate) {
+        String tenantId = requireTenantId();
+        
+        Goal goal = goalRepository.findByIdAndTenantId(goalId, tenantId)
+                .orElseThrow(() -> new IllegalArgumentException("Goal not found"));
+        
+        goal.setTargetCompletionDate(targetCompletionDate);
+        Goal savedGoal = goalRepository.save(goal);
+        return convertToDTO(savedGoal);
     }
 }

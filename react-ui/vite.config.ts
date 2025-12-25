@@ -17,24 +17,23 @@ export default defineConfig({
   ],
   build: {
     lib: {
-      entry: resolve(__dirname, 'src/lib.tsx'), // Your library entry point
-      name: 'SIDGSPerformance', // Global variable name for UMD
+      entry: resolve(__dirname, 'src/lib.tsx'),
+      name: 'SIDGSPerformance', // Global variable name (for UMD)
       fileName: (format) => `sidgs-performance.${format}.js`,
-      formats: ['umd', 'es'], // Generate both formats
+      formats: ['umd', 'es'], // UMD is required, ES is optional but recommended
     },
     rollupOptions: {
-      // Externalize peer dependencies
+      // Externalize React and ReactDOM (and other peer dependencies)
       external: [
-        'react', 
-        'react-dom', 
+        'react',
+        'react-dom',
         'react-router-dom',
         '@mui/material',
         '@mui/icons-material',
         '@emotion/react',
-        '@emotion/styled'
+        '@emotion/styled',
       ],
       output: {
-        // UMD globals
         globals: {
           react: 'React',
           'react-dom': 'ReactDOM',
@@ -44,14 +43,21 @@ export default defineConfig({
           '@emotion/react': 'EmotionReact',
           '@emotion/styled': 'EmotionStyled',
         },
-        // Provide exports
         exports: 'named',
       },
     },
-    // Optimize build
-    minify: 'terser',
+    minify: true,
     sourcemap: true,
-    emptyOutDir: true, // Clean dist before building
+    emptyOutDir: true,
   },
-  // Remove the resolve.alias section completely
+  server: {
+    proxy: {
+      // Proxy all API calls for the EPM backend to the Spring Boot app
+      '/api/v1/epm': {
+        target: 'http://localhost:9081',
+        changeOrigin: true,
+        secure: false,
+      },
+    },
+  },
 });

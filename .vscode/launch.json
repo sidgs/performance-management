@@ -1,0 +1,33 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Current File",
+            "request": "launch",
+            "mainClass": "${file}"
+        },
+        {
+            "type": "java",
+            "name": "PerformanceManagementApplication",
+            "request": "launch",
+            "mainClass": "com.performancemanagement.PerformanceManagementApplication",
+            "projectName": "performance-management-api",
+            "env": {
+                "SPRING_PROFILES_ACTIVE": "local"
+            }
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "EPM UI",
+            "runtimeExecutable": "npm",
+            "runtimeArgs": ["run", "dev"],
+            "cwd": "${workspaceFolder}/react-ui",
+            "console": "integratedTerminal"
+        },
+    ]
+}

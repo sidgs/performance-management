@@ -10,7 +10,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 @Entity
-@Table(name = "goals")
+@Table(name = "epm_goals")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -53,11 +53,23 @@ public class Goal {
 
     @ManyToMany
     @JoinTable(
-        name = "goal_assignments",
+        name = "epm_goal_assignments",
         joinColumns = @JoinColumn(name = "goal_id"),
         inverseJoinColumns = @JoinColumn(name = "user_id")
     )
     private Set<User> assignedUsers = new HashSet<>();
+
+    @Column(name = "locked", nullable = false)
+    private Boolean locked = false;
+
+    @Column(name = "assigned_date")
+    private LocalDate assignedDate;
+
+    @Column(name = "target_completion_date")
+    private LocalDate targetCompletionDate;
+
+    @OneToMany(mappedBy = "goal", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<KPI> kpis = new HashSet<>();
 
     public enum GoalStatus {
         DRAFT,

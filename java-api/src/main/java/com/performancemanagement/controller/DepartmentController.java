@@ -1,6 +1,7 @@
 package com.performancemanagement.controller;
 
 import com.performancemanagement.dto.DepartmentDTO;
+import com.performancemanagement.service.AuthorizationService;
 import com.performancemanagement.service.DepartmentService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -17,9 +18,13 @@ public class DepartmentController {
     @Autowired
     private DepartmentService departmentService;
 
+    @Autowired
+    private AuthorizationService authorizationService;
+
     @PostMapping
     public ResponseEntity<DepartmentDTO> createDepartment(@RequestBody DepartmentDTO departmentDTO) {
         try {
+            authorizationService.requireEpmAdmin();
             DepartmentDTO created = departmentService.createDepartment(departmentDTO);
             return new ResponseEntity<>(created, HttpStatus.CREATED);
         } catch (IllegalArgumentException e) {
@@ -52,6 +57,7 @@ public class DepartmentController {
     @PutMapping("/{id}")
     public ResponseEntity<DepartmentDTO> updateDepartment(@PathVariable Long id, @RequestBody DepartmentDTO departmentDTO) {
         try {
+            authorizationService.requireEpmAdmin();
             DepartmentDTO updated = departmentService.updateDepartment(id, departmentDTO);
             return new ResponseEntity<>(updated, HttpStatus.OK);
         } catch (IllegalArgumentException e) {
@@ -62,6 +68,7 @@ public class DepartmentController {
     @PostMapping("/{departmentId}/assign/{userEmail}")
     public ResponseEntity<DepartmentDTO> assignUserToDepartment(@PathVariable Long departmentId, @PathVariable String userEmail) {
         try {
+            authorizationService.requireEpmAdmin();
             DepartmentDTO department = departmentService.assignUserToDepartment(departmentId, userEmail);
             return new ResponseEntity<>(department, HttpStatus.OK);
         } catch (IllegalArgumentException e) {
@@ -72,6 +79,7 @@ public class DepartmentController {
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteDepartment(@PathVariable Long id) {
         try {
+            authorizationService.requireEpmAdmin();
             departmentService.deleteDepartment(id);
             return new ResponseEntity<>(HttpStatus.NO_CONTENT);
         } catch (Exception e) {

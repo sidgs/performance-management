@@ -9,7 +9,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 @Entity
-@Table(name = "users", uniqueConstraints = {
+@Table(name = "epm_users", uniqueConstraints = {
     @UniqueConstraint(columnNames = {"tenant_id", "email"})
 })
 @Data
@@ -59,4 +59,42 @@ public class User {
 
     @OneToMany(mappedBy = "coOwner", cascade = CascadeType.ALL)
     private Set<Department> coOwnedDepartments = new HashSet<>();
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "role")
+    private Role role = Role.USER;
+
+    /**
+     * Sets the user's name by splitting a full name into first and last name.
+     * If the full name contains spaces, the last word becomes the last name,
+     * and everything before it becomes the first name.
+     * If no spaces, the entire string becomes the first name and last name is empty.
+     * 
+     * @param fullName The full name to split (e.g., "John Doe" or "Mary Jane Smith")
+     */
+    public void setFullName(String fullName) {
+        if (fullName == null || fullName.trim().isEmpty()) {
+            this.firstName = "";
+            this.lastName = "";
+            return;
+        }
+        
+        String trimmed = fullName.trim();
+        int lastSpaceIndex = trimmed.lastIndexOf(' ');
+        
+        if (lastSpaceIndex == -1) {
+            // No space found, use entire string as first name
+            this.firstName = trimmed;
+            this.lastName = "";
+        } else {
+            // Split at last space
+            this.firstName = trimmed.substring(0, lastSpaceIndex).trim();
+            this.lastName = trimmed.substring(lastSpaceIndex + 1).trim();
+        }
+    }
+
+    public enum Role {
+        EPM_ADMIN,
+        USER
+    }
 }

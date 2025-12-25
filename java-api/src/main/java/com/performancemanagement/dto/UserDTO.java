@@ -17,4 +17,9 @@ public class UserDTO {
     private String departmentName;
     private Long managerId;
     private String managerEmail;
+    /**
+     * Optional role for the user (e.g. "EPM_ADMIN" or "USER").
+     * If null, the backend will treat the user as a regular USER.
+     */
+    private String role;
 }

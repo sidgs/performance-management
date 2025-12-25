@@ -3,9 +3,11 @@ package com.performancemanagement.graphql;
 import com.performancemanagement.config.TenantContext;
 import com.performancemanagement.model.Department;
 import com.performancemanagement.model.Goal;
+import com.performancemanagement.model.Tenant;
 import com.performancemanagement.model.User;
 import com.performancemanagement.repository.DepartmentRepository;
 import com.performancemanagement.repository.GoalRepository;
+import com.performancemanagement.repository.TenantRepository;
 import com.performancemanagement.repository.UserRepository;
 import graphql.kickstart.tools.GraphQLQueryResolver;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,64 +28,112 @@ public class QueryResolver implements GraphQLQueryResolver {
     @Autowired
     private DepartmentRepository departmentRepository;
 
-    private Long getCurrentTenantId() {
-        Long tenantId = TenantContext.getCurrentTenantId();
-        if (tenantId == null) {
-            throw new IllegalStateException("No tenant context available");
-        }
-        return tenantId;
+    @Autowired
+    private TenantRepository tenantRepository;
+
+    private String getCurrentTenantId() {
+        return TenantContext.getCurrentTenantId(); // Returns null if no tenant context - tenant validation is disabled
     }
 
     // User queries
     public User user(Long id) {
-        return userRepository.findByIdAndTenantId(id, getCurrentTenantId()).orElse(null);
+        String tenantId = getCurrentTenantId();
+        if (tenantId == null) {
+            return null; // Tenant validation disabled - return null if no tenant context
+        }
+        return userRepository.findByIdAndTenantId(id, tenantId).orElse(null);
     }
 
     public User userByEmail(String email) {
-        return userRepository.findByEmailAndTenantId(email, getCurrentTenantId()).orElse(null);
+        String tenantId = getCurrentTenantId();
+        if (tenantId == null) {
+            return null; // Tenant validation disabled - return null if no tenant context
+        }
+        return userRepository.findByEmailAndTenantId(email, tenantId).orElse(null);
     }
 
     public List<User> users() {
-        return userRepository.findAllByTenantId(getCurrentTenantId());
+        String tenantId = getCurrentTenantId();
+        if (tenantId == null) {
+            return List.of(); // Tenant validation disabled - return empty list if no tenant context
+        }
+        return userRepository.findAllByTenantId(tenantId);
     }
 
     public List<User> teamMembers(Long managerId) {
-        Long tenantId = getCurrentTenantId();
+        String tenantId = getCurrentTenantId();
+        if (tenantId == null) {
+            return List.of(); // Tenant validation disabled - return empty list if no tenant context
+        }
         Optional<User> manager = userRepository.findByIdAndTenantId(managerId, tenantId);
         return manager.map(User::getTeamMembers)
                 .map(members -> members.stream()
-                        .filter(member -> member.getTenant().getId().equals(tenantId))
+                        .filter(member -> member.getTenant().getFqdn().equals(tenantId))
                         .toList())
                 .orElse(List.of());
     }
 
     // Goal queries
     public Goal goal(Long id) {
-        return goalRepository.findByIdAndTenantId(id, getCurrentTenantId()).orElse(null);
+        String tenantId = getCurrentTenantId();
+        if (tenantId == null) {
+            return null; // Tenant validation disabled - return null if no tenant context
+        }
+        return goalRepository.findByIdAndTenantId(id, tenantId).orElse(null);
     }
 
     public List<Goal> goals() {
-        return goalRepository.findAllByTenantId(getCurrentTenantId());
+        String tenantId = getCurrentTenantId();
+        if (tenantId == null) {
+            return List.of(); // Tenant validation disabled - return empty list if no tenant context
+        }
+        return goalRepository.findAllByTenantId(tenantId);
     }
 
     public List<Goal> goalsByOwner(String email) {
-        return goalRepository.findByOwnerEmailAndTenantId(email, getCurrentTenantId());
+        String tenantId = getCurrentTenantId();
+        if (tenantId == null) {
+            return List.of(); // Tenant validation disabled - return empty list if no tenant context
+        }
+        return goalRepository.findByOwnerEmailAndTenantId(email, tenantId);
     }
 
     public List<Goal> rootGoals() {
-        return goalRepository.findByParentGoalIsNullAndTenantId(getCurrentTenantId());
+        String tenantId = getCurrentTenantId();
+        if (tenantId == null) {
+            return List.of(); // Tenant validation disabled - return empty list if no tenant context
+        }
+        return goalRepository.findByParentGoalIsNullAndTenantId(tenantId);
     }
 
     // Department queries
     public Department department(Long id) {
-        return departmentRepository.findByIdAndTenantId(id, getCurrentTenantId()).orElse(null);
+        String tenantId = getCurrentTenantId();
+        if (tenantId == null) {
+            return null; // Tenant validation disabled - return null if no tenant context
+        }
+        return departmentRepository.findByIdAndTenantId(id, tenantId).orElse(null);
     }
 
     public List<Department> departments() {
-        return departmentRepository.findAllByTenantId(getCurrentTenantId());
+        String tenantId = getCurrentTenantId();
+        if (tenantId == null) {
+            return List.of(); // Tenant validation disabled - return empty list if no tenant context
+        }
+        return departmentRepository.findAllByTenantId(tenantId);
     }
 
     public List<Department> rootDepartments() {
-        return departmentRepository.findByParentDepartmentIsNullAndTenantId(getCurrentTenantId());
+        String tenantId = getCurrentTenantId();
+        if (tenantId == null) {
+            return List.of(); // Tenant validation disabled - return empty list if no tenant context
+        }
+        return departmentRepository.findByParentDepartmentIsNullAndTenantId(tenantId);
+    }
+
+    // Tenant queries
+    public List<Tenant> tenants() {
+        // Return all tenants (admin operation - not filtered by tenant context)
+        return tenantRepository.findAll();
     }
 }

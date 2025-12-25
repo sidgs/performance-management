@@ -11,17 +11,17 @@ import java.util.Optional;
 
 @Repository
 public interface UserRepository extends JpaRepository<User, Long> {
-    @Query("SELECT u FROM User u WHERE u.email = :email AND u.tenant.id = :tenantId")
-    Optional<User> findByEmailAndTenantId(@Param("email") String email, @Param("tenantId") Long tenantId);
+    @Query("SELECT u FROM User u WHERE u.email = :email AND u.tenant.fqdn = :tenantId")
+    Optional<User> findByEmailAndTenantId(@Param("email") String email, @Param("tenantId") String tenantId);
     
-    @Query("SELECT COUNT(u) > 0 FROM User u WHERE u.email = :email AND u.tenant.id = :tenantId")
-    boolean existsByEmailAndTenantId(@Param("email") String email, @Param("tenantId") Long tenantId);
+    @Query("SELECT COUNT(u) > 0 FROM User u WHERE u.email = :email AND u.tenant.fqdn = :tenantId")
+    boolean existsByEmailAndTenantId(@Param("email") String email, @Param("tenantId") String tenantId);
     
-    @Query("SELECT u FROM User u WHERE u.tenant.id = :tenantId")
-    List<User> findAllByTenantId(@Param("tenantId") Long tenantId);
+    @Query("SELECT u FROM User u WHERE u.tenant.fqdn = :tenantId")
+    List<User> findAllByTenantId(@Param("tenantId") String tenantId);
     
-    @Query("SELECT u FROM User u WHERE u.id = :id AND u.tenant.id = :tenantId")
-    Optional<User> findByIdAndTenantId(@Param("id") Long id, @Param("tenantId") Long tenantId);
+    @Query("SELECT u FROM User u WHERE u.id = :id AND u.tenant.fqdn = :tenantId")
+    Optional<User> findByIdAndTenantId(@Param("id") Long id, @Param("tenantId") String tenantId);
     
     // Legacy methods for backward compatibility - will be filtered by service layer
     Optional<User> findByEmail(String email);

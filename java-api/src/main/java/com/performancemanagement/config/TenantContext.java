@@ -13,9 +13,9 @@ public class TenantContext {
         return currentTenant.get();
     }
 
-    public static Long getCurrentTenantId() {
+    public static String getCurrentTenantId() {
         Tenant tenant = currentTenant.get();
-        return tenant != null ? tenant.getId() : null;
+        return tenant != null ? tenant.getFqdn() : null;
     }
 
     public static void clear() {

@@ -9,6 +9,7 @@ export interface User {
   title: string;
   department?: Department;
   manager?: User;
+  teamMembers?: User[];
 }
 
 export interface Goal {
@@ -18,10 +19,31 @@ export interface Goal {
   owner: User;
   creationDate: string;
   completionDate?: string;
+  assignedDate?: string;
+  targetCompletionDate?: string;
   status: GoalStatus;
   parentGoal?: Goal;
   childGoals: Goal[];
   assignedUsers: User[];
+  locked: boolean;
+  kpis: KPI[];
+}
+
+export interface KPI {
+  id: string;
+  description: string;
+  status: KPIStatus;
+  completionPercentage: number;
+  dueDate: string;
+  goal: Goal;
+}
+
+export enum KPIStatus {
+  NOT_STARTED = 'NOT_STARTED',
+  IN_PROGRESS = 'IN_PROGRESS',
+  ACHIEVED = 'ACHIEVED',
+  NOT_ACHIEVED = 'NOT_ACHIEVED',
+  COMPLETED = 'COMPLETED',
 }
 
 export interface Department {

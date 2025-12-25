@@ -23,4 +23,8 @@ public class GoalDTO {
     private Long parentGoalId;
     private List<GoalDTO> childGoals;
     private List<String> assignedUserEmails;
+    private Boolean locked = false;
+    private LocalDate assignedDate;
+    private LocalDate targetCompletionDate;
+    private List<KPIDTO> kpis;
 }

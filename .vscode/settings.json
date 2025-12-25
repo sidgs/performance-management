@@ -1,0 +1,7 @@
+{
+  "accessibility.signals.terminalBell": {
+    "sound": "off"
+  },
+    "terminal.integrated.enableVisualBell": false
+  }
+  
