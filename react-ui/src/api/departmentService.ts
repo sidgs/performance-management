@@ -42,6 +42,37 @@ async function apiRequest<T>(
   return response.json();
 }
 
+// Helper functions to convert DTO fields to User objects
+function createUserFromNameAndEmail(email?: string, name?: string): User | undefined {
+  if (!email || !name) {
+    return undefined;
+  }
+  // Parse "FirstName LastName" into firstName and lastName
+  const nameParts = name.trim().split(/\s+/);
+  const firstName = nameParts[0] || '';
+  const lastName = nameParts.slice(1).join(' ') || '';
+  
+  return {
+    id: '', // ID not available from DTO
+    firstName,
+    lastName,
+    email,
+    title: undefined,
+  } as User;
+}
+
+function mapDepartmentDTO(dept: any): Department {
+  return {
+    ...dept,
+    id: String(dept.id),
+    manager: createUserFromNameAndEmail(dept.managerEmail, dept.managerName),
+    managerAssistant: createUserFromNameAndEmail(dept.managerAssistantEmail, dept.managerAssistantName),
+    coOwner: createUserFromNameAndEmail(dept.coOwnerEmail, dept.coOwnerName),
+    childDepartments: dept.childDepartments || [],
+    users: dept.users || [],
+  } as Department;
+}
+
 export async function getAllDepartments(): Promise<Department[]> {
   const departments = await apiRequest<any[]>('/departments');
   
@@ -51,27 +82,35 @@ export async function getAllDepartments(): Promise<Department[]> {
       ? departments.find(d => d.id === dept.parentDepartmentId)
       : null;
     
+    const mappedDept = mapDepartmentDTO(dept);
+    
     return {
-      ...dept,
-      id: String(dept.id),
+      ...mappedDept,
       parentDepartment: parentDept ? {
-        id: String(parentDept.id),
-        name: parentDept.name,
-        smallDescription: parentDept.smallDescription,
-        manager: parentDept.manager,
-        creationDate: parentDept.creationDate,
-        status: parentDept.status,
+        ...mapDepartmentDTO(parentDept),
         childDepartments: [],
         users: [],
       } : undefined,
-      childDepartments: dept.childDepartments || [],
-      users: dept.users || [],
     } as Department;
   });
 }
 
 export async function getDepartmentById(id: string): Promise<Department> {
-  return apiRequest<Department>(`/departments/${id}`);
+  const dept = await apiRequest<any>(`/departments/${id}`);
+  const mappedDept = mapDepartmentDTO(dept);
+  
+  return {
+    ...mappedDept,
+    parentDepartment: dept.parentDepartmentId ? {
+      id: String(dept.parentDepartmentId),
+      name: '',
+      smallDescription: '',
+      creationDate: '',
+      status: dept.status,
+      childDepartments: [],
+      users: [],
+    } : undefined,
+  } as Department;
 }
 
 export async function getRootDepartments(): Promise<Department[]> {

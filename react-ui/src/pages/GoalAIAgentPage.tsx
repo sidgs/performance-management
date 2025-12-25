@@ -101,7 +101,7 @@ const GoalAIAgentPage: React.FC = () => {
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Failed to initialize page';
         setError(errorMessage);
-        console.error('Error initializing Goal AI Agent page:', errorMessage);
+        console.error('Error initializing Pulse AI page:', errorMessage);
       } finally {
         setLoading(false);
       }
@@ -141,7 +141,7 @@ const GoalAIAgentPage: React.FC = () => {
           <AutoAwesomeIcon sx={{ fontSize: 40, color: 'primary.main' }} />
           <Box>
             <Typography variant="h1" gutterBottom>
-              Goal AI Assistant
+              Pulse AI
             </Typography>
             <Typography variant="h5" color="text.secondary">
               Get deep insights, recommendations, and interact with your goals using AI
@@ -252,7 +252,7 @@ const GoalAIAgentPage: React.FC = () => {
                   AI Agent Coming Soon
                 </Typography>
                 <Typography variant="body1" color="text.secondary" align="center" sx={{ maxWidth: 500, mb: 3 }}>
-                  The Goal AI Agent interface will be integrated here. It will allow you to:
+                  The Pulse AI interface will be integrated here. It will allow you to:
                 </Typography>
                 <Stack spacing={2} sx={{ width: '100%', maxWidth: 500 }}>
                   <Box sx={{ display: 'flex', alignItems: 'start', gap: 2 }}>

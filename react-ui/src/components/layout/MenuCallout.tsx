@@ -66,7 +66,7 @@ const MenuCallout: React.FC = () => {
   const performanceMenuItems = [
     { text: 'Goals', icon: <TrendingUpIcon />, path: '/goals' },
     { text: 'My Departments', icon: <GroupsIcon />, path: '/departments' },
-    { text: 'Goal AI Assistant', icon: <AutoAwesomeIcon />, path: '/goal-ai' },
+    { text: 'Pulse AI', icon: <AutoAwesomeIcon />, path: '/goal-ai' },
     { text: 'Reports', icon: <ReportIcon />, path: '/reports' },
   ];
 

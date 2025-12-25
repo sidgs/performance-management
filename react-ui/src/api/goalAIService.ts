@@ -2,7 +2,7 @@ import { getAuthToken, getCurrentUserEmail, getCurrentUserRoles } from './authSe
 import type { Goal } from '../types';
 
 /**
- * Service for interacting with the Goal AI Agent backend API
+ * Service for interacting with the Pulse AI backend API
  * 
  * This service will handle:
  * - Sending user queries to the AI agent

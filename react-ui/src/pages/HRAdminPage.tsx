@@ -44,6 +44,7 @@ import {
 } from '@mui/icons-material';
 import {
   getAllDepartments,
+  getDepartmentById,
   createDepartment,
   updateDepartment,
   deleteDepartment,
@@ -105,6 +106,10 @@ const HRAdminPage: React.FC = () => {
               lastName
               email
               title
+              department {
+                id
+                name
+              }
             }
           }
         `),
@@ -281,6 +286,9 @@ const HRAdminPage: React.FC = () => {
     try {
       await setDepartmentManager(selectedDepartment.id, selectedUserEmail);
       await loadData();
+      // Refresh the selected department to show the updated manager
+      const updatedDept = await getDepartmentById(selectedDepartment.id);
+      setSelectedDepartment(updatedDept);
       setSetManagerDialogOpen(false);
       setSelectedUserEmail('');
     } catch (err) {
@@ -541,7 +549,7 @@ const HRAdminPage: React.FC = () => {
               label="User"
             >
               {users
-                .filter((u) => !departmentMembers.some((m) => m.id === u.id))
+                .filter((u) => !u.department) // Only show users not linked to any department
                 .map((user) => (
                   <MenuItem key={user.id} value={user.email}>
                     {user.firstName} {user.lastName} ({user.email})

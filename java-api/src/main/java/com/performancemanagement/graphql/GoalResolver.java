@@ -1,13 +1,11 @@
 package com.performancemanagement.graphql;
 
 import com.performancemanagement.config.TenantContext;
-import com.performancemanagement.config.UserContext;
 import com.performancemanagement.model.Goal;
 import com.performancemanagement.model.KPI;
 import com.performancemanagement.model.GoalNote;
 import com.performancemanagement.model.User;
 import com.performancemanagement.repository.KPIRepository;
-import com.performancemanagement.repository.GoalNoteRepository;
 import com.performancemanagement.service.GoalNoteService;
 import graphql.kickstart.tools.GraphQLResolver;
 import jakarta.persistence.EntityManager;
@@ -17,7 +15,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.Objects;
 
 @Component
 public class GoalResolver implements GraphQLResolver<Goal> {
@@ -150,5 +147,13 @@ public class GoalResolver implements GraphQLResolver<Goal> {
         }
         // Use repository to get KPIs filtered by tenant
         return kpiRepository.findByGoalIdAndTenantId(goal.getId(), tenantId);
+    }
+
+    @Transactional(readOnly = true)
+    public List<GoalNote> notes(Goal goal) {
+        // Re-attach the entity to the current session
+        goal = entityManager.merge(goal);
+        // Use service to get notes with authorization filtering
+        return goalNoteService.getNotesByGoalId(goal.getId());
     }
 }

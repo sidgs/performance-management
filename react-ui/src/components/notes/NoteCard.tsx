@@ -109,14 +109,62 @@ const NoteCard: React.FC<NoteCardProps> = ({
 
   // Render HTML content safely
   const renderContent = (content: string) => {
-    // For now, we'll render as plain text with line breaks
-    // In a production app, you'd want to sanitize HTML properly
-    return content.split('\n').map((line, index) => (
-      <React.Fragment key={index}>
-        {line}
-        {index < content.split('\n').length - 1 && <br />}
-      </React.Fragment>
-    ));
+    // Basic HTML sanitization - allow only safe tags
+    const allowedTags = ['strong', 'em', 'b', 'i', 'u', 'ul', 'ol', 'li', 'a', 'p', 'br'];
+    const allowedAttributes = ['href', 'target'];
+    
+    // Simple HTML sanitization (in production, use a library like DOMPurify)
+    let sanitized = content
+      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '') // Remove scripts
+      .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, ''); // Remove iframes
+    
+    // Create a temporary div to parse HTML
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = sanitized;
+    
+    // Remove disallowed tags and attributes
+    const walker = document.createTreeWalker(
+      tempDiv,
+      NodeFilter.SHOW_ELEMENT,
+      null
+    );
+    
+    const nodesToRemove: Node[] = [];
+    let node;
+    while (node = walker.nextNode()) {
+      const element = node as Element;
+      if (!allowedTags.includes(element.tagName.toLowerCase())) {
+        nodesToRemove.push(node);
+      } else {
+        // Remove disallowed attributes
+        Array.from(element.attributes).forEach(attr => {
+          if (!allowedAttributes.includes(attr.name.toLowerCase())) {
+            element.removeAttribute(attr.name);
+          }
+        });
+        // Ensure links open in new tab
+        if (element.tagName.toLowerCase() === 'a') {
+          element.setAttribute('target', '_blank');
+          element.setAttribute('rel', 'noopener noreferrer');
+        }
+      }
+    }
+    
+    nodesToRemove.forEach(n => n.parentNode?.removeChild(n));
+    
+    return (
+      <Box
+        sx={{
+          '& strong, & b': { fontWeight: 'bold' },
+          '& em, & i': { fontStyle: 'italic' },
+          '& ul, & ol': { marginLeft: 2, marginTop: 1, marginBottom: 1 },
+          '& li': { marginBottom: 0.5 },
+          '& a': { color: 'primary.main', textDecoration: 'underline' },
+          '& p': { marginBottom: 1 },
+        }}
+        dangerouslySetInnerHTML={{ __html: tempDiv.innerHTML }}
+      />
+    );
   };
 
   return (
@@ -182,17 +230,21 @@ const NoteCard: React.FC<NoteCardProps> = ({
               />
             </Box>
           ) : (
-            <Typography
-              variant="body2"
+            <Box
               sx={{
-                whiteSpace: 'pre-wrap',
                 wordBreak: 'break-word',
                 color: 'text.primary',
                 lineHeight: 1.6,
+                '& strong, & b': { fontWeight: 'bold' },
+                '& em, & i': { fontStyle: 'italic' },
+                '& ul, & ol': { marginLeft: 2, marginTop: 1, marginBottom: 1 },
+                '& li': { marginBottom: 0.5 },
+                '& a': { color: 'primary.main', textDecoration: 'underline' },
+                '& p': { marginBottom: 1 },
               }}
             >
               {renderContent(note.content)}
-            </Typography>
+            </Box>
           )}
         </CardContent>
       </Card>

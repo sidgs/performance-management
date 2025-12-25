@@ -56,6 +56,7 @@ import {
   Visibility as VisibilityIcon,
   //CalendarMonth as CalendarIcon,
   Notes as NotesIcon,
+  Download as DownloadIcon,
 } from '@mui/icons-material';
 import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
@@ -122,6 +123,7 @@ const GoalsPage: React.FC = () => {
   const [assigningGoal, setAssigningGoal] = useState<Goal | null>(null);
   const [assignLoading, setAssignLoading] = useState(false);
   const [assignError, setAssignError] = useState<string | null>(null);
+  const [selectedUserEmail, setSelectedUserEmail] = useState<string>('');
   
   // Lock/unlock state
   const [lockLoading, setLockLoading] = useState<string | null>(null);
@@ -342,6 +344,158 @@ const GoalsPage: React.FC = () => {
     setGoalDetailsTab(0);
     // Fetch notes for this goal
     await fetchNotes(goal.id);
+  };
+
+  // Handle add note - opens dialog with Notes tab active
+  const handleAddNote = async (goal: Goal) => {
+    setSelectedGoal(goal);
+    setOpenDialog(true);
+    setGoalDetailsTab(2); // Switch to Notes tab (index 2)
+    setIsCreatingNote(true); // Automatically start creating a note
+    // Fetch notes for this goal
+    await fetchNotes(goal.id);
+  };
+
+  // Handle download goal information
+  const handleDownloadGoal = async (goal: Goal) => {
+    try {
+      // Fetch notes for this goal
+      let goalNotes: GoalNote[] = [];
+      try {
+        const notesData = await graphqlRequest<{ goalNotes: GoalNote[] }>(
+          `
+            query GetGoalNotes($goalId: ID!) {
+              goalNotes(goalId: $goalId) {
+                id
+                content
+                createdAt
+                updatedAt
+                author {
+                  id
+                  firstName
+                  lastName
+                  email
+                  title
+                }
+              }
+            }
+          `,
+          { goalId: goal.id }
+        );
+        goalNotes = notesData.goalNotes || [];
+      } catch (err) {
+        console.error('Failed to fetch notes for download:', err);
+      }
+
+      // Build the text content
+      let content = '='.repeat(80) + '\n';
+      content += `GOAL INFORMATION REPORT\n`;
+      content += '='.repeat(80) + '\n\n';
+      
+      content += `Goal ID: ${goal.id}\n`;
+      content += `Short Description: ${goal.shortDescription}\n`;
+      content += `Long Description: ${goal.longDescription}\n\n`;
+      
+      content += `Status: ${goal.status}\n`;
+      content += `Created: ${formatDate(goal.creationDate)}\n`;
+      if (goal.completionDate) {
+        content += `Completed: ${formatDate(goal.completionDate)}\n`;
+      }
+      if (goal.assignedDate) {
+        content += `Assigned Date: ${formatDate(goal.assignedDate)}\n`;
+      }
+      if (goal.targetCompletionDate) {
+        content += `Target Completion Date: ${formatDate(goal.targetCompletionDate)}\n`;
+      }
+      content += `Locked: ${goal.locked ? 'Yes' : 'No'}\n`;
+      content += `Confidential: ${goal.confidential ? 'Yes' : 'No'}\n\n`;
+      
+      content += '-' + '-'.repeat(79) + '\n';
+      content += 'OWNER INFORMATION\n';
+      content += '-' + '-'.repeat(79) + '\n';
+      content += `Name: ${goal.owner.firstName} ${goal.owner.lastName}\n`;
+      content += `Email: ${goal.owner.email}\n`;
+      content += `Title: ${goal.owner.title || 'N/A'}\n\n`;
+      
+      if (goal.assignedUsers && goal.assignedUsers.length > 0) {
+        content += '-' + '-'.repeat(79) + '\n';
+        content += `ASSIGNED USERS (${goal.assignedUsers.length})\n`;
+        content += '-' + '-'.repeat(79) + '\n';
+        goal.assignedUsers.forEach((user, index) => {
+          content += `${index + 1}. ${user.firstName} ${user.lastName}\n`;
+          content += `   Email: ${user.email}\n`;
+          content += `   Title: ${user.title || 'N/A'}\n`;
+          if (index < goal.assignedUsers.length - 1) content += '\n';
+        });
+        content += '\n';
+      }
+      
+      if (goal.childGoals && goal.childGoals.length > 0) {
+        content += '-' + '-'.repeat(79) + '\n';
+        content += `CHILD GOALS (${goal.childGoals.length})\n`;
+        content += '-' + '-'.repeat(79) + '\n';
+        goal.childGoals.forEach((child, index) => {
+          content += `${index + 1}. ${child.shortDescription}\n`;
+          content += `   Status: ${child.status}\n`;
+          content += `   Created: ${formatDate(child.creationDate)}\n`;
+          if (index < goal.childGoals.length - 1) content += '\n';
+        });
+        content += '\n';
+      }
+      
+      if (goal.kpis && goal.kpis.length > 0) {
+        content += '-' + '-'.repeat(79) + '\n';
+        content += `KEY PERFORMANCE INDICATORS (${goal.kpis.length})\n`;
+        content += '-' + '-'.repeat(79) + '\n';
+        goal.kpis.forEach((kpi, index) => {
+          content += `${index + 1}. ${kpi.description}\n`;
+          content += `   Status: ${kpi.status}\n`;
+          content += `   Completion: ${kpi.completionPercentage}%\n`;
+          if (kpi.dueDate) {
+            content += `   Due Date: ${formatDate(kpi.dueDate)}\n`;
+          }
+          if (index < goal.kpis.length - 1) content += '\n';
+        });
+        content += '\n';
+      }
+      
+      if (goalNotes.length > 0) {
+        content += '-' + '-'.repeat(79) + '\n';
+        content += `NOTES (${goalNotes.length})\n`;
+        content += '-' + '-'.repeat(79) + '\n';
+        goalNotes.forEach((note, index) => {
+          content += `\nNote ${index + 1}:\n`;
+          content += `Created: ${formatDate(note.createdAt)}\n`;
+          if (note.updatedAt !== note.createdAt) {
+            content += `Updated: ${formatDate(note.updatedAt)}\n`;
+          }
+          content += `Author: ${note.author.firstName} ${note.author.lastName} (${note.author.email})\n`;
+          content += `Title: ${note.author.title || 'N/A'}\n`;
+          // Strip HTML tags from note content for plain text export
+          const textContent = note.content.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').trim();
+          content += `Content:\n${textContent}\n`;
+          if (index < goalNotes.length - 1) content += '\n' + '-'.repeat(80) + '\n';
+        });
+        content += '\n';
+      }
+      
+      content += '='.repeat(80) + '\n';
+      content += `Report generated on: ${new Date().toLocaleString()}\n`;
+      content += '='.repeat(80) + '\n';
+      
+      // Create a blob and download
+      const blob = new Blob([content], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `goal-${goal.id}-${goal.shortDescription.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.txt`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to download goal information');
+    }
   };
 
   // Fetch notes for a goal
@@ -954,6 +1108,217 @@ const GoalsPage: React.FC = () => {
     return assignable;
   };
 
+  // Handle assign goal to user
+  const handleAssignGoal = async (goalId: string, userEmail: string) => {
+    if (!assigningGoal) return;
+
+    setAssignLoading(true);
+    setAssignError(null);
+
+    try {
+      const result = await graphqlRequest<{ assignGoalToUser: Goal }>(
+        `
+          mutation AssignGoalToUser($goalId: ID!, $userEmail: String!) {
+            assignGoalToUser(goalId: $goalId, userEmail: $userEmail) {
+              id
+              shortDescription
+              longDescription
+              creationDate
+              completionDate
+              status
+              locked
+              owner {
+                id
+                firstName
+                lastName
+                email
+                title
+              }
+              assignedUsers {
+                id
+                firstName
+                lastName
+                email
+                title
+              }
+              kpis {
+                id
+                description
+                status
+                completionPercentage
+                dueDate
+              }
+            }
+          }
+        `,
+        { goalId, userEmail }
+      );
+
+      // Refresh goals list
+      const refreshData = await graphqlRequest<{ goals: Goal[] }>(
+        `
+          query GetGoals {
+            goals {
+              id
+              shortDescription
+              longDescription
+              creationDate
+              completionDate
+              status
+              locked
+              owner {
+                id
+                firstName
+                lastName
+                email
+                title
+              }
+              childGoals {
+                id
+                shortDescription
+                longDescription
+                creationDate
+                completionDate
+                status
+                locked
+                owner {
+                  id
+                  firstName
+                  lastName
+                  email
+                  title
+                }
+              }
+              assignedUsers {
+                id
+                firstName
+                lastName
+                email
+                title
+              }
+              kpis {
+                id
+                description
+                status
+                completionPercentage
+                dueDate
+              }
+            }
+          }
+        `
+      );
+
+      setGoals(refreshData.goals ?? []);
+
+      // Update assigningGoal with the new data
+      const updatedGoal = refreshData.goals?.find(g => g.id === goalId);
+      if (updatedGoal) {
+        setAssigningGoal(updatedGoal);
+      }
+      
+      // Reset the select
+      setSelectedUserEmail('');
+    } catch (err) {
+      setAssignError(err instanceof Error ? err.message : 'Failed to assign goal to user');
+    } finally {
+      setAssignLoading(false);
+    }
+  };
+
+  // Handle unassign goal from user
+  const handleUnassignGoal = async (goalId: string, userEmail: string) => {
+    if (!assigningGoal) return;
+
+    setAssignLoading(true);
+    setAssignError(null);
+
+    try {
+      await graphqlRequest<{ unassignGoalFromUser: Goal }>(
+        `
+          mutation UnassignGoalFromUser($goalId: ID!, $userEmail: String!) {
+            unassignGoalFromUser(goalId: $goalId, userEmail: $userEmail) {
+              id
+              assignedUsers {
+                id
+                firstName
+                lastName
+                email
+                title
+              }
+            }
+          }
+        `,
+        { goalId, userEmail }
+      );
+
+      // Refresh goals list
+      const refreshData = await graphqlRequest<{ goals: Goal[] }>(
+        `
+          query GetGoals {
+            goals {
+              id
+              shortDescription
+              longDescription
+              creationDate
+              completionDate
+              status
+              locked
+              owner {
+                id
+                firstName
+                lastName
+                email
+                title
+              }
+              childGoals {
+                id
+                shortDescription
+                longDescription
+                creationDate
+                completionDate
+                status
+                locked
+                owner {
+                  id
+                  firstName
+                  lastName
+                  email
+                  title
+                }
+              }
+              assignedUsers {
+                id
+                firstName
+                lastName
+                email
+                title
+              }
+              kpis {
+                id
+                description
+                status
+                completionPercentage
+                dueDate
+              }
+            }
+          }
+        `
+      );
+
+      setGoals(refreshData.goals ?? []);
+
+      // Update assigningGoal with the new data
+      const updatedGoal = refreshData.goals?.find(g => g.id === goalId);
+      if (updatedGoal) {
+        setAssigningGoal(updatedGoal);
+      }
+    } catch (err) {
+      setAssignError(err instanceof Error ? err.message : 'Failed to unassign goal from user');
+    } finally {
+      setAssignLoading(false);
+    }
+  };
+
   // Get filterable owners (current user + department members)
   const getFilterableOwners = (): User[] => {
     const filterable: User[] = [];
@@ -1346,11 +1711,30 @@ const GoalsPage: React.FC = () => {
                       setAssigningGoal(goal);
                       setAssignDialogOpen(true);
                       setAssignError(null);
+                      setSelectedUserEmail('');
                     }}
                     color="secondary"
                     disabled={goal.locked}
                   >
                     <PersonAddIcon />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title="Add Note">
+                  <IconButton
+                    size="small"
+                    onClick={() => handleAddNote(goal)}
+                    color="info"
+                  >
+                    <NotesIcon />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title="Download Goal Information">
+                  <IconButton
+                    size="small"
+                    onClick={() => handleDownloadGoal(goal)}
+                    color="default"
+                  >
+                    <DownloadIcon />
                   </IconButton>
                 </Tooltip>
                 {goal.status === 'PENDING_APPROVAL' && (
@@ -1558,11 +1942,30 @@ const GoalsPage: React.FC = () => {
                           setAssigningGoal(goal);
                           setAssignDialogOpen(true);
                           setAssignError(null);
+                          setSelectedUserEmail('');
                         }}
                         color="secondary"
                         disabled={goal.locked}
                       >
                         <PersonAddIcon />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Add Note">
+                      <IconButton
+                        size="small"
+                        onClick={() => handleAddNote(goal)}
+                        color="info"
+                      >
+                        <NotesIcon />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Download Goal Information">
+                      <IconButton
+                        size="small"
+                        onClick={() => handleDownloadGoal(goal)}
+                        color="default"
+                      >
+                        <DownloadIcon />
                       </IconButton>
                     </Tooltip>
                     {goal.status === 'PENDING_APPROVAL' && (
@@ -2600,15 +3003,19 @@ const GoalsPage: React.FC = () => {
                 <FormControl fullWidth>
                   <InputLabel>Assign to Department Member</InputLabel>
                   <Select
-                    value=""
+                    value={selectedUserEmail}
                     label="Assign to Department Member"
                     onChange={(e) => {
                       const userEmail = e.target.value as string;
-                      if (userEmail && !assigningGoal.assignedUsers.some(u => u.email === userEmail)) {
+                      setSelectedUserEmail(userEmail);
+                      if (userEmail && assigningGoal && !assigningGoal.assignedUsers.some(u => u.email === userEmail)) {
                         handleAssignGoal(assigningGoal.id, userEmail);
                       }
                     }}
                   >
+                    <MenuItem value="">
+                      <em>Select a user...</em>
+                    </MenuItem>
                     {getAssignableUsers()
                       .filter(user => !assigningGoal.assignedUsers.some(au => au.email === user.email))
                       .map((user) => (
@@ -2631,6 +3038,7 @@ const GoalsPage: React.FC = () => {
               setAssignDialogOpen(false);
               setAssigningGoal(null);
               setAssignError(null);
+              setSelectedUserEmail('');
             }}
             disabled={assignLoading}
           >

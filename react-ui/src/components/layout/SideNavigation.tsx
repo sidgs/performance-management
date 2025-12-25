@@ -56,7 +56,7 @@ const SideNavigation: React.FC<SideNavigationProps> = ({ open, onClose }) => {
   const performanceMenuItems = [
     // { text: 'Performance Reviews', icon: <AssessmentIcon />, path: '/performance/reviews' },
     { text: 'Goals', icon: <TrendingUpIcon />, path: '/goals' },
-    { text: 'Goal AI Assistant', icon: <AutoAwesomeIcon />, path: '/goal-ai' },
+    { text: 'Pulse AI', icon: <AutoAwesomeIcon />, path: '/goal-ai' },
     { text: 'Reports', icon: <ReportIcon />, path: '/reports' },
     { text: 'My Departments', icon: <GroupsIcon />, path: '/departments' },
     // { text: 'Feedback', icon: <NotificationsActiveIcon />, path: '/performance/feedback' },
