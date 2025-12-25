@@ -44,8 +44,19 @@ public class DepartmentController {
 
     @GetMapping
     public ResponseEntity<List<DepartmentDTO>> getAllDepartments() {
-        List<DepartmentDTO> departments = departmentService.getAllDepartments();
-        return new ResponseEntity<>(departments, HttpStatus.OK);
+        // If user is EPM_ADMIN, return all departments
+        // Otherwise, return only departments where user is a manager (owner or co-owner)
+        if (authorizationService.isEpmAdmin()) {
+            List<DepartmentDTO> departments = departmentService.getAllDepartments();
+            return new ResponseEntity<>(departments, HttpStatus.OK);
+        } else {
+            String currentUserEmail = authorizationService.getCurrentUserEmail();
+            if (currentUserEmail == null) {
+                return new ResponseEntity<>(HttpStatus.UNAUTHORIZED);
+            }
+            List<DepartmentDTO> departments = departmentService.getDepartmentsForManager(currentUserEmail);
+            return new ResponseEntity<>(departments, HttpStatus.OK);
+        }
     }
 
     @GetMapping("/root")
@@ -68,10 +79,29 @@ public class DepartmentController {
     @PostMapping("/{departmentId}/assign/{userEmail}")
     public ResponseEntity<DepartmentDTO> assignUserToDepartment(@PathVariable Long departmentId, @PathVariable String userEmail) {
         try {
-            authorizationService.requireEpmAdmin();
+            // Only EPM_ADMIN or department manager can assign users to department
+            if (!authorizationService.isEpmAdmin()) {
+                authorizationService.requireDepartmentManager(departmentId);
+            }
             DepartmentDTO department = departmentService.assignUserToDepartment(departmentId, userEmail);
             return new ResponseEntity<>(department, HttpStatus.OK);
-        } catch (IllegalArgumentException e) {
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return new ResponseEntity<>(null, HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    @GetMapping("/manager/{managerEmail}")
+    public ResponseEntity<List<DepartmentDTO>> getDepartmentsForManager(@PathVariable String managerEmail) {
+        try {
+            // Users can only see their own departments, unless they are EPM_ADMIN
+            String currentUserEmail = authorizationService.getCurrentUserEmail();
+            if (!authorizationService.isEpmAdmin() && 
+                (currentUserEmail == null || !currentUserEmail.equals(managerEmail))) {
+                return new ResponseEntity<>(HttpStatus.FORBIDDEN);
+            }
+            List<DepartmentDTO> departments = departmentService.getDepartmentsForManager(managerEmail);
+            return new ResponseEntity<>(departments, HttpStatus.OK);
+        } catch (Exception e) {
             return new ResponseEntity<>(null, HttpStatus.BAD_REQUEST);
         }
     }

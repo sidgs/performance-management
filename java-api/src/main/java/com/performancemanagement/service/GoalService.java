@@ -188,6 +188,12 @@ public class GoalService {
         // Set or update assigned date
         goal.setAssignedDate(LocalDate.now());
         
+        // If user belongs to a department, ensure goal is in DRAFT status for manager approval
+        // Department managers must approve all goals assigned to their department members
+        if (user.getDepartment() != null && goal.getStatus() != Goal.GoalStatus.DRAFT) {
+            goal.setStatus(Goal.GoalStatus.DRAFT);
+        }
+        
         goal.getAssignedUsers().add(user);
         Goal savedGoal = goalRepository.save(goal);
         return convertToDTO(savedGoal);
@@ -289,6 +295,91 @@ public class GoalService {
                 .orElseThrow(() -> new IllegalArgumentException("Goal not found"));
         
         goal.setTargetCompletionDate(targetCompletionDate);
+        Goal savedGoal = goalRepository.save(goal);
+        return convertToDTO(savedGoal);
+    }
+
+    /**
+     * Get all goals assigned to users in a specific department.
+     * This allows department managers to view and manage goals of their department members.
+     */
+    public List<GoalDTO> getGoalsByDepartment(Long departmentId) {
+        String tenantId = requireTenantId();
+        return goalRepository.findByDepartmentIdAndTenantId(departmentId, tenantId).stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Get all goals assigned to a specific user.
+     * Useful for department managers to see goals of individual team members.
+     */
+    public List<GoalDTO> getGoalsByAssignedUser(String userEmail) {
+        String tenantId = requireTenantId();
+        return goalRepository.findByAssignedUserEmailAndTenantId(userEmail, tenantId).stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Approve a goal that is assigned to a member of the department.
+     * Only department managers (owner or co-owner) can approve goals for their department members.
+     * This changes the goal status from DRAFT to APPROVED.
+     */
+    @CacheEvict(value = {"goals", "goal", "goalsByOwner", "rootGoals"}, allEntries = true)
+    public GoalDTO approveGoal(Long goalId, Long departmentId) {
+        String tenantId = requireTenantId();
+        
+        Goal goal = goalRepository.findByIdAndTenantId(goalId, tenantId)
+                .orElseThrow(() -> new IllegalArgumentException("Goal not found"));
+        
+        // Verify that the goal is assigned to at least one user in the specified department
+        boolean hasDepartmentMember = goal.getAssignedUsers().stream()
+                .anyMatch(user -> user.getDepartment() != null && 
+                                 user.getDepartment().getId().equals(departmentId));
+        
+        if (!hasDepartmentMember) {
+            throw new IllegalStateException("Goal is not assigned to any member of the specified department.");
+        }
+        
+        // Only approve if goal is in DRAFT status
+        if (goal.getStatus() != Goal.GoalStatus.DRAFT) {
+            throw new IllegalStateException("Only DRAFT goals can be approved. Current status: " + goal.getStatus());
+        }
+        
+        goal.setStatus(Goal.GoalStatus.APPROVED);
+        Goal savedGoal = goalRepository.save(goal);
+        return convertToDTO(savedGoal);
+    }
+
+    /**
+     * Reject a goal that is assigned to a member of the department.
+     * Only department managers (owner or co-owner) can reject goals for their department members.
+     * This changes the goal status back to DRAFT or sets it to RETIRED.
+     */
+    @CacheEvict(value = {"goals", "goal", "goalsByOwner", "rootGoals"}, allEntries = true)
+    public GoalDTO rejectGoal(Long goalId, Long departmentId, String reason) {
+        String tenantId = requireTenantId();
+        
+        Goal goal = goalRepository.findByIdAndTenantId(goalId, tenantId)
+                .orElseThrow(() -> new IllegalArgumentException("Goal not found"));
+        
+        // Verify that the goal is assigned to at least one user in the specified department
+        boolean hasDepartmentMember = goal.getAssignedUsers().stream()
+                .anyMatch(user -> user.getDepartment() != null && 
+                                 user.getDepartment().getId().equals(departmentId));
+        
+        if (!hasDepartmentMember) {
+            throw new IllegalStateException("Goal is not assigned to any member of the specified department.");
+        }
+        
+        // Only reject if goal is in DRAFT or APPROVED status
+        if (goal.getStatus() != Goal.GoalStatus.DRAFT && goal.getStatus() != Goal.GoalStatus.APPROVED) {
+            throw new IllegalStateException("Cannot reject goal with status: " + goal.getStatus());
+        }
+        
+        // Set status back to DRAFT so it can be revised
+        goal.setStatus(Goal.GoalStatus.DRAFT);
         Goal savedGoal = goalRepository.save(goal);
         return convertToDTO(savedGoal);
     }

@@ -23,6 +23,9 @@ public interface UserRepository extends JpaRepository<User, Long> {
     @Query("SELECT u FROM User u WHERE u.id = :id AND u.tenant.fqdn = :tenantId")
     Optional<User> findByIdAndTenantId(@Param("id") Long id, @Param("tenantId") String tenantId);
     
+    @Query("SELECT u FROM User u WHERE u.department.id = :departmentId AND u.tenant.fqdn = :tenantId")
+    List<User> findByDepartmentIdAndTenantId(@Param("departmentId") Long departmentId, @Param("tenantId") String tenantId);
+    
     // Legacy methods for backward compatibility - will be filtered by service layer
     Optional<User> findByEmail(String email);
     boolean existsByEmail(String email);

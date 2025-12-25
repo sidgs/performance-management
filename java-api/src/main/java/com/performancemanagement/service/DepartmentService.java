@@ -123,6 +123,17 @@ public class DepartmentService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Get all departments where the current user is a manager (owner or co-owner).
+     * This allows department managers to see and manage their departments.
+     */
+    public List<DepartmentDTO> getDepartmentsForManager(String managerEmail) {
+        String tenantId = requireTenantId();
+        return departmentRepository.findByManagerEmailAndTenantId(managerEmail, tenantId).stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+    }
+
     @Cacheable(value = "rootDepartments")
     public List<DepartmentDTO> getRootDepartments() {
         String tenantId = getCurrentTenantId();
