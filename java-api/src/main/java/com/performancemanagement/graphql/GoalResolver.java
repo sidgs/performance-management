@@ -4,8 +4,11 @@ import com.performancemanagement.config.TenantContext;
 import com.performancemanagement.config.UserContext;
 import com.performancemanagement.model.Goal;
 import com.performancemanagement.model.KPI;
+import com.performancemanagement.model.GoalNote;
 import com.performancemanagement.model.User;
 import com.performancemanagement.repository.KPIRepository;
+import com.performancemanagement.repository.GoalNoteRepository;
+import com.performancemanagement.service.GoalNoteService;
 import graphql.kickstart.tools.GraphQLResolver;
 import jakarta.persistence.EntityManager;
 import org.hibernate.Hibernate;
@@ -24,6 +27,9 @@ public class GoalResolver implements GraphQLResolver<Goal> {
 
     @Autowired
     private KPIRepository kpiRepository;
+
+    @Autowired
+    private GoalNoteService goalNoteService;
 
     private String getCurrentTenantId() {
         return TenantContext.getCurrentTenantId(); // Returns null if no tenant context - tenant validation is disabled
@@ -186,5 +192,21 @@ public class GoalResolver implements GraphQLResolver<Goal> {
             return "This goal is confidential and you do not have access to view its details.";
         }
         return goal.getLongDescription();
+    }
+
+    @Transactional(readOnly = true)
+    public List<GoalNote> notes(Goal goal) {
+        // Re-attach the entity to the current session
+        goal = entityManager.merge(goal);
+        String tenantId = getCurrentTenantId();
+        if (tenantId == null) {
+            // Tenant validation disabled - return all notes if user can view goal
+            if (canViewConfidentialGoal(goal)) {
+                return goalNoteService.getNotesByGoalId(goal.getId());
+            }
+            return List.of();
+        }
+        // Use service to get notes with authorization filtering
+        return goalNoteService.getNotesByGoalId(goal.getId());
     }
 }

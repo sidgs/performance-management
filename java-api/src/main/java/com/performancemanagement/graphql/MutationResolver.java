@@ -7,12 +7,15 @@ import com.performancemanagement.model.User;
 import com.performancemanagement.repository.DepartmentRepository;
 import com.performancemanagement.repository.GoalRepository;
 import com.performancemanagement.repository.KPIRepository;
+import com.performancemanagement.repository.GoalNoteRepository;
 import com.performancemanagement.repository.UserRepository;
 import com.performancemanagement.service.AuthorizationService;
 import com.performancemanagement.service.DepartmentService;
 import com.performancemanagement.service.GoalService;
 import com.performancemanagement.service.KPIService;
+import com.performancemanagement.service.GoalNoteService;
 import com.performancemanagement.service.UserService;
+import com.performancemanagement.model.GoalNote;
 import graphql.kickstart.tools.GraphQLMutationResolver;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -52,6 +55,12 @@ public class MutationResolver implements GraphQLMutationResolver {
 
     @Autowired
     private KPIRepository kpiRepository;
+
+    @Autowired
+    private GoalNoteService goalNoteService;
+
+    @Autowired
+    private GoalNoteRepository goalNoteRepository;
 
     // User mutations
     public User createUser(UserInput input) {
@@ -292,6 +301,28 @@ public class MutationResolver implements GraphQLMutationResolver {
     public Boolean deleteKPI(Long id) {
         try {
             kpiService.deleteKPI(id);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    // Goal note mutations
+    public GoalNote createGoalNote(Long goalId, String content) {
+        var created = goalNoteService.createNote(goalId, content);
+        String tenantId = com.performancemanagement.config.TenantContext.getCurrentTenantId();
+        return goalNoteRepository.findByIdAndTenantId(created.getId(), tenantId).orElse(null);
+    }
+
+    public GoalNote updateGoalNote(Long id, String content) {
+        var updated = goalNoteService.updateNote(id, content);
+        String tenantId = com.performancemanagement.config.TenantContext.getCurrentTenantId();
+        return goalNoteRepository.findByIdAndTenantId(updated.getId(), tenantId).orElse(null);
+    }
+
+    public Boolean deleteGoalNote(Long id) {
+        try {
+            goalNoteService.deleteNote(id);
             return true;
         } catch (Exception e) {
             return false;

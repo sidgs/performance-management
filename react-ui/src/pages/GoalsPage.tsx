@@ -55,12 +55,17 @@ import {
   ArrowDownward as ArrowDownwardIcon,
   Visibility as VisibilityIcon,
   //CalendarMonth as CalendarIcon,
+  Notes as NotesIcon,
 } from '@mui/icons-material';
+import Tabs from '@mui/material/Tabs';
+import Tab from '@mui/material/Tab';
 
 import { graphqlRequest } from '../api/graphqlClient';
 import { getCurrentUserEmail } from '../api/authService';
 import { approveGoal } from '../api/goalService';
-import type { Goal, GoalStatus, User, KPI, KPIStatus } from '../types';
+import type { Goal, GoalStatus, User, KPI, KPIStatus, GoalNote } from '../types';
+import NoteCard from '../components/notes/NoteCard';
+import RichTextEditor from '../components/notes/RichTextEditor';
 import LockIcon from '@mui/icons-material/Lock';
 import LockOpenIcon from '@mui/icons-material/LockOpen';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
@@ -138,6 +143,15 @@ const GoalsPage: React.FC = () => {
   const [deletingKpiId, setDeletingKpiId] = useState<string | null>(null);
   const [deleteKpiLoading, setDeleteKpiLoading] = useState(false);
 
+  // Notes management state
+  const [goalDetailsTab, setGoalDetailsTab] = useState(0);
+  const [notes, setNotes] = useState<GoalNote[]>([]);
+  const [notesLoading, setNotesLoading] = useState(false);
+  const [notesError, setNotesError] = useState<string | null>(null);
+  const [isCreatingNote, setIsCreatingNote] = useState(false);
+  const [newNoteContent, setNewNoteContent] = useState('');
+  const [createNoteLoading, setCreateNoteLoading] = useState(false);
+
   // Load goals and users from GraphQL API
   useEffect(() => {
     const fetchGoals = async () => {
@@ -192,6 +206,19 @@ const GoalsPage: React.FC = () => {
                   status
                   completionPercentage
                   dueDate
+                }
+                notes {
+                  id
+                  content
+                  createdAt
+                  updatedAt
+                  author {
+                    id
+                    firstName
+                    lastName
+                    email
+                    title
+                  }
                 }
               }
               users {
@@ -310,9 +337,149 @@ const GoalsPage: React.FC = () => {
   };
 
   // Handle view details
-  const handleViewDetails = (goal: Goal) => {
+  const handleViewDetails = async (goal: Goal) => {
     setSelectedGoal(goal);
     setOpenDialog(true);
+    setGoalDetailsTab(0);
+    // Fetch notes for this goal
+    await fetchNotes(goal.id);
+  };
+
+  // Fetch notes for a goal
+  const fetchNotes = async (goalId: string) => {
+    setNotesLoading(true);
+    setNotesError(null);
+    try {
+      const data = await graphqlRequest<{ goalNotes: GoalNote[] }>(
+        `
+          query GetGoalNotes($goalId: ID!) {
+            goalNotes(goalId: $goalId) {
+              id
+              content
+              createdAt
+              updatedAt
+              author {
+                id
+                firstName
+                lastName
+                email
+                title
+              }
+              goal {
+                id
+              }
+            }
+          }
+        `,
+        { goalId }
+      );
+      setNotes(data.goalNotes || []);
+    } catch (err) {
+      setNotesError(err instanceof Error ? err.message : 'Failed to load notes');
+    } finally {
+      setNotesLoading(false);
+    }
+  };
+
+  // Handle create note
+  const handleCreateNote = async (content: string) => {
+    if (!selectedGoal) return;
+
+    setCreateNoteLoading(true);
+    setNotesError(null);
+    try {
+      const data = await graphqlRequest<{ createGoalNote: GoalNote }>(
+        `
+          mutation CreateGoalNote($goalId: ID!, $content: String!) {
+            createGoalNote(goalId: $goalId, content: $content) {
+              id
+              content
+              createdAt
+              updatedAt
+              author {
+                id
+                firstName
+                lastName
+                email
+                title
+              }
+              goal {
+                id
+              }
+            }
+          }
+        `,
+        { goalId: selectedGoal.id, content }
+      );
+
+      // Refresh notes
+      await fetchNotes(selectedGoal.id);
+      setNewNoteContent('');
+      setIsCreatingNote(false);
+    } catch (err) {
+      setNotesError(err instanceof Error ? err.message : 'Failed to create note');
+    } finally {
+      setCreateNoteLoading(false);
+    }
+  };
+
+  // Handle update note
+  const handleUpdateNote = async (noteId: string, content: string) => {
+    if (!selectedGoal) return;
+
+    setNotesError(null);
+    try {
+      await graphqlRequest<{ updateGoalNote: GoalNote }>(
+        `
+          mutation UpdateGoalNote($id: ID!, $content: String!) {
+            updateGoalNote(id: $id, content: $content) {
+              id
+              content
+              createdAt
+              updatedAt
+              author {
+                id
+                firstName
+                lastName
+                email
+                title
+              }
+              goal {
+                id
+              }
+            }
+          }
+        `,
+        { id: noteId, content }
+      );
+
+      // Refresh notes
+      await fetchNotes(selectedGoal.id);
+    } catch (err) {
+      throw err; // Let NoteCard handle the error
+    }
+  };
+
+  // Handle delete note
+  const handleDeleteNote = async (noteId: string) => {
+    if (!selectedGoal) return;
+
+    setNotesError(null);
+    try {
+      await graphqlRequest<{ deleteGoalNote: boolean }>(
+        `
+          mutation DeleteGoalNote($id: ID!) {
+            deleteGoalNote(id: $id)
+          }
+        `,
+        { id: noteId }
+      );
+
+      // Refresh notes
+      await fetchNotes(selectedGoal.id);
+    } catch (err) {
+      throw err; // Let NoteCard handle the error
+    }
   };
 
   // Handle edit goal
@@ -1686,8 +1853,17 @@ const GoalsPage: React.FC = () => {
                 ID: {selectedGoal.id}
               </Typography>
             </DialogTitle>
+            <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+              <Tabs value={goalDetailsTab} onChange={(e, newValue) => setGoalDetailsTab(newValue)}>
+                <Tab label="Details" />
+                <Tab label="KPIs" />
+                <Tab label="Notes" icon={<NotesIcon />} iconPosition="start" />
+              </Tabs>
+            </Box>
             <DialogContent>
-              <Stack spacing={3}>
+              {/* Details Tab */}
+              {goalDetailsTab === 0 && (
+                <Stack spacing={3} sx={{ mt: 2 }}>
                 {/* Basic Info */}
                 <Box>
                   <Typography variant="subtitle2" color="text.secondary" gutterBottom>
@@ -1821,9 +1997,13 @@ const GoalsPage: React.FC = () => {
                   </Box>
                 )}
 
-                {/* KPIs */}
-                <Box>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                </Stack>
+              )}
+
+              {/* KPIs Tab */}
+              {goalDetailsTab === 1 && (
+                <Box sx={{ mt: 2 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                     <Typography variant="subtitle2" color="text.secondary">
                       Key Performance Indicators ({selectedGoal.kpis?.length || 0})
                     </Typography>
@@ -1935,8 +2115,72 @@ const GoalsPage: React.FC = () => {
                     </Typography>
                   )}
                 </Box>
+              )}
 
-              </Stack>
+              {/* Notes Tab */}
+              {goalDetailsTab === 2 && (
+                <Box sx={{ mt: 2 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                    <Typography variant="subtitle2" color="text.secondary">
+                      Notes ({notes.length})
+                    </Typography>
+                    <Button
+                      size="small"
+                      variant="contained"
+                      startIcon={<AddIcon />}
+                      onClick={() => setIsCreatingNote(true)}
+                      disabled={isCreatingNote}
+                    >
+                      Add Note
+                    </Button>
+                  </Box>
+
+                  {notesError && (
+                    <Alert severity="error" sx={{ mb: 2 }}>
+                      {notesError}
+                    </Alert>
+                  )}
+
+                  {isCreatingNote && (
+                    <Box sx={{ mb: 3 }}>
+                      <RichTextEditor
+                        initialContent={newNoteContent}
+                        onSave={handleCreateNote}
+                        onCancel={() => {
+                          setIsCreatingNote(false);
+                          setNewNoteContent('');
+                        }}
+                        loading={createNoteLoading}
+                        placeholder="Add a note about this goal..."
+                      />
+                    </Box>
+                  )}
+
+                  {notesLoading ? (
+                    <Box sx={{ textAlign: 'center', py: 4 }}>
+                      <Typography variant="body2" color="text.secondary">
+                        Loading notes...
+                      </Typography>
+                    </Box>
+                  ) : notes.length === 0 ? (
+                    <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic', py: 4, textAlign: 'center' }}>
+                      No notes yet. Be the first to add a note!
+                    </Typography>
+                  ) : (
+                    <Box>
+                      {notes.map((note) => (
+                        <NoteCard
+                          key={note.id}
+                          note={note}
+                          onEdit={handleUpdateNote}
+                          onDelete={handleDeleteNote}
+                          loading={notesLoading}
+                        />
+                      ))}
+                    </Box>
+                  )}
+                </Box>
+              )}
             </DialogContent>
             <DialogActions>
               <Button onClick={() => setOpenDialog(false)}>Close</Button>
