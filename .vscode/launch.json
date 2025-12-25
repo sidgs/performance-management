@@ -21,6 +21,16 @@
             }
         },
         {
+            "type": "java",
+            "name": "epm-api-demo",
+            "request": "launch",
+            "mainClass": "com.performancemanagement.PerformanceManagementApplication",
+            "projectName": "performance-management-api",
+            "env": {
+                "SPRING_PROFILES_ACTIVE": "demo"
+            }
+        },
+        {
             "type": "node",
             "request": "launch",
             "name": "epm-ui",

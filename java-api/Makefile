@@ -13,6 +13,7 @@ help:
 	@echo "  run        - Run the built JAR file with debug mode (port $(DEBUG_PORT))"
 	@echo "  run-local   - Run with 'local' profile (no Redis)"
 	@echo "  run-dev     - Run with 'dev' profile (with Redis)"
+	@echo "  run-demo    - Run with 'demo' profile (with Redis and demo data)"
 	@echo "  clean       - Clean Maven build artifacts"
 	@echo "  help        - Show this help message"
 
@@ -34,6 +35,10 @@ run-local: build
 run-dev: build
 	@echo "Running application with 'dev' profile (with Redis)..."
 	SPRING_PROFILES_ACTIVE=dev java -jar $(JAR_FILE) --server.port=$(SERVER_PORT)
+
+run-demo: build
+	@echo "Running application with 'demo' profile (with Redis and demo data)..."
+	SPRING_PROFILES_ACTIVE=demo java -jar $(JAR_FILE) --server.port=$(SERVER_PORT)
 
 clean:
 	@echo "Cleaning build artifacts..."
