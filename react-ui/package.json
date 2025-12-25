@@ -30,6 +30,12 @@
     "react-router-dom": "^6.0.0"
   },
   "peerDependenciesMeta": {
+    "react": {
+      "optional": false
+    },
+    "react-dom": {
+      "optional": false
+    },
     "@mui/material": {
       "optional": false
     },
@@ -38,9 +44,13 @@
     }
   },
   "scripts": {
-    "dev": "vite",
+    "dev": "VITE_WIDGET_MODE=true vite",
+    "dev:widget": "VITE_WIDGET_MODE=true vite --open /?widget=true",
+    "dev:standalone": "vite",
     "build": "tsc && vite build",
+    "build:widget": "VITE_WIDGET_MODE=true tsc && vite build",
     "preview": "vite preview",
+    "preview:widget": "VITE_WIDGET_MODE=true vite preview --open /?widget=true",
     "clean": "rm -rf dist",
     "prebuild": "npm run clean"
   },

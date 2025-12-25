@@ -10,20 +10,20 @@ import java.util.List;
 
 @Repository
 public interface GoalRepository extends JpaRepository<Goal, Long> {
-    @Query("SELECT g FROM Goal g WHERE g.owner.email = :email AND g.tenant.id = :tenantId")
-    List<Goal> findByOwnerEmailAndTenantId(@Param("email") String email, @Param("tenantId") Long tenantId);
+    @Query("SELECT g FROM Goal g WHERE g.owner.email = :email AND g.tenant.fqdn = :tenantId")
+    List<Goal> findByOwnerEmailAndTenantId(@Param("email") String email, @Param("tenantId") String tenantId);
     
-    @Query("SELECT g FROM Goal g WHERE g.parentGoal.id = :parentGoalId AND g.tenant.id = :tenantId")
-    List<Goal> findByParentGoalIdAndTenantId(@Param("parentGoalId") Long parentGoalId, @Param("tenantId") Long tenantId);
+    @Query("SELECT g FROM Goal g WHERE g.parentGoal.id = :parentGoalId AND g.tenant.fqdn = :tenantId")
+    List<Goal> findByParentGoalIdAndTenantId(@Param("parentGoalId") Long parentGoalId, @Param("tenantId") String tenantId);
     
-    @Query("SELECT g FROM Goal g WHERE g.parentGoal IS NULL AND g.tenant.id = :tenantId")
-    List<Goal> findByParentGoalIsNullAndTenantId(@Param("tenantId") Long tenantId);
+    @Query("SELECT g FROM Goal g WHERE g.parentGoal IS NULL AND g.tenant.fqdn = :tenantId")
+    List<Goal> findByParentGoalIsNullAndTenantId(@Param("tenantId") String tenantId);
     
-    @Query("SELECT g FROM Goal g WHERE g.id = :id AND g.tenant.id = :tenantId")
-    java.util.Optional<Goal> findByIdAndTenantId(@Param("id") Long id, @Param("tenantId") Long tenantId);
+    @Query("SELECT g FROM Goal g WHERE g.id = :id AND g.tenant.fqdn = :tenantId")
+    java.util.Optional<Goal> findByIdAndTenantId(@Param("id") Long id, @Param("tenantId") String tenantId);
     
-    @Query("SELECT g FROM Goal g WHERE g.tenant.id = :tenantId")
-    List<Goal> findAllByTenantId(@Param("tenantId") Long tenantId);
+    @Query("SELECT g FROM Goal g WHERE g.tenant.fqdn = :tenantId")
+    List<Goal> findAllByTenantId(@Param("tenantId") String tenantId);
     
     // Legacy methods for backward compatibility - will be filtered by service layer
     List<Goal> findByOwnerEmail(String email);

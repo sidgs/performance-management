@@ -26,17 +26,21 @@ public class DepartmentService {
     @Autowired
     private UserRepository userRepository;
     
-    private Long getCurrentTenantId() {
-        Long tenantId = TenantContext.getCurrentTenantId();
+    private String getCurrentTenantId() {
+        return TenantContext.getCurrentTenantId(); // Returns null if no tenant context - tenant validation is disabled
+    }
+    
+    private String requireTenantId() {
+        String tenantId = getCurrentTenantId();
         if (tenantId == null) {
-            throw new IllegalStateException("No tenant context available");
+            throw new IllegalStateException("Tenant context required for this operation");
         }
         return tenantId;
     }
 
     @CacheEvict(value = {"departments", "department", "rootDepartments"}, allEntries = true)
     public DepartmentDTO createDepartment(DepartmentDTO departmentDTO) {
-        Long tenantId = getCurrentTenantId();
+        String tenantId = requireTenantId(); // Mutations require tenant
         
         User owner = userRepository.findByEmailAndTenantId(departmentDTO.getOwnerEmail(), tenantId)
                 .orElseThrow(() -> new IllegalArgumentException("Owner not found"));
@@ -66,7 +70,7 @@ public class DepartmentService {
     }
 
     public DepartmentDTO updateDepartment(Long id, DepartmentDTO departmentDTO) {
-        Long tenantId = getCurrentTenantId();
+        String tenantId = requireTenantId(); // Mutations require tenant
         
         Department department = departmentRepository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> new IllegalArgumentException("Department not found"));
@@ -100,14 +104,20 @@ public class DepartmentService {
 
     @Cacheable(value = "department", key = "#id")
     public DepartmentDTO getDepartmentById(Long id) {
-        Long tenantId = getCurrentTenantId();
+        String tenantId = getCurrentTenantId();
+        if (tenantId == null) {
+            return null; // Tenant validation disabled
+        }
         Department department = departmentRepository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> new IllegalArgumentException("Department not found"));
         return convertToDTO(department);
     }
 
     public List<DepartmentDTO> getAllDepartments() {
-        Long tenantId = getCurrentTenantId();
+        String tenantId = getCurrentTenantId();
+        if (tenantId == null) {
+            return List.of(); // Tenant validation disabled - return empty list
+        }
         return departmentRepository.findAllByTenantId(tenantId).stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
@@ -115,14 +125,17 @@ public class DepartmentService {
 
     @Cacheable(value = "rootDepartments")
     public List<DepartmentDTO> getRootDepartments() {
-        Long tenantId = getCurrentTenantId();
+        String tenantId = getCurrentTenantId();
+        if (tenantId == null) {
+            return List.of(); // Tenant validation disabled - return empty list
+        }
         return departmentRepository.findByParentDepartmentIsNullAndTenantId(tenantId).stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
     }
 
     public DepartmentDTO assignUserToDepartment(Long departmentId, String userEmail) {
-        Long tenantId = getCurrentTenantId();
+        String tenantId = requireTenantId(); // Mutations require tenant
         
         Department department = departmentRepository.findByIdAndTenantId(departmentId, tenantId)
                 .orElseThrow(() -> new IllegalArgumentException("Department not found"));
@@ -138,7 +151,7 @@ public class DepartmentService {
 
     @CacheEvict(value = {"departments", "department", "rootDepartments"}, allEntries = true)
     public void deleteDepartment(Long id) {
-        Long tenantId = getCurrentTenantId();
+        String tenantId = requireTenantId(); // Mutations require tenant
         Department department = departmentRepository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> new IllegalArgumentException("Department not found"));
         departmentRepository.delete(department);
@@ -163,18 +176,18 @@ public class DepartmentService {
             dto.setParentDepartmentId(department.getParentDepartment().getId());
         }
         
-        Long tenantId = department.getTenant().getId();
+        String tenantId = department.getTenant().getFqdn();
         
         if (department.getChildDepartments() != null && !department.getChildDepartments().isEmpty()) {
             dto.setChildDepartments(department.getChildDepartments().stream()
-                    .filter(child -> child.getTenant().getId().equals(tenantId))
+                    .filter(child -> child.getTenant().getFqdn().equals(tenantId))
                     .map(this::convertToDTO)
                     .collect(Collectors.toList()));
         }
         
         if (department.getUsers() != null && !department.getUsers().isEmpty()) {
             dto.setUserEmails(department.getUsers().stream()
-                    .filter(user -> user.getTenant().getId().equals(tenantId))
+                    .filter(user -> user.getTenant().getFqdn().equals(tenantId))
                     .map(User::getEmail)
                     .collect(Collectors.toList()));
         }

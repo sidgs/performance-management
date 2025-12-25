@@ -3,6 +3,7 @@ import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { BrowserRouter } from 'react-router-dom';
 import App from './App';
+import PerformanceManagementWidget from './components/PerformanceManagementWidget';
 
 // Re-export all your components
 export { default as App } from './App';
@@ -13,6 +14,7 @@ export { default as Footer } from './components/layout/Footer';
 export { default as SideNavigation } from './components/layout/SideNavigation';
 export { default as Breadcrumbs } from './components/layout/Breadcrumbs';
 export { default as Layout } from './components/layout/Layout';
+export { default as PerformanceManagementWidget } from './components/PerformanceManagementWidget';
 
 // Export types
 export type { User, Goal, GoalStatus, Department } from './types'; // Create this file

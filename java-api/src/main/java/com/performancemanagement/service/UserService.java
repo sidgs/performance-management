@@ -20,16 +20,20 @@ public class UserService {
     @Autowired
     private UserRepository userRepository;
     
-    private Long getCurrentTenantId() {
-        Long tenantId = TenantContext.getCurrentTenantId();
+    private String getCurrentTenantId() {
+        return TenantContext.getCurrentTenantId(); // Returns null if no tenant context - tenant validation is disabled
+    }
+    
+    private String requireTenantId() {
+        String tenantId = getCurrentTenantId();
         if (tenantId == null) {
-            throw new IllegalStateException("No tenant context available");
+            throw new IllegalStateException("Tenant context required for this operation");
         }
         return tenantId;
     }
 
     public UserDTO createUser(UserDTO userDTO) {
-        Long tenantId = getCurrentTenantId();
+        String tenantId = requireTenantId(); // Mutations require tenant
         
         if (userRepository.existsByEmailAndTenantId(userDTO.getEmail(), tenantId)) {
             throw new IllegalArgumentException("User with email " + userDTO.getEmail() + " already exists");
@@ -41,6 +45,13 @@ public class UserService {
         user.setLastName(userDTO.getLastName());
         user.setEmail(userDTO.getEmail());
         user.setTitle(userDTO.getTitle());
+
+        // Default role is USER unless explicitly provided as EPM_ADMIN
+        if ("EPM_ADMIN".equalsIgnoreCase(userDTO.getRole())) {
+            user.setRole(User.Role.EPM_ADMIN);
+        } else {
+            user.setRole(User.Role.USER);
+        }
 
         if (userDTO.getManagerId() != null) {
             User manager = userRepository.findByIdAndTenantId(userDTO.getManagerId(), tenantId)
@@ -54,7 +65,7 @@ public class UserService {
 
     @CacheEvict(value = {"users", "user", "userByEmail"}, allEntries = true)
     public UserDTO updateUser(Long id, UserDTO userDTO) {
-        Long tenantId = getCurrentTenantId();
+        String tenantId = requireTenantId(); // Mutations require tenant
         
         User user = userRepository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
@@ -62,6 +73,15 @@ public class UserService {
         user.setFirstName(userDTO.getFirstName());
         user.setLastName(userDTO.getLastName());
         user.setTitle(userDTO.getTitle());
+
+        // Allow updating role if provided
+        if (userDTO.getRole() != null) {
+            if ("EPM_ADMIN".equalsIgnoreCase(userDTO.getRole())) {
+                user.setRole(User.Role.EPM_ADMIN);
+            } else {
+                user.setRole(User.Role.USER);
+            }
+        }
 
         if (userDTO.getManagerId() != null) {
             User manager = userRepository.findByIdAndTenantId(userDTO.getManagerId(), tenantId)
@@ -77,14 +97,20 @@ public class UserService {
 
     @Cacheable(value = "user", key = "#id")
     public UserDTO getUserById(Long id) {
-        Long tenantId = getCurrentTenantId();
+        String tenantId = getCurrentTenantId();
+        if (tenantId == null) {
+            return null; // Tenant validation disabled
+        }
         User user = userRepository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
         return convertToDTO(user);
     }
 
     public UserDTO getUserByEmail(String email) {
-        Long tenantId = getCurrentTenantId();
+        String tenantId = getCurrentTenantId();
+        if (tenantId == null) {
+            return null; // Tenant validation disabled
+        }
         User user = userRepository.findByEmailAndTenantId(email, tenantId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
         return convertToDTO(user);
@@ -92,14 +118,17 @@ public class UserService {
 
     @Cacheable(value = "users")
     public List<UserDTO> getAllUsers() {
-        Long tenantId = getCurrentTenantId();
+        String tenantId = getCurrentTenantId();
+        if (tenantId == null) {
+            return List.of(); // Tenant validation disabled - return empty list
+        }
         return userRepository.findAllByTenantId(tenantId).stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
     }
 
     public void deleteUser(Long id) {
-        Long tenantId = getCurrentTenantId();
+        String tenantId = requireTenantId(); // Mutations require tenant
         User user = userRepository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
         userRepository.delete(user);
@@ -107,11 +136,14 @@ public class UserService {
 
     @Cacheable(value = "teamMembers", key = "#managerId")
     public List<UserDTO> getTeamMembers(Long managerId) {
-        Long tenantId = getCurrentTenantId();
+        String tenantId = getCurrentTenantId();
+        if (tenantId == null) {
+            return List.of(); // Tenant validation disabled - return empty list
+        }
         User manager = userRepository.findByIdAndTenantId(managerId, tenantId)
                 .orElseThrow(() -> new IllegalArgumentException("Manager not found"));
         return manager.getTeamMembers().stream()
-                .filter(teamMember -> teamMember.getTenant().getId().equals(tenantId))
+                .filter(teamMember -> teamMember.getTenant().getFqdn().equals(tenantId))
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
     }
@@ -123,6 +155,10 @@ public class UserService {
         dto.setLastName(user.getLastName());
         dto.setEmail(user.getEmail());
         dto.setTitle(user.getTitle());
+
+        if (user.getRole() != null) {
+            dto.setRole(user.getRole().name());
+        }
         
         if (user.getDepartment() != null) {
             dto.setDepartmentId(user.getDepartment().getId());

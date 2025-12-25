@@ -2,19 +2,23 @@ package com.performancemanagement.graphql;
 
 import com.performancemanagement.model.Department;
 import com.performancemanagement.model.Goal;
+import com.performancemanagement.model.KPI;
 import com.performancemanagement.model.User;
 import com.performancemanagement.repository.DepartmentRepository;
 import com.performancemanagement.repository.GoalRepository;
+import com.performancemanagement.repository.KPIRepository;
 import com.performancemanagement.repository.UserRepository;
+import com.performancemanagement.service.AuthorizationService;
 import com.performancemanagement.service.DepartmentService;
 import com.performancemanagement.service.GoalService;
+import com.performancemanagement.service.KPIService;
 import com.performancemanagement.service.UserService;
 import graphql.kickstart.tools.GraphQLMutationResolver;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
+import java.util.List;
 
 @Component
 public class MutationResolver implements GraphQLMutationResolver {
@@ -37,8 +41,21 @@ public class MutationResolver implements GraphQLMutationResolver {
     @Autowired
     private DepartmentRepository departmentRepository;
 
+    @Autowired
+    private AuthorizationService authorizationService;
+
+    @Autowired
+    private com.performancemanagement.service.BulkUploadService bulkUploadService;
+
+    @Autowired
+    private KPIService kpiService;
+
+    @Autowired
+    private KPIRepository kpiRepository;
+
     // User mutations
     public User createUser(UserInput input) {
+        authorizationService.requireEpmAdmin();
         var userDTO = new com.performancemanagement.dto.UserDTO();
         userDTO.setFirstName(input.getFirstName());
         userDTO.setLastName(input.getLastName());
@@ -47,11 +64,12 @@ public class MutationResolver implements GraphQLMutationResolver {
         userDTO.setManagerId(input.getManagerId());
         
         var created = userService.createUser(userDTO);
-        Long tenantId = com.performancemanagement.config.TenantContext.getCurrentTenantId();
+        String tenantId = com.performancemanagement.config.TenantContext.getCurrentTenantId();
         return userRepository.findByIdAndTenantId(created.getId(), tenantId).orElse(null);
     }
 
     public User updateUser(Long id, UserInput input) {
+        authorizationService.requireEpmAdmin();
         var userDTO = new com.performancemanagement.dto.UserDTO();
         userDTO.setFirstName(input.getFirstName());
         userDTO.setLastName(input.getLastName());
@@ -60,17 +78,68 @@ public class MutationResolver implements GraphQLMutationResolver {
         userDTO.setManagerId(input.getManagerId());
         
         var updated = userService.updateUser(id, userDTO);
-        Long tenantId = com.performancemanagement.config.TenantContext.getCurrentTenantId();
+        String tenantId = com.performancemanagement.config.TenantContext.getCurrentTenantId();
         return userRepository.findByIdAndTenantId(updated.getId(), tenantId).orElse(null);
     }
 
     public Boolean deleteUser(Long id) {
         try {
+            authorizationService.requireEpmAdmin();
             userService.deleteUser(id);
             return true;
         } catch (Exception e) {
             return false;
         }
+    }
+
+    public User setUserManager(Long userId, Long managerId) {
+        String tenantId = com.performancemanagement.config.TenantContext.getCurrentTenantId();
+        
+        // Get current user
+        String currentUserEmail = authorizationService.getCurrentUserEmail();
+        if (currentUserEmail == null) {
+            throw new IllegalStateException("User not authenticated");
+        }
+        
+        User targetUser = userRepository.findByIdAndTenantId(userId, tenantId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+        
+        // If setting a manager (not removing)
+        if (managerId != null) {
+            User manager = userRepository.findByIdAndTenantId(managerId, tenantId)
+                    .orElseThrow(() -> new IllegalArgumentException("Manager not found"));
+            
+            // Check if current user is the manager being set, or if current user is EPM_ADMIN
+            boolean isEpmAdmin = authorizationService.isEpmAdmin();
+            boolean isSettingSelfAsManager = manager.getEmail().equalsIgnoreCase(currentUserEmail);
+            
+            if (!isEpmAdmin && !isSettingSelfAsManager) {
+                throw new IllegalStateException("You can only set yourself as a manager for other users");
+            }
+            
+            // Check if user already has a different manager
+            if (targetUser.getManager() != null && 
+                !targetUser.getManager().getId().equals(managerId) &&
+                !isEpmAdmin) {
+                throw new IllegalStateException("User already has a manager. Only EPM_ADMIN can change existing manager relationships.");
+            }
+            
+            targetUser.setManager(manager);
+        } else {
+            // Removing manager - only allowed if current user is the manager or EPM_ADMIN
+            boolean isEpmAdmin = authorizationService.isEpmAdmin();
+            boolean isCurrentUserTheManager = targetUser.getManager() != null && 
+                targetUser.getManager().getEmail().equalsIgnoreCase(currentUserEmail);
+            
+            if (!isEpmAdmin && !isCurrentUserTheManager) {
+                throw new IllegalStateException("You can only remove yourself as a manager");
+            }
+            
+            targetUser.setManager(null);
+        }
+        
+        User savedUser = userRepository.save(targetUser);
+        return savedUser;
     }
 
     // Goal mutations
@@ -87,10 +156,26 @@ public class MutationResolver implements GraphQLMutationResolver {
         if (input.getCompletionDate() != null) {
             goalDTO.setCompletionDate(LocalDate.parse(input.getCompletionDate()));
         }
+        if (input.getTargetCompletionDate() != null) {
+            goalDTO.setTargetCompletionDate(LocalDate.parse(input.getTargetCompletionDate()));
+        }
         goalDTO.setParentGoalId(input.getParentGoalId());
         
+        // Convert KPI inputs to DTOs
+        if (input.getKpis() != null && !input.getKpis().isEmpty()) {
+            List<com.performancemanagement.dto.KPIDTO> kpiDTOs = input.getKpis().stream().map(kpiInput -> {
+                var kpiDTO = new com.performancemanagement.dto.KPIDTO();
+                kpiDTO.setDescription(kpiInput.getDescription());
+                kpiDTO.setDueDate(LocalDate.parse(kpiInput.getDueDate()));
+                kpiDTO.setStatus(kpiInput.getStatus());
+                kpiDTO.setCompletionPercentage(kpiInput.getCompletionPercentage() != null ? kpiInput.getCompletionPercentage() : 0);
+                return kpiDTO;
+            }).toList();
+            goalDTO.setKpis(kpiDTOs);
+        }
+        
         var created = goalService.createGoal(goalDTO);
-        Long tenantId = com.performancemanagement.config.TenantContext.getCurrentTenantId();
+        String tenantId = com.performancemanagement.config.TenantContext.getCurrentTenantId();
         return goalRepository.findByIdAndTenantId(created.getId(), tenantId).orElse(null);
     }
 
@@ -103,16 +188,49 @@ public class MutationResolver implements GraphQLMutationResolver {
         if (input.getCompletionDate() != null) {
             goalDTO.setCompletionDate(LocalDate.parse(input.getCompletionDate()));
         }
+        if (input.getTargetCompletionDate() != null) {
+            goalDTO.setTargetCompletionDate(LocalDate.parse(input.getTargetCompletionDate()));
+        }
         goalDTO.setParentGoalId(input.getParentGoalId());
         
         var updated = goalService.updateGoal(id, goalDTO);
-        Long tenantId = com.performancemanagement.config.TenantContext.getCurrentTenantId();
+        String tenantId = com.performancemanagement.config.TenantContext.getCurrentTenantId();
         return goalRepository.findByIdAndTenantId(updated.getId(), tenantId).orElse(null);
     }
 
     public Goal assignGoalToUser(Long goalId, String userEmail) {
         var goalDTO = goalService.assignGoalToUser(goalId, userEmail);
-        Long tenantId = com.performancemanagement.config.TenantContext.getCurrentTenantId();
+        String tenantId = com.performancemanagement.config.TenantContext.getCurrentTenantId();
+        return goalRepository.findByIdAndTenantId(goalDTO.getId(), tenantId).orElse(null);
+    }
+
+    public Goal unassignGoalFromUser(Long goalId, String userEmail) {
+        var goalDTO = goalService.unassignGoalFromUser(goalId, userEmail);
+        String tenantId = com.performancemanagement.config.TenantContext.getCurrentTenantId();
+        return goalRepository.findByIdAndTenantId(goalDTO.getId(), tenantId).orElse(null);
+    }
+
+    public Goal lockGoal(Long id) {
+        var goalDTO = goalService.lockGoal(id);
+        String tenantId = com.performancemanagement.config.TenantContext.getCurrentTenantId();
+        return goalRepository.findByIdAndTenantId(goalDTO.getId(), tenantId).orElse(null);
+    }
+
+    public Goal unlockGoal(Long id) {
+        // Get current user email from security context
+        org.springframework.security.core.Authentication authentication = 
+            org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            throw new IllegalStateException("User not authenticated");
+        }
+        String currentUserEmail;
+        if (authentication.getPrincipal() instanceof com.performancemanagement.config.JwtTokenProvider.JwtUserDetails) {
+            currentUserEmail = ((com.performancemanagement.config.JwtTokenProvider.JwtUserDetails) authentication.getPrincipal()).getEmail();
+        } else {
+            currentUserEmail = authentication.getName();
+        }
+        var goalDTO = goalService.unlockGoal(id, currentUserEmail);
+        String tenantId = com.performancemanagement.config.TenantContext.getCurrentTenantId();
         return goalRepository.findByIdAndTenantId(goalDTO.getId(), tenantId).orElse(null);
     }
 
@@ -125,8 +243,54 @@ public class MutationResolver implements GraphQLMutationResolver {
         }
     }
 
+    public Goal updateTargetCompletionDate(Long goalId, String targetCompletionDate) {
+        var goalDTO = goalService.updateTargetCompletionDate(
+            goalId, 
+            targetCompletionDate != null ? LocalDate.parse(targetCompletionDate) : null
+        );
+        String tenantId = com.performancemanagement.config.TenantContext.getCurrentTenantId();
+        return goalRepository.findByIdAndTenantId(goalDTO.getId(), tenantId).orElse(null);
+    }
+
+    // KPI mutations
+    public KPI createKPI(Long goalId, KPIInput input) {
+        var kpiDTO = new com.performancemanagement.dto.KPIDTO();
+        kpiDTO.setDescription(input.getDescription());
+        kpiDTO.setDueDate(LocalDate.parse(input.getDueDate()));
+        kpiDTO.setStatus(input.getStatus() != null ? input.getStatus() : KPI.KPIStatus.NOT_STARTED);
+        kpiDTO.setCompletionPercentage(input.getCompletionPercentage() != null ? input.getCompletionPercentage() : 0);
+        
+        var created = kpiService.createKPI(goalId, kpiDTO);
+        String tenantId = com.performancemanagement.config.TenantContext.getCurrentTenantId();
+        return kpiRepository.findByIdAndTenantId(created.getId(), tenantId).orElse(null);
+    }
+
+    public KPI updateKPI(Long id, KPIUpdateInput input) {
+        var kpiDTO = new com.performancemanagement.dto.KPIDTO();
+        kpiDTO.setDescription(input.getDescription());
+        kpiDTO.setStatus(input.getStatus());
+        kpiDTO.setCompletionPercentage(input.getCompletionPercentage());
+        if (input.getDueDate() != null) {
+            kpiDTO.setDueDate(LocalDate.parse(input.getDueDate()));
+        }
+        
+        var updated = kpiService.updateKPI(id, kpiDTO);
+        String tenantId = com.performancemanagement.config.TenantContext.getCurrentTenantId();
+        return kpiRepository.findByIdAndTenantId(updated.getId(), tenantId).orElse(null);
+    }
+
+    public Boolean deleteKPI(Long id) {
+        try {
+            kpiService.deleteKPI(id);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     // Department mutations
     public Department createDepartment(DepartmentInput input) {
+        authorizationService.requireEpmAdmin();
         var deptDTO = new com.performancemanagement.dto.DepartmentDTO();
         deptDTO.setName(input.getName());
         deptDTO.setSmallDescription(input.getSmallDescription());
@@ -140,11 +304,12 @@ public class MutationResolver implements GraphQLMutationResolver {
         deptDTO.setParentDepartmentId(input.getParentDepartmentId());
         
         var created = departmentService.createDepartment(deptDTO);
-        Long tenantId = com.performancemanagement.config.TenantContext.getCurrentTenantId();
+        String tenantId = com.performancemanagement.config.TenantContext.getCurrentTenantId();
         return departmentRepository.findByIdAndTenantId(created.getId(), tenantId).orElse(null);
     }
 
     public Department updateDepartment(Long id, DepartmentInput input) {
+        authorizationService.requireEpmAdmin();
         var deptDTO = new com.performancemanagement.dto.DepartmentDTO();
         deptDTO.setName(input.getName());
         deptDTO.setSmallDescription(input.getSmallDescription());
@@ -153,23 +318,36 @@ public class MutationResolver implements GraphQLMutationResolver {
         deptDTO.setParentDepartmentId(input.getParentDepartmentId());
         
         var updated = departmentService.updateDepartment(id, deptDTO);
-        Long tenantId = com.performancemanagement.config.TenantContext.getCurrentTenantId();
+        String tenantId = com.performancemanagement.config.TenantContext.getCurrentTenantId();
         return departmentRepository.findByIdAndTenantId(updated.getId(), tenantId).orElse(null);
     }
 
     public Department assignUserToDepartment(Long departmentId, String userEmail) {
+        authorizationService.requireEpmAdmin();
         var deptDTO = departmentService.assignUserToDepartment(departmentId, userEmail);
-        Long tenantId = com.performancemanagement.config.TenantContext.getCurrentTenantId();
+        String tenantId = com.performancemanagement.config.TenantContext.getCurrentTenantId();
         return departmentRepository.findByIdAndTenantId(deptDTO.getId(), tenantId).orElse(null);
     }
 
     public Boolean deleteDepartment(Long id) {
         try {
+            authorizationService.requireEpmAdmin();
             departmentService.deleteDepartment(id);
             return true;
         } catch (Exception e) {
             return false;
         }
+    }
+
+    // Bulk upload mutation
+    public com.performancemanagement.dto.BulkUploadDTO.BulkUploadResult bulkUploadUsers(String csvData) {
+        authorizationService.requireEpmAdmin();
+        
+        // Parse CSV
+        List<com.performancemanagement.dto.BulkUploadDTO.BulkUploadRow> rows = bulkUploadService.parseCSV(csvData);
+        
+        // Process bulk upload
+        return bulkUploadService.processBulkUpload(rows);
     }
 
     // Inner classes for GraphQL input types
@@ -202,8 +380,11 @@ public class MutationResolver implements GraphQLMutationResolver {
         private String ownerEmail;
         private String creationDate;
         private String completionDate;
+        private String assignedDate;
+        private String targetCompletionDate;
         private Goal.GoalStatus status;
         private Long parentGoalId;
+        private List<KPIInput> kpis;
 
         // Getters and setters
         public String getShortDescription() { return shortDescription; }
@@ -216,10 +397,50 @@ public class MutationResolver implements GraphQLMutationResolver {
         public void setCreationDate(String creationDate) { this.creationDate = creationDate; }
         public String getCompletionDate() { return completionDate; }
         public void setCompletionDate(String completionDate) { this.completionDate = completionDate; }
+        public String getAssignedDate() { return assignedDate; }
+        public void setAssignedDate(String assignedDate) { this.assignedDate = assignedDate; }
+        public String getTargetCompletionDate() { return targetCompletionDate; }
+        public void setTargetCompletionDate(String targetCompletionDate) { this.targetCompletionDate = targetCompletionDate; }
         public Goal.GoalStatus getStatus() { return status; }
         public void setStatus(Goal.GoalStatus status) { this.status = status; }
         public Long getParentGoalId() { return parentGoalId; }
         public void setParentGoalId(Long parentGoalId) { this.parentGoalId = parentGoalId; }
+        public List<KPIInput> getKpis() { return kpis; }
+        public void setKpis(List<KPIInput> kpis) { this.kpis = kpis; }
+    }
+
+    public static class KPIInput {
+        private String description;
+        private KPI.KPIStatus status;
+        private Integer completionPercentage;
+        private String dueDate;
+
+        // Getters and setters
+        public String getDescription() { return description; }
+        public void setDescription(String description) { this.description = description; }
+        public KPI.KPIStatus getStatus() { return status; }
+        public void setStatus(KPI.KPIStatus status) { this.status = status; }
+        public Integer getCompletionPercentage() { return completionPercentage; }
+        public void setCompletionPercentage(Integer completionPercentage) { this.completionPercentage = completionPercentage; }
+        public String getDueDate() { return dueDate; }
+        public void setDueDate(String dueDate) { this.dueDate = dueDate; }
+    }
+
+    public static class KPIUpdateInput {
+        private String description;
+        private KPI.KPIStatus status;
+        private Integer completionPercentage;
+        private String dueDate;
+
+        // Getters and setters
+        public String getDescription() { return description; }
+        public void setDescription(String description) { this.description = description; }
+        public KPI.KPIStatus getStatus() { return status; }
+        public void setStatus(KPI.KPIStatus status) { this.status = status; }
+        public Integer getCompletionPercentage() { return completionPercentage; }
+        public void setCompletionPercentage(Integer completionPercentage) { this.completionPercentage = completionPercentage; }
+        public String getDueDate() { return dueDate; }
+        public void setDueDate(String dueDate) { this.dueDate = dueDate; }
     }
 
     public static class DepartmentInput {

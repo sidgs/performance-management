@@ -1,6 +1,7 @@
 package com.performancemanagement.controller;
 
 import com.performancemanagement.dto.UserDTO;
+import com.performancemanagement.service.AuthorizationService;
 import com.performancemanagement.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -17,9 +18,13 @@ public class UserController {
     @Autowired
     private UserService userService;
 
+    @Autowired
+    private AuthorizationService authorizationService;
+
     @PostMapping
     public ResponseEntity<UserDTO> createUser(@RequestBody UserDTO userDTO) {
         try {
+            authorizationService.requireEpmAdmin();
             UserDTO created = userService.createUser(userDTO);
             return new ResponseEntity<>(created, HttpStatus.CREATED);
         } catch (IllegalArgumentException e) {
@@ -56,6 +61,7 @@ public class UserController {
     @PutMapping("/{id}")
     public ResponseEntity<UserDTO> updateUser(@PathVariable Long id, @RequestBody UserDTO userDTO) {
         try {
+            authorizationService.requireEpmAdmin();
             UserDTO updated = userService.updateUser(id, userDTO);
             return new ResponseEntity<>(updated, HttpStatus.OK);
         } catch (IllegalArgumentException e) {
@@ -66,6 +72,7 @@ public class UserController {
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
         try {
+            authorizationService.requireEpmAdmin();
             userService.deleteUser(id);
             return new ResponseEntity<>(HttpStatus.NO_CONTENT);
         } catch (Exception e) {

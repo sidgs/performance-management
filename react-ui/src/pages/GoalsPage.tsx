@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Box,
   Card,
@@ -33,11 +33,18 @@ import {
   Tab,
   Avatar,
   Tooltip,
+  Checkbox,
+  FormGroup,
+  FormControlLabel,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemSecondaryAction,
 } from '@mui/material';
 import {
-  //Add as AddIcon,
+  Add as AddIcon,
   Search as SearchIcon,
-  //Edit as EditIcon,
+  Edit as EditIcon,
   Delete as DeleteIcon,
   ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon,
@@ -52,156 +59,17 @@ import {
   //CalendarMonth as CalendarIcon,
 } from '@mui/icons-material';
 
-// Types based on your GraphQL schema
-type GoalStatus = 'DRAFT' | 'APPROVED' | 'PUBLISHED' | 'ACHIEVED' | 'RETIRED';
-type DepartmentStatus = 'ACTIVE' | 'DEPRECATED' | 'RETIRED';
-
-interface User {
-  id: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  title: string;
-  department?: Department;
-  manager?: User;
-}
-
-interface Department {
-  id: string;
-  name: string;
-  smallDescription: string;
-  owner: User;
-  coOwner?: User;
-  status: DepartmentStatus;
-}
-
-interface Goal {
-  id: string;
-  shortDescription: string;
-  longDescription: string;
-  owner: User;
-  creationDate: string;
-  completionDate?: string;
-  status: GoalStatus;
-  parentGoal?: Goal;
-  childGoals: Goal[];
-  assignedUsers: User[];
-}
-
-// Mock data based on your schema
-const mockUsers: User[] = [
-  { id: '1', firstName: 'John', lastName: 'Doe', email: 'john.doe@sidgs.com', title: 'Senior Manager' },
-  { id: '2', firstName: 'Sarah', lastName: 'Johnson', email: 'sarah.j@sidgs.com', title: 'Engineering Lead' },
-  { id: '3', firstName: 'Michael', lastName: 'Chen', email: 'michael.c@sidgs.com', title: 'Product Manager' },
-  { id: '4', firstName: 'Emma', lastName: 'Wilson', email: 'emma.w@sidgs.com', title: 'UX Designer' },
-  { id: '5', firstName: 'David', lastName: 'Lee', email: 'david.l@sidgs.com', title: 'Software Engineer' },
-];
-
-// const mockDepartments: Department[] = [
-//   { 
-//     id: '1', 
-//     name: 'Engineering', 
-//     smallDescription: 'Software development and engineering', 
-//     owner: mockUsers[0], 
-//     status: 'ACTIVE' 
-//   },
-//   { 
-//     id: '2', 
-//     name: 'Product', 
-//     smallDescription: 'Product management and strategy', 
-//     owner: mockUsers[2], 
-//     status: 'ACTIVE' 
-//   },
-// ];
-
-const initialGoals: Goal[] = [
-  {
-    id: '1',
-    shortDescription: 'Improve code quality standards',
-    longDescription: 'Implement comprehensive code review processes and establish quality metrics for all engineering teams.',
-    owner: mockUsers[0],
-    creationDate: '2024-01-15',
-    status: 'PUBLISHED',
-    assignedUsers: [mockUsers[1], mockUsers[4]],
-    childGoals: [
-      {
-        id: '1-1',
-        shortDescription: 'Establish code review guidelines',
-        longDescription: 'Create and document standard code review procedures for all teams.',
-        owner: mockUsers[1],
-        creationDate: '2024-01-20',
-        status: 'ACHIEVED',
-        assignedUsers: [mockUsers[4]],
-        childGoals: [],
-      },
-      {
-        id: '1-2',
-        shortDescription: 'Implement automated testing',
-        longDescription: 'Set up automated testing pipeline with 90% coverage target.',
-        owner: mockUsers[1],
-        creationDate: '2024-01-25',
-        status: 'APPROVED',
-        assignedUsers: [mockUsers[4]],
-        childGoals: [],
-      },
-    ],
-  },
-  {
-    id: '2',
-    shortDescription: 'Launch new mobile application',
-    longDescription: 'Develop and launch mobile app for iOS and Android platforms',
-    owner: mockUsers[2],
-    creationDate: '2024-02-01',
-    status: 'APPROVED',
-    assignedUsers: [mockUsers[1], mockUsers[3], mockUsers[4]],
-    childGoals: [],
-  },
-  {
-    id: '3',
-    shortDescription: 'Increase customer satisfaction score',
-    longDescription: 'Improve overall customer satisfaction through better support and product quality enhancements.',
-    owner: mockUsers[0],
-    creationDate: '2024-01-10',
-    completionDate: '2024-03-31',
-    status: 'ACHIEVED',
-    assignedUsers: [mockUsers[2], mockUsers[3]],
-    childGoals: [
-      {
-        id: '3-1',
-        shortDescription: 'Customer feedback system',
-        longDescription: 'Implement new customer feedback collection and analysis system.',
-        owner: mockUsers[3],
-        creationDate: '2024-01-12',
-        status: 'ACHIEVED',
-        assignedUsers: [],
-        childGoals: [],
-      },
-    ],
-  },
-  {
-    id: '4',
-    shortDescription: 'Q1 Revenue Targets',
-    longDescription: 'Achieve Q1 revenue targets through new customer acquisition and upselling.',
-    owner: mockUsers[2],
-    creationDate: '2024-01-05',
-    status: 'DRAFT',
-    assignedUsers: [mockUsers[0]],
-    childGoals: [],
-  },
-  {
-    id: '5',
-    shortDescription: 'Team skill development program',
-    longDescription: 'Develop comprehensive training program for engineering team skill enhancement.',
-    owner: mockUsers[1],
-    creationDate: '2024-02-10',
-    status: 'RETIRED',
-    assignedUsers: [mockUsers[4]],
-    childGoals: [],
-  },
-];
+import { graphqlRequest } from '../api/graphqlClient';
+import { getCurrentUserEmail } from '../api/authService';
+import type { Goal, GoalStatus, User } from '../types';
+import LockIcon from '@mui/icons-material/Lock';
+import LockOpenIcon from '@mui/icons-material/LockOpen';
+import PersonAddIcon from '@mui/icons-material/PersonAdd';
+import PersonRemoveIcon from '@mui/icons-material/PersonRemove';
 
 const GoalsPage: React.FC = () => {
-  const [goals, setGoals] = useState<Goal[]>(initialGoals);
+  const [goals, setGoals] = useState<Goal[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<GoalStatus | 'all'>('all');
   const [filterOwner, setFilterOwner] = useState<string>('all');
@@ -210,6 +78,155 @@ const GoalsPage: React.FC = () => {
   const [openDialog, setOpenDialog] = useState(false);
   const [selectedGoal, setSelectedGoal] = useState<Goal | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'hierarchy'>('list');
+  const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+  
+  // Edit dialog state
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
+  const [editShortDesc, setEditShortDesc] = useState('');
+  const [editLongDesc, setEditLongDesc] = useState('');
+  const [editOwnerEmail, setEditOwnerEmail] = useState('');
+  const [editStatus, setEditStatus] = useState<GoalStatus>('DRAFT');
+  const [editCompletionDate, setEditCompletionDate] = useState('');
+  const [editLoading, setEditLoading] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+  
+  // Delete confirmation state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deletingGoalId, setDeletingGoalId] = useState<string | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  
+  // Current user and team members
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [teamMembers, setTeamMembers] = useState<User[]>([]);
+  
+  // Create goal dialog states
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [selectedParentGoal, setSelectedParentGoal] = useState<string>('root');
+  const [newGoalShortDesc, setNewGoalShortDesc] = useState('');
+  const [newGoalLongDesc, setNewGoalLongDesc] = useState('');
+  const [newGoalOwnerEmail, setNewGoalOwnerEmail] = useState('');
+  const [newGoalStatus, setNewGoalStatus] = useState<GoalStatus>('DRAFT');
+  const [newGoalAssignedUsers, setNewGoalAssignedUsers] = useState<string[]>([]);
+  const [createGoalLoading, setCreateGoalLoading] = useState(false);
+  const [createGoalError, setCreateGoalError] = useState<string | null>(null);
+  
+  // Assignment dialog state
+  const [assignDialogOpen, setAssignDialogOpen] = useState(false);
+  const [assigningGoal, setAssigningGoal] = useState<Goal | null>(null);
+  const [assignLoading, setAssignLoading] = useState(false);
+  const [assignError, setAssignError] = useState<string | null>(null);
+  
+  // Lock/unlock state
+  const [lockLoading, setLockLoading] = useState<string | null>(null);
+
+  // Load goals and users from GraphQL API
+  useEffect(() => {
+    const fetchGoals = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const data = await graphqlRequest<{ goals: Goal[]; users: User[] }>(
+          `
+            query GetGoalsAndUsers {
+              goals {
+                id
+                shortDescription
+                longDescription
+                creationDate
+                completionDate
+                status
+                locked
+                owner {
+                  id
+                  firstName
+                  lastName
+                  email
+                  title
+                }
+                childGoals {
+                  id
+                  shortDescription
+                  longDescription
+                  creationDate
+                  completionDate
+                  status
+                  locked
+                  owner {
+                    id
+                    firstName
+                    lastName
+                    email
+                    title
+                  }
+                }
+                assignedUsers {
+                  id
+                  firstName
+                  lastName
+                  email
+                  title
+                }
+              }
+              users {
+                id
+                firstName
+                lastName
+                email
+                title
+              }
+            }
+          `,
+        );
+
+        setGoals(data.goals ?? []);
+        setUsers(data.users ?? []);
+        
+        // Fetch current user and team members
+        const currentUserEmail = getCurrentUserEmail();
+        if (currentUserEmail) {
+          try {
+            const userData = await graphqlRequest<{ userByEmail: User }>(
+              `
+                query GetCurrentUser($email: String!) {
+                  userByEmail(email: $email) {
+                    id
+                    firstName
+                    lastName
+                    email
+                    title
+                    teamMembers {
+                      id
+                      firstName
+                      lastName
+                      email
+                      title
+                    }
+                  }
+                }
+              `,
+              { email: currentUserEmail }
+            );
+            
+            if (userData.userByEmail) {
+              setCurrentUser(userData.userByEmail);
+              setTeamMembers(userData.userByEmail.teamMembers || []);
+            }
+          } catch (err) {
+            // Silently fail - user might not exist yet
+            console.error('Failed to fetch current user:', err);
+          }
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to load goals');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchGoals();
+  }, []);
 
   // Filter goals based on search and filters
   const filteredGoals = goals.filter((goal) => {
@@ -252,11 +269,384 @@ const GoalsPage: React.FC = () => {
     setOpenDialog(true);
   };
 
+  // Handle edit goal
+  const handleEditGoal = (goal: Goal) => {
+    if (goal.locked) {
+      const currentUserEmail = getCurrentUserEmail();
+      if (goal.owner.email !== currentUserEmail) {
+        setError('This goal is locked. Only the owner can unlock and edit it.');
+        return;
+      }
+      // Owner can edit locked goals, but show a warning
+      setEditError('This goal is locked. You can unlock it to make changes.');
+    }
+    
+    setEditingGoal(goal);
+    setEditShortDesc(goal.shortDescription);
+    setEditLongDesc(goal.longDescription);
+    setEditOwnerEmail(goal.owner.email);
+    setEditStatus(goal.status);
+    setEditCompletionDate(goal.completionDate || '');
+    setEditError(null);
+    setEditDialogOpen(true);
+  };
+
+  // Handle save edited goal
+  const handleSaveEdit = async () => {
+    if (!editingGoal) return;
+    
+    if (!editShortDesc.trim() || !editLongDesc.trim() || !editOwnerEmail) {
+      setEditError('Short description, long description, and owner are required.');
+      return;
+    }
+
+    // Check if goal is locked
+    if (editingGoal.locked) {
+      const currentUserEmail = getCurrentUserEmail();
+      if (editingGoal.owner.email !== currentUserEmail) {
+        setEditError('This goal is locked. Only the owner can unlock and edit it.');
+        setEditLoading(false);
+        return;
+      }
+    }
+
+    setEditLoading(true);
+    setEditError(null);
+
+    try {
+      const data = await graphqlRequest<{ updateGoal: Goal }>(
+        `
+          mutation UpdateGoal($id: ID!, $input: GoalInput!) {
+            updateGoal(id: $id, input: $input) {
+              id
+              shortDescription
+              longDescription
+              creationDate
+              completionDate
+              status
+              locked
+              owner {
+                id
+                firstName
+                lastName
+                email
+                title
+              }
+              childGoals {
+                id
+                status
+                locked
+              }
+              assignedUsers {
+                id
+                firstName
+                lastName
+                email
+                title
+              }
+            }
+          }
+        `,
+        {
+          id: editingGoal.id,
+          input: {
+            shortDescription: editShortDesc.trim(),
+            longDescription: editLongDesc.trim(),
+            ownerEmail: editOwnerEmail,
+            status: editStatus,
+            completionDate: editCompletionDate || null,
+            parentGoalId: editingGoal.parentGoal?.id || null,
+          },
+        }
+      );
+
+      // Refresh goals list to get updated data including locked status
+      const refreshData = await graphqlRequest<{ goals: Goal[] }>(
+        `
+          query GetGoals {
+            goals {
+              id
+              shortDescription
+              longDescription
+              creationDate
+              completionDate
+              status
+              locked
+              owner {
+                id
+                firstName
+                lastName
+                email
+                title
+              }
+              childGoals {
+                id
+                shortDescription
+                longDescription
+                creationDate
+                completionDate
+                status
+                locked
+                owner {
+                  id
+                  firstName
+                  lastName
+                  email
+                  title
+                }
+              }
+              assignedUsers {
+                id
+                firstName
+                lastName
+                email
+                title
+              }
+            }
+          }
+        `
+      );
+      
+      setGoals(refreshData.goals ?? []);
+      
+      setEditDialogOpen(false);
+      setEditingGoal(null);
+    } catch (err) {
+      setEditError(err instanceof Error ? err.message : 'Failed to update goal');
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
   // Handle delete goal
   const handleDeleteGoal = (goalId: string) => {
-    if (window.confirm('Are you sure you want to delete this goal?')) {
-      setGoals(goals.filter(goal => goal.id !== goalId));
+    setDeletingGoalId(goalId);
+    setDeleteDialogOpen(true);
+  };
+
+  // Confirm delete goal
+  const handleConfirmDelete = async () => {
+    if (!deletingGoalId) return;
+
+    setDeleteLoading(true);
+    try {
+      const data = await graphqlRequest<{ deleteGoal: boolean }>(
+        `
+          mutation DeleteGoal($id: ID!) {
+            deleteGoal(id: $id)
+          }
+        `,
+        { id: deletingGoalId }
+      );
+
+      if (data.deleteGoal) {
+        // Remove the goal from local state
+        setGoals(goals.filter(goal => goal.id !== deletingGoalId));
+        setDeleteDialogOpen(false);
+        setDeletingGoalId(null);
+      } else {
+        setError('Failed to delete goal');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete goal');
+    } finally {
+      setDeleteLoading(false);
     }
+  };
+
+  // Handle create goal dialog
+  const handleOpenCreateDialog = () => {
+    if (users.length === 0) {
+      setCreateGoalError('No users available. Please wait for users to load or create a user first.');
+      return;
+    }
+    
+    // Get the logged-in user's email from JWT token
+    const currentUserEmail = getCurrentUserEmail();
+    
+    // Try to find the logged-in user in the users list, otherwise use first user
+    let defaultOwnerEmail = users[0].email;
+    if (currentUserEmail) {
+      const currentUser = users.find(user => user.email.toLowerCase() === currentUserEmail.toLowerCase());
+      if (currentUser) {
+        defaultOwnerEmail = currentUser.email;
+      }
+    }
+    
+    setSelectedParentGoal('root');
+    setNewGoalShortDesc('');
+    setNewGoalLongDesc('');
+    setNewGoalOwnerEmail(defaultOwnerEmail);
+    setNewGoalStatus('DRAFT');
+    setNewGoalAssignedUsers([]);
+    setCreateGoalError(null);
+    setCreateDialogOpen(true);
+  };
+
+  const handleCloseCreateDialog = () => {
+    setCreateDialogOpen(false);
+    setCreateGoalError(null);
+  };
+
+  // Handle create goal mutation
+  const handleCreateGoal = async () => {
+    if (!newGoalShortDesc.trim() || !newGoalLongDesc.trim() || !newGoalOwnerEmail.trim()) {
+      setCreateGoalError('Please fill in all required fields');
+      return;
+    }
+
+    setCreateGoalLoading(true);
+    setCreateGoalError(null);
+
+    try {
+      const mutation = `
+        mutation CreateGoal($input: GoalInput!) {
+          createGoal(input: $input) {
+            id
+            shortDescription
+            longDescription
+            creationDate
+            completionDate
+            status
+            owner {
+              id
+              firstName
+              lastName
+              email
+              title
+            }
+            parentGoal {
+              id
+            }
+            childGoals {
+              id
+              status
+            }
+            assignedUsers {
+              id
+              firstName
+              lastName
+              email
+              title
+            }
+          }
+        }
+      `;
+
+      const variables = {
+        input: {
+          shortDescription: newGoalShortDesc.trim(),
+          longDescription: newGoalLongDesc.trim(),
+          ownerEmail: newGoalOwnerEmail.trim(),
+          status: newGoalStatus,
+          parentGoalId: selectedParentGoal && selectedParentGoal !== 'root' ? selectedParentGoal : null,
+        },
+      };
+
+      const createResult = await graphqlRequest<{ createGoal: Goal }>(mutation, variables);
+      
+      // Assign users to the goal if any were selected
+      if (newGoalAssignedUsers.length > 0 && createResult.createGoal) {
+        for (const userEmail of newGoalAssignedUsers) {
+          try {
+            await graphqlRequest<{ assignGoalToUser: Goal }>(
+              `
+                mutation AssignGoalToUser($goalId: ID!, $userEmail: String!) {
+                  assignGoalToUser(goalId: $goalId, userEmail: $userEmail) {
+                    id
+                  }
+                }
+              `,
+              { goalId: createResult.createGoal.id, userEmail }
+            );
+          } catch (err) {
+            console.error(`Failed to assign goal to ${userEmail}:`, err);
+          }
+        }
+      }
+      
+      // Refresh goals list
+      const refreshData = await graphqlRequest<{ goals: Goal[]; users: User[] }>(
+        `
+          query GetGoalsAndUsers {
+            goals {
+              id
+              shortDescription
+              longDescription
+              creationDate
+              completionDate
+              status
+              locked
+              owner {
+                id
+                firstName
+                lastName
+                email
+                title
+              }
+              childGoals {
+                id
+                shortDescription
+                longDescription
+                creationDate
+                completionDate
+                status
+                locked
+                owner {
+                  id
+                  firstName
+                  lastName
+                  email
+                  title
+                }
+              }
+              assignedUsers {
+                id
+                firstName
+                lastName
+                email
+                title
+              }
+            }
+            users {
+              id
+              firstName
+              lastName
+              email
+              title
+            }
+          }
+        `,
+      );
+
+      setGoals(refreshData.goals ?? []);
+      setUsers(refreshData.users ?? []);
+      
+      handleCloseCreateDialog();
+    } catch (err) {
+      setCreateGoalError(err instanceof Error ? err.message : 'Failed to create goal');
+    } finally {
+      setCreateGoalLoading(false);
+    }
+  };
+
+  // Get assignable users (self + team members)
+  const getAssignableUsers = (): User[] => {
+    const assignable: User[] = [];
+    
+    // Add current user
+    if (currentUser) {
+      assignable.push(currentUser);
+    }
+    
+    // Add team members
+    teamMembers.forEach(member => {
+      if (!assignable.find(u => u.email === member.email)) {
+        assignable.push(member);
+      }
+    });
+    
+    return assignable;
   };
 
   // Format date
@@ -361,13 +751,57 @@ const GoalsPage: React.FC = () => {
               </Box>
               
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                {goal.locked && (
+                  <Tooltip title="Goal is locked">
+                    <LockIcon fontSize="small" color="action" />
+                  </Tooltip>
+                )}
                 <Tooltip title="View Details">
                   <IconButton size="small" onClick={() => handleViewDetails(goal)}>
                     <VisibilityIcon />
                   </IconButton>
                 </Tooltip>
+                <Tooltip title={goal.locked ? "Unlock to edit" : "Edit"}>
+                  <IconButton 
+                    size="small" 
+                    onClick={() => handleEditGoal(goal)} 
+                    color="primary"
+                    disabled={goal.locked && goal.owner.email !== getCurrentUserEmail()}
+                  >
+                    <EditIcon />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title={goal.locked ? "Unlock Goal" : "Lock Goal"}>
+                  <IconButton
+                    size="small"
+                    onClick={() => goal.locked ? handleUnlockGoal(goal.id) : handleLockGoal(goal.id)}
+                    color={goal.locked ? "warning" : "default"}
+                    disabled={lockLoading === goal.id || (goal.locked && goal.owner.email !== getCurrentUserEmail())}
+                  >
+                    {goal.locked ? <LockIcon /> : <LockOpenIcon />}
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title="Assign to Team Member">
+                  <IconButton
+                    size="small"
+                    onClick={() => {
+                      setAssigningGoal(goal);
+                      setAssignDialogOpen(true);
+                      setAssignError(null);
+                    }}
+                    color="secondary"
+                    disabled={goal.locked}
+                  >
+                    <PersonAddIcon />
+                  </IconButton>
+                </Tooltip>
                 <Tooltip title="Delete">
-                  <IconButton size="small" onClick={() => handleDeleteGoal(goal.id)} color="error">
+                  <IconButton 
+                    size="small" 
+                    onClick={() => handleDeleteGoal(goal.id)} 
+                    color="error"
+                    disabled={goal.locked}
+                  >
                     <DeleteIcon />
                   </IconButton>
                 </Tooltip>
@@ -485,14 +919,58 @@ const GoalsPage: React.FC = () => {
                   />
                 </TableCell>
                 <TableCell>
-                  <Box sx={{ display: 'flex', gap: 1 }}>
+                  <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                    {goal.locked && (
+                      <Tooltip title="Goal is locked">
+                        <LockIcon fontSize="small" color="action" />
+                      </Tooltip>
+                    )}
                     <Tooltip title="View Details">
                       <IconButton size="small" onClick={() => handleViewDetails(goal)}>
                         <VisibilityIcon />
                       </IconButton>
                     </Tooltip>
+                    <Tooltip title={goal.locked ? "Unlock to edit" : "Edit"}>
+                      <IconButton 
+                        size="small" 
+                        onClick={() => handleEditGoal(goal)} 
+                        color="primary"
+                        disabled={goal.locked && goal.owner.email !== getCurrentUserEmail()}
+                      >
+                        <EditIcon />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title={goal.locked ? "Unlock Goal" : "Lock Goal"}>
+                      <IconButton
+                        size="small"
+                        onClick={() => goal.locked ? handleUnlockGoal(goal.id) : handleLockGoal(goal.id)}
+                        color={goal.locked ? "warning" : "default"}
+                        disabled={lockLoading === goal.id || (goal.locked && goal.owner.email !== getCurrentUserEmail())}
+                      >
+                        {goal.locked ? <LockIcon /> : <LockOpenIcon />}
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Assign to Team Member">
+                      <IconButton
+                        size="small"
+                        onClick={() => {
+                          setAssigningGoal(goal);
+                          setAssignDialogOpen(true);
+                          setAssignError(null);
+                        }}
+                        color="secondary"
+                        disabled={goal.locked}
+                      >
+                        <PersonAddIcon />
+                      </IconButton>
+                    </Tooltip>
                     <Tooltip title="Delete">
-                      <IconButton size="small" onClick={() => handleDeleteGoal(goal.id)} color="error">
+                      <IconButton 
+                        size="small" 
+                        onClick={() => handleDeleteGoal(goal.id)} 
+                        color="error"
+                        disabled={goal.locked}
+                      >
                         <DeleteIcon />
                       </IconButton>
                     </Tooltip>
@@ -677,7 +1155,7 @@ const GoalsPage: React.FC = () => {
                   onChange={(e) => setFilterOwner(e.target.value)}
                 >
                   <MenuItem value="all">All Owners</MenuItem>
-                  {mockUsers.map((user) => (
+                  {users.map((user) => (
                     <MenuItem key={user.id} value={user.id}>
                       {user.firstName} {user.lastName}
                     </MenuItem>
@@ -696,14 +1174,15 @@ const GoalsPage: React.FC = () => {
               </Button>
             </Grid>
             <Grid item xs={12} sm={6} md={2}>
-              {/* <Button
+              <Button
                 fullWidth
                 variant="contained"
-                startIcon={<AddIcon />}
-                onClick={() => alert('Create Goal functionality will be implemented with API integration')}
+                onClick={handleOpenCreateDialog}
+                startIcon={<AddIcon fontSize="small" />}
+                size="small"
               >
-                New Goal
-              </Button> */}
+                Add Goal
+              </Button>
             </Grid>
           </Grid>
 
@@ -925,6 +1404,383 @@ const GoalsPage: React.FC = () => {
             </DialogActions>
           </>
         )}
+      </Dialog>
+
+      {/* Edit Goal Dialog */}
+      <Dialog
+        open={editDialogOpen}
+        onClose={() => {
+          setEditDialogOpen(false);
+          setEditingGoal(null);
+          setEditError(null);
+        }}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>Edit Goal</DialogTitle>
+        <DialogContent>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, pt: 2 }}>
+            {editError && (
+              <Alert severity="error">{editError}</Alert>
+            )}
+
+            <TextField
+              fullWidth
+              label="Short Description"
+              value={editShortDesc}
+              onChange={(e) => setEditShortDesc(e.target.value)}
+              required
+              placeholder="e.g., Improve code quality standards"
+            />
+
+            <TextField
+              fullWidth
+              label="Long Description"
+              value={editLongDesc}
+              onChange={(e) => setEditLongDesc(e.target.value)}
+              required
+              multiline
+              rows={4}
+              placeholder="Provide a detailed description of the goal..."
+            />
+
+            <FormControl fullWidth required>
+              <InputLabel>Owner</InputLabel>
+              <Select
+                value={editOwnerEmail}
+                label="Owner"
+                onChange={(e) => setEditOwnerEmail(e.target.value)}
+                required
+                error={!editOwnerEmail}
+              >
+                {users.map((user) => (
+                  <MenuItem key={user.id} value={user.email}>
+                    {user.firstName} {user.lastName} ({user.email})
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            <FormControl fullWidth>
+              <InputLabel>Status</InputLabel>
+              <Select
+                value={editStatus}
+                label="Status"
+                onChange={(e) => setEditStatus(e.target.value as GoalStatus)}
+              >
+                <MenuItem value="DRAFT">Draft</MenuItem>
+                <MenuItem value="APPROVED">Approved</MenuItem>
+                <MenuItem value="PUBLISHED">Published</MenuItem>
+                <MenuItem value="ACHIEVED">Achieved</MenuItem>
+                <MenuItem value="RETIRED">Retired</MenuItem>
+              </Select>
+            </FormControl>
+
+            <TextField
+              fullWidth
+              label="Completion Date (optional)"
+              type="date"
+              value={editCompletionDate}
+              onChange={(e) => setEditCompletionDate(e.target.value)}
+              InputLabelProps={{
+                shrink: true,
+              }}
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button 
+            onClick={() => {
+              setEditDialogOpen(false);
+              setEditingGoal(null);
+              setEditError(null);
+            }}
+            disabled={editLoading}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSaveEdit}
+            variant="contained"
+            disabled={editLoading}
+            startIcon={<EditIcon />}
+          >
+            {editLoading ? 'Saving...' : 'Save Changes'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={() => {
+          setDeleteDialogOpen(false);
+          setDeletingGoalId(null);
+        }}
+      >
+        <DialogTitle>Delete Goal</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to delete this goal? This action cannot be undone.
+            {deletingGoalId && (
+              <Box sx={{ mt: 2 }}>
+                <Typography variant="body2" color="text.secondary">
+                  Goal ID: {deletingGoalId}
+                </Typography>
+              </Box>
+            )}
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button 
+            onClick={() => {
+              setDeleteDialogOpen(false);
+              setDeletingGoalId(null);
+            }}
+            disabled={deleteLoading}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleConfirmDelete}
+            variant="contained"
+            color="error"
+            disabled={deleteLoading}
+            startIcon={<DeleteIcon />}
+          >
+            {deleteLoading ? 'Deleting...' : 'Delete'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Create Goal Dialog */}
+      <Dialog
+        open={createDialogOpen}
+        onClose={handleCloseCreateDialog}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>Create Goal</DialogTitle>
+        <DialogContent>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, pt: 2 }}>
+            {createGoalError && (
+              <Alert severity="error">{createGoalError}</Alert>
+            )}
+
+            <FormControl fullWidth>
+              <InputLabel>Parent Goal</InputLabel>
+              <Select
+                value={selectedParentGoal}
+                label="Parent Goal"
+                onChange={(e) => setSelectedParentGoal(e.target.value)}
+              >
+                <MenuItem value="root">Root (Standalone Goal)</MenuItem>
+                {goals.map((goal) => (
+                  <MenuItem key={goal.id} value={goal.id}>
+                    {goal.shortDescription}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            <TextField
+              fullWidth
+              label="Short Description"
+              value={newGoalShortDesc}
+              onChange={(e) => setNewGoalShortDesc(e.target.value)}
+              required
+              placeholder="e.g., Improve code quality standards"
+            />
+
+            <TextField
+              fullWidth
+              label="Long Description"
+              value={newGoalLongDesc}
+              onChange={(e) => setNewGoalLongDesc(e.target.value)}
+              required
+              multiline
+              rows={4}
+              placeholder="Provide a detailed description of the goal..."
+            />
+
+            <FormControl fullWidth required>
+              <InputLabel>Owner</InputLabel>
+              <Select
+                value={newGoalOwnerEmail}
+                label="Owner"
+                onChange={(e) => setNewGoalOwnerEmail(e.target.value)}
+                required
+                error={!newGoalOwnerEmail}
+              >
+                {users.length === 0 ? (
+                  <MenuItem disabled value="">
+                    No users available
+                  </MenuItem>
+                ) : (
+                  users.map((user) => (
+                    <MenuItem key={user.id} value={user.email}>
+                      {user.firstName} {user.lastName} ({user.email})
+                    </MenuItem>
+                  ))
+                )}
+              </Select>
+              {users.length === 0 && (
+                <Typography variant="caption" color="error" sx={{ mt: 0.5 }}>
+                  No users found. Please create a user first.
+                </Typography>
+              )}
+            </FormControl>
+
+            <FormControl fullWidth>
+              <InputLabel>Status</InputLabel>
+              <Select
+                value={newGoalStatus}
+                label="Status"
+                onChange={(e) => setNewGoalStatus(e.target.value as GoalStatus)}
+              >
+                <MenuItem value="DRAFT">Draft</MenuItem>
+                <MenuItem value="APPROVED">Approved</MenuItem>
+                <MenuItem value="PUBLISHED">Published</MenuItem>
+                <MenuItem value="ACHIEVED">Achieved</MenuItem>
+                <MenuItem value="RETIRED">Retired</MenuItem>
+              </Select>
+            </FormControl>
+
+            {/* Assign to Team Members */}
+            {getAssignableUsers().length > 0 && (
+              <FormControl fullWidth>
+                <InputLabel>Assign to Team Members (optional)</InputLabel>
+                <Select
+                  multiple
+                  value={newGoalAssignedUsers}
+                  label="Assign to Team Members (optional)"
+                  onChange={(e) => setNewGoalAssignedUsers(e.target.value as string[])}
+                  renderValue={(selected) => {
+                    const selectedUsers = getAssignableUsers().filter(u => 
+                      (selected as string[]).includes(u.email)
+                    );
+                    return selectedUsers.map(u => `${u.firstName} ${u.lastName}`).join(', ');
+                  }}
+                >
+                  {getAssignableUsers().map((user) => (
+                    <MenuItem key={user.id} value={user.email}>
+                      <Checkbox checked={newGoalAssignedUsers.indexOf(user.email) > -1} />
+                      {user.firstName} {user.lastName} ({user.email})
+                    </MenuItem>
+                  ))}
+                </Select>
+                <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
+                  You can only assign goals to yourself or members of your team.
+                </Typography>
+              </FormControl>
+            )}
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseCreateDialog} disabled={createGoalLoading}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleCreateGoal}
+            variant="contained"
+            disabled={createGoalLoading}
+            startIcon={<AddIcon />}
+          >
+            {createGoalLoading ? 'Creating...' : 'Create Goal'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Assign Goal Dialog */}
+      <Dialog
+        open={assignDialogOpen}
+        onClose={() => {
+          setAssignDialogOpen(false);
+          setAssigningGoal(null);
+          setAssignError(null);
+        }}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>
+          Assign Goal: {assigningGoal?.shortDescription}
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, pt: 2 }}>
+            {assignError && <Alert severity="error">{assignError}</Alert>}
+
+            {assigningGoal && (
+              <>
+                <Typography variant="body2" color="text.secondary">
+                  Currently assigned to:
+                </Typography>
+                {assigningGoal.assignedUsers.length === 0 ? (
+                  <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                    No users assigned
+                  </Typography>
+                ) : (
+                  <List dense>
+                    {assigningGoal.assignedUsers.map((user) => (
+                      <ListItem key={user.id}>
+                        <ListItemText
+                          primary={`${user.firstName} ${user.lastName}`}
+                          secondary={user.email}
+                        />
+                        <ListItemSecondaryAction>
+                          <IconButton
+                            edge="end"
+                            size="small"
+                            onClick={() => handleUnassignGoal(assigningGoal.id, user.email)}
+                            disabled={assignLoading}
+                          >
+                            <PersonRemoveIcon />
+                          </IconButton>
+                        </ListItemSecondaryAction>
+                      </ListItem>
+                    ))}
+                  </List>
+                )}
+
+                <FormControl fullWidth>
+                  <InputLabel>Assign to Team Member</InputLabel>
+                  <Select
+                    value=""
+                    label="Assign to Team Member"
+                    onChange={(e) => {
+                      const userEmail = e.target.value as string;
+                      if (userEmail && !assigningGoal.assignedUsers.some(u => u.email === userEmail)) {
+                        handleAssignGoal(assigningGoal.id, userEmail);
+                      }
+                    }}
+                  >
+                    {getAssignableUsers()
+                      .filter(user => !assigningGoal.assignedUsers.some(au => au.email === user.email))
+                      .map((user) => (
+                        <MenuItem key={user.id} value={user.email}>
+                          {user.firstName} {user.lastName} ({user.email})
+                        </MenuItem>
+                      ))}
+                  </Select>
+                  <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
+                    You can only assign goals to yourself or members of your team.
+                  </Typography>
+                </FormControl>
+              </>
+            )}
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => {
+              setAssignDialogOpen(false);
+              setAssigningGoal(null);
+              setAssignError(null);
+            }}
+            disabled={assignLoading}
+          >
+            Close
+          </Button>
+        </DialogActions>
       </Dialog>
     </Box>
   );

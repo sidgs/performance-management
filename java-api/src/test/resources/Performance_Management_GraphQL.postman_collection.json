@@ -1,0 +1,268 @@
+{
+  "info": {
+    "name": "Performance Management - GraphQL",
+    "_postman_id": "b9a7c4f1-1111-2222-3333-graphql-test",
+    "description": "GraphQL tests for Performance Management API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Setup - Get JWT Token",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "  var json = pm.response.json();",
+              "  if (json && json.token) {",
+              "    pm.collectionVariables.set('jwtToken', json.token);",
+              "  }",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/jwt",
+          "host": ["{{baseUrl}}"],
+          "path": ["jwt"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Sam Gamji\",\n  \"email\": \"player-one@samiX.com\",\n  \"tenantId\": \"localhost\",\n  \"roles\": [\"EPM_ADMIN\"],\n  \"permissions\": []\n}"
+        }
+      }
+    },
+    {
+      "name": "GraphQL - Get All Goals",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "X-User-Email", "value": "{{userEmail}}" },
+          { "key": "Authorization", "value": "Bearer {{jwtToken}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/graphql",
+          "host": ["{{baseUrl}}"],
+          "path": ["graphql"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"query\": \"query GetGoals { goals { id shortDescription longDescription status creationDate completionDate owner { id firstName lastName email title } childGoals { id shortDescription status } assignedUsers { id firstName lastName email } } }\"\n}"
+        }
+      }
+    },
+    {
+      "name": "GraphQL - Get All Users",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "X-User-Email", "value": "{{userEmail}}" },
+          { "key": "Authorization", "value": "Bearer {{jwtToken}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/graphql",
+          "host": ["{{baseUrl}}"],
+          "path": ["graphql"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"query\": \"query GetUsers { users { id firstName lastName email title department { id name } manager { id firstName lastName } } }\"\n}"
+        }
+      }
+    },
+    {
+      "name": "GraphQL - Get All Tenants",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "X-User-Email", "value": "{{userEmail}}" },
+          { "key": "Authorization", "value": "Bearer {{jwtToken}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/graphql",
+          "host": ["{{baseUrl}}"],
+          "path": ["graphql"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"query\": \"query GetTenants { tenants { fqdn name active } }\"\n}"
+        }
+      }
+    },
+    {
+      "name": "GraphQL - Create User (epm_admin required)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "X-User-Email", "value": "{{adminEmail}}" },
+          { "key": "Authorization", "value": "Bearer {{jwtToken}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/graphql",
+          "host": ["{{baseUrl}}"],
+          "path": ["graphql"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"query\": \"mutation CreateUser($input: UserInput!) { createUser(input: $input) { id firstName lastName email title } }\",\n  \"variables\": {\n    \"input\": {\n      \"firstName\": \"Alice\",\n      \"lastName\": \"Admin\",\n      \"email\": \"alice.admin@example.com\",\n      \"title\": \"EPM Admin\",\n      \"managerId\": null,\n      \"departmentId\": null\n    }\n  }\n}"
+        }
+      }
+    },
+    {
+      "name": "GraphQL - Create Department (epm_admin required)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "X-User-Email", "value": "{{adminEmail}}" },
+          { "key": "Authorization", "value": "Bearer {{jwtToken}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/graphql",
+          "host": ["{{baseUrl}}"],
+          "path": ["graphql"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"query\": \"mutation CreateDepartment($input: DepartmentInput!) { createDepartment(input: $input) { id name smallDescription status owner { id firstName lastName email } } }\",\n  \"variables\": {\n    \"input\": {\n      \"name\": \"Engineering\",\n      \"smallDescription\": \"Software development and engineering\",\n      \"ownerEmail\": \"{{adminEmail}}\",\n      \"coOwnerEmail\": null,\n      \"creationDate\": null,\n      \"status\": \"ACTIVE\",\n      \"parentDepartmentId\": null\n    }\n  }\n}"
+        }
+      }
+    },
+    {
+      "name": "GraphQL - Root Goals",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "X-User-Email", "value": "{{userEmail}}" },
+          { "key": "Authorization", "value": "Bearer {{jwtToken}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/graphql",
+          "host": ["{{baseUrl}}"],
+          "path": ["graphql"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"query\": \"query RootGoals { rootGoals { id shortDescription status owner { id firstName lastName } childGoals { id shortDescription status } } }\"\n}"
+        }
+      }
+    },
+    {
+      "name": "GraphQL - Get Dashboard Data",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code is 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test('Response has data', function () {",
+              "  var json = pm.response.json();",
+              "  pm.expect(json).to.have.property('data');",
+              "});",
+              "",
+              "pm.test('Data contains goals and users', function () {",
+              "  var json = pm.response.json();",
+              "  pm.expect(json.data).to.have.property('goals');",
+              "  pm.expect(json.data).to.have.property('users');",
+              "  pm.expect(json.data.goals).to.be.an('array');",
+              "  pm.expect(json.data.users).to.be.an('array');",
+              "});",
+              "",
+              "pm.test('No GraphQL errors', function () {",
+              "  var json = pm.response.json();",
+              "  if (json.errors) {",
+              "    pm.expect(json.errors).to.be.empty;",
+              "  }",
+              "});",
+              "",
+              "pm.test('Goals have required fields', function () {",
+              "  var json = pm.response.json();",
+              "  if (json.data && json.data.goals && json.data.goals.length > 0) {",
+              "    var goal = json.data.goals[0];",
+              "    pm.expect(goal).to.have.property('id');",
+              "    pm.expect(goal).to.have.property('shortDescription');",
+              "    pm.expect(goal).to.have.property('longDescription');",
+              "    pm.expect(goal).to.have.property('status');",
+              "    pm.expect(goal).to.have.property('owner');",
+              "    if (goal.owner) {",
+              "      pm.expect(goal.owner).to.have.property('id');",
+              "      pm.expect(goal.owner).to.have.property('email');",
+              "    }",
+              "  }",
+              "});",
+              "",
+              "pm.test('Users have required fields', function () {",
+              "  var json = pm.response.json();",
+              "  if (json.data && json.data.users && json.data.users.length > 0) {",
+              "    var user = json.data.users[0];",
+              "    pm.expect(user).to.have.property('id');",
+              "    pm.expect(user).to.have.property('firstName');",
+              "    pm.expect(user).to.have.property('lastName');",
+              "    pm.expect(user).to.have.property('email');",
+              "  }",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "X-Tenant-Id", "value": "1" },
+          { "key": "Authorization", "value": "Bearer {{jwtToken}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/graphql",
+          "host": ["{{baseUrl}}"],
+          "path": ["graphql"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"query\": \"query GetDashboardData { goals { id shortDescription longDescription creationDate completionDate status owner { id firstName lastName email title } childGoals { id status } assignedUsers { id firstName lastName email title } } users { id firstName lastName email title } }\"\n}"
+        }
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:9081/api/v1/epm",
+      "type": "string"
+    },
+    {
+      "key": "userEmail",
+      "value": "player-one@samiX.com",
+      "type": "string"
+    },
+    {
+      "key": "adminEmail",
+      "value": "admin@example.com",
+      "type": "string"
+    },
+    {
+      "key": "jwtToken",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}
+
+

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -18,6 +18,15 @@ import {
   Slide,
   Badge,
   AvatarGroup,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Alert,
 } from '@mui/material';
 import {
   //TrendingUp as TrendingUpIcon,
@@ -36,30 +45,12 @@ import {
   Pending as PendingIcon,
   PublishedWithChanges as PublishedIcon,
   Drafts as DraftIcon,
+  Add as AddIcon,
 } from '@mui/icons-material';
 
-// Types based on your GraphQL schema
-type GoalStatus = 'DRAFT' | 'APPROVED' | 'PUBLISHED' | 'ACHIEVED' | 'RETIRED';
-
-interface User {
-  id: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  title: string;
-}
-
-interface Goal {
-  id: string;
-  shortDescription: string;
-  longDescription: string;
-  owner: User;
-  creationDate: string;
-  completionDate?: string;
-  status: GoalStatus;
-  childGoals: Goal[];
-  assignedUsers: User[];
-}
+import { graphqlRequest } from '../api/graphqlClient';
+import { getCurrentUserEmail } from '../api/authService';
+import type { Goal, GoalStatus, User } from '../types';
 
 interface ChatMessage {
   id: number;
@@ -68,100 +59,7 @@ interface ChatMessage {
   timestamp: Date;
 }
 
-// Mock data from GoalsPage
-const mockUsers: User[] = [
-  { id: '1', firstName: 'John', lastName: 'Doe', email: 'john.doe@sidgs.com', title: 'Senior Manager' },
-  { id: '2', firstName: 'Sarah', lastName: 'Johnson', email: 'sarah.j@sidgs.com', title: 'Engineering Lead' },
-  { id: '3', firstName: 'Michael', lastName: 'Chen', email: 'michael.c@sidgs.com', title: 'Product Manager' },
-  { id: '4', firstName: 'Emma', lastName: 'Wilson', email: 'emma.w@sidgs.com', title: 'UX Designer' },
-  { id: '5', firstName: 'David', lastName: 'Lee', email: 'david.l@sidgs.com', title: 'Software Engineer' },
-];
-
-const mockGoals: Goal[] = [
-  {
-    id: '1',
-    shortDescription: 'Improve code quality standards',
-    longDescription: 'Implement comprehensive code review processes and establish quality metrics for all engineering teams.',
-    owner: mockUsers[0],
-    creationDate: '2024-01-15',
-    status: 'PUBLISHED',
-    assignedUsers: [mockUsers[1], mockUsers[4]],
-    childGoals: [
-      {
-        id: '1-1',
-        shortDescription: 'Establish code review guidelines',
-        longDescription: 'Create and document standard code review procedures for all teams.',
-        owner: mockUsers[1],
-        creationDate: '2024-01-20',
-        status: 'ACHIEVED',
-        assignedUsers: [mockUsers[4]],
-        childGoals: [],
-      },
-      {
-        id: '1-2',
-        shortDescription: 'Implement automated testing',
-        longDescription: 'Set up automated testing pipeline with 90% coverage target.',
-        owner: mockUsers[1],
-        creationDate: '2024-01-25',
-        status: 'APPROVED',
-        assignedUsers: [mockUsers[4]],
-        childGoals: [],
-      },
-    ],
-  },
-  {
-    id: '2',
-    shortDescription: 'Launch new mobile application',
-    longDescription: 'Develop and launch mobile app for iOS and Android platforms',
-    owner: mockUsers[2],
-    creationDate: '2024-02-01',
-    status: 'APPROVED',
-    assignedUsers: [mockUsers[1], mockUsers[3], mockUsers[4]],
-    childGoals: [],
-  },
-  {
-    id: '3',
-    shortDescription: 'Increase customer satisfaction score',
-    longDescription: 'Improve overall customer satisfaction through better support and product quality enhancements.',
-    owner: mockUsers[0],
-    creationDate: '2024-01-10',
-    completionDate: '2024-03-31',
-    status: 'ACHIEVED',
-    assignedUsers: [mockUsers[2], mockUsers[3]],
-    childGoals: [
-      {
-        id: '3-1',
-        shortDescription: 'Customer feedback system',
-        longDescription: 'Implement new customer feedback collection and analysis system.',
-        owner: mockUsers[3],
-        creationDate: '2024-01-12',
-        status: 'ACHIEVED',
-        assignedUsers: [],
-        childGoals: [],
-      },
-    ],
-  },
-  {
-    id: '4',
-    shortDescription: 'Q1 Revenue Targets',
-    longDescription: 'Achieve Q1 revenue targets through new customer acquisition and upselling.',
-    owner: mockUsers[2],
-    creationDate: '2024-01-05',
-    status: 'DRAFT',
-    assignedUsers: [mockUsers[0]],
-    childGoals: [],
-  },
-  {
-    id: '5',
-    shortDescription: 'Team skill development program',
-    longDescription: 'Develop comprehensive training program for engineering team skill enhancement.',
-    owner: mockUsers[1],
-    creationDate: '2024-02-10',
-    status: 'RETIRED',
-    assignedUsers: [mockUsers[4]],
-    childGoals: [],
-  },
-];
+// GraphQL-backed data will be loaded on mount
 
 // Calculate progress for a goal
 const calculateGoalProgress = (goal: Goal): number => {
@@ -188,8 +86,12 @@ const statusConfig = {
 const HomePage: React.FC = () => {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
-  const [filteredGoals, setFilteredGoals] = useState<Goal[]>(mockGoals);
+  const [goals, setGoals] = useState<Goal[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
+  const [filteredGoals, setFilteredGoals] = useState<Goal[]>([]);
   const [showAll, setShowAll] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   
   // Chatbot states
   const [isChatOpen, setIsChatOpen] = useState(false);
@@ -205,13 +107,107 @@ const HomePage: React.FC = () => {
   const [unreadMessages, setUnreadMessages] = useState(0);
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
+  // Create goal dialog states
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [isSubGoal, setIsSubGoal] = useState(false);
+  const [selectedParentGoal, setSelectedParentGoal] = useState<string>('');
+  const [newGoalShortDesc, setNewGoalShortDesc] = useState('');
+  const [newGoalLongDesc, setNewGoalLongDesc] = useState('');
+  const [newGoalOwnerEmail, setNewGoalOwnerEmail] = useState('');
+  const [newGoalStatus, setNewGoalStatus] = useState<GoalStatus>('DRAFT');
+  const [createGoalLoading, setCreateGoalLoading] = useState(false);
+  const [createGoalError, setCreateGoalError] = useState<string | null>(null);
+
+  // Load goals/users from GraphQL
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const data = await graphqlRequest<{ goals: Goal[]; users: User[] }>(
+          `
+            query GetDashboardData {
+              goals {
+                id
+                shortDescription
+                longDescription
+                creationDate
+                completionDate
+                status
+                owner {
+                  id
+                  firstName
+                  lastName
+                  email
+                  title
+                }
+                childGoals {
+                  id
+                  status
+                }
+                assignedUsers {
+                  id
+                  firstName
+                  lastName
+                  email
+                  title
+                }
+              }
+              users {
+                id
+                firstName
+                lastName
+                email
+                title
+              }
+            }
+          `,
+        );
+
+        const loadedGoals = data.goals ?? [];
+        const loadedUsers = data.users ?? [];
+        setGoals(loadedGoals);
+        setUsers(loadedUsers);
+        setFilteredGoals(loadedGoals);
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Failed to load dashboard data';
+        setError(errorMessage);
+        // Only log the error, don't redirect - let App.tsx handle authentication state
+        console.error('Error loading dashboard data:', errorMessage);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, []);
+  
+  // Update owner email when users are loaded and dialog is open
+  useEffect(() => {
+    if (createDialogOpen && !newGoalOwnerEmail && users.length > 0) {
+      // Get the logged-in user's email from JWT token
+      const currentUserEmail = getCurrentUserEmail();
+      
+      // Try to find the logged-in user in the users list, otherwise use first user
+      let defaultOwnerEmail = users[0].email;
+      if (currentUserEmail) {
+        const currentUser = users.find(user => user.email.toLowerCase() === currentUserEmail.toLowerCase());
+        if (currentUser) {
+          defaultOwnerEmail = currentUser.email;
+        }
+      }
+      
+      setNewGoalOwnerEmail(defaultOwnerEmail);
+    }
+  }, [createDialogOpen, users, newGoalOwnerEmail]);
+
   // Filter goals based on search query
   useEffect(() => {
     if (!searchQuery.trim()) {
-      setFilteredGoals(mockGoals);
+      setFilteredGoals(goals);
       setShowAll(true);
     } else {
-      const filtered = mockGoals.filter(goal =>
+      const filtered = goals.filter(goal =>
         goal.shortDescription.toLowerCase().includes(searchQuery.toLowerCase()) ||
         goal.longDescription.toLowerCase().includes(searchQuery.toLowerCase()) ||
         goal.owner.firstName.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -290,43 +286,35 @@ const HomePage: React.FC = () => {
   const stats = [
     {
       title: 'Total Goals',
-      value: mockGoals.length.toString(),
+      value: goals.length.toString(),
       change: '+2',
       icon: <AssessmentIcon />,
       color: 'primary.main',
     },
     {
       title: 'Goals Published',
-      value: mockGoals.filter(g => g.status === 'PUBLISHED').length.toString(),
+      value: goals.filter(g => g.status === 'PUBLISHED').length.toString(),
       change: '+1',
       icon: <PublishedIcon />,
       color: 'secondary.main',
     },
     {
       title: 'Goals Achieved',
-      value: mockGoals.filter(g => g.status === 'ACHIEVED').length.toString(),
+      value: goals.filter(g => g.status === 'ACHIEVED').length.toString(),
       change: '+3',
       icon: <CheckCircleIcon />,
       color: 'success.main',
     },
     {
       title: 'Active Users',
-      value: mockUsers.length.toString(),
+      value: users.length.toString(),
       change: '+2',
       icon: <PeopleIcon />,
       color: 'info.main',
     },
   ];
 
-  // Recent activities from goal updates
-  const recentActivities = [
-    { user: 'Sarah Johnson', action: 'completed code review guidelines', time: '2 hours ago' },
-    { user: 'Michael Chen', action: 'approved mobile app launch goal', time: '4 hours ago' },
-    { user: 'Emma Wilson', action: 'achieved customer feedback system goal', time: '1 day ago' },
-    { user: 'David Lee', action: 'assigned to improve code quality standards', time: '2 days ago' },
-  ];
-
-  // Format date
+  // Format date helper function
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       month: 'short',
@@ -334,8 +322,209 @@ const HomePage: React.FC = () => {
     });
   };
 
+  // Helper function to calculate time ago
+  const getTimeAgo = (dateString: string): string => {
+    const now = new Date();
+    const date = new Date(dateString);
+    const diffMs = now.getTime() - date.getTime();
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffHours / 24);
+    
+    if (diffHours < 1) return 'just now';
+    if (diffHours < 24) return `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
+    if (diffDays < 7) return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
+    return formatDate(dateString);
+  };
+
+  // Generate recent activities from actual goals data
+  const recentActivities = React.useMemo(() => {
+    const activities: Array<{ user: string; action: string; time: string }> = [];
+    
+    // Sort goals by creation date (most recent first) and take recent updates
+    const sortedGoals = [...goals].sort((a, b) => 
+      new Date(b.creationDate).getTime() - new Date(a.creationDate).getTime()
+    ).slice(0, 4);
+    
+    sortedGoals.forEach((goal) => {
+      const ownerName = `${goal.owner.firstName} ${goal.owner.lastName}`;
+      const timeAgo = getTimeAgo(goal.creationDate);
+      let action = '';
+      
+      switch (goal.status) {
+        case 'ACHIEVED':
+          action = `achieved ${goal.shortDescription.toLowerCase()}`;
+          break;
+        case 'APPROVED':
+          action = `approved ${goal.shortDescription.toLowerCase()}`;
+          break;
+        case 'PUBLISHED':
+          action = `published ${goal.shortDescription.toLowerCase()}`;
+          break;
+        default:
+          action = `created ${goal.shortDescription.toLowerCase()}`;
+      }
+      
+      activities.push({
+        user: ownerName,
+        action,
+        time: timeAgo,
+      });
+    });
+    
+    return activities;
+  }, [goals]);
+
   const handleExploreGoals = () => {
     navigate('/goals');
+  };
+
+  // Handle create goal dialog
+  const handleOpenCreateDialog = (asSubGoal: boolean = false) => {
+    if (users.length === 0) {
+      setCreateGoalError('No users available. Please wait for users to load or create a user first.');
+      return;
+    }
+    
+    // Get the logged-in user's email from JWT token
+    const currentUserEmail = getCurrentUserEmail();
+    
+    // Try to find the logged-in user in the users list, otherwise use first user
+    let defaultOwnerEmail = users[0].email;
+    if (currentUserEmail) {
+      const currentUser = users.find(user => user.email.toLowerCase() === currentUserEmail.toLowerCase());
+      if (currentUser) {
+        defaultOwnerEmail = currentUser.email;
+      }
+    }
+    
+    setIsSubGoal(asSubGoal);
+    setSelectedParentGoal('');
+    setNewGoalShortDesc('');
+    setNewGoalLongDesc('');
+    setNewGoalOwnerEmail(defaultOwnerEmail);
+    setNewGoalStatus('DRAFT');
+    setCreateGoalError(null);
+    setCreateDialogOpen(true);
+  };
+
+  const handleCloseCreateDialog = () => {
+    setCreateDialogOpen(false);
+    setCreateGoalError(null);
+  };
+
+  // Handle create goal mutation
+  const handleCreateGoal = async () => {
+    if (!newGoalShortDesc.trim() || !newGoalLongDesc.trim() || !newGoalOwnerEmail.trim()) {
+      setCreateGoalError('Please fill in all required fields');
+      return;
+    }
+
+    if (isSubGoal && !selectedParentGoal) {
+      setCreateGoalError('Please select a parent goal for the sub-goal');
+      return;
+    }
+
+    setCreateGoalLoading(true);
+    setCreateGoalError(null);
+
+    try {
+      const mutation = `
+        mutation CreateGoal($input: GoalInput!) {
+          createGoal(input: $input) {
+            id
+            shortDescription
+            longDescription
+            creationDate
+            completionDate
+            status
+            owner {
+              id
+              firstName
+              lastName
+              email
+              title
+            }
+            parentGoal {
+              id
+            }
+            childGoals {
+              id
+              status
+            }
+            assignedUsers {
+              id
+              firstName
+              lastName
+              email
+              title
+            }
+          }
+        }
+      `;
+
+      const variables = {
+        input: {
+          shortDescription: newGoalShortDesc.trim(),
+          longDescription: newGoalLongDesc.trim(),
+          ownerEmail: newGoalOwnerEmail.trim(),
+          status: newGoalStatus,
+          parentGoalId: isSubGoal && selectedParentGoal ? selectedParentGoal : null,
+        },
+      };
+
+      await graphqlRequest<{ createGoal: Goal }>(mutation, variables);
+      
+      // Refresh goals list
+      const refreshData = await graphqlRequest<{ goals: Goal[]; users: User[] }>(
+        `
+          query GetDashboardData {
+            goals {
+              id
+              shortDescription
+              longDescription
+              creationDate
+              completionDate
+              status
+              owner {
+                id
+                firstName
+                lastName
+                email
+                title
+              }
+              childGoals {
+                id
+                status
+              }
+              assignedUsers {
+                id
+                firstName
+                lastName
+                email
+                title
+              }
+            }
+            users {
+              id
+              firstName
+              lastName
+              email
+              title
+            }
+          }
+        `,
+      );
+
+      setGoals(refreshData.goals ?? []);
+      setUsers(refreshData.users ?? []);
+      setFilteredGoals(refreshData.goals ?? []);
+      
+      handleCloseCreateDialog();
+    } catch (err) {
+      setCreateGoalError(err instanceof Error ? err.message : 'Failed to create goal');
+    } finally {
+      setCreateGoalLoading(false);
+    }
   };
 
   return (
@@ -662,9 +851,21 @@ const HomePage: React.FC = () => {
               
               {/* Goals List */}
               <Box sx={{ mt: 3 }}>
-                {showAll ? (
+                {loading && (
+                  <Box sx={{ textAlign: 'center', py: 4 }}>
+                    <Typography variant="body2" color="text.secondary">
+                      Loading goals...
+                    </Typography>
+                  </Box>
+                )}
+                {error && (
+                  <Alert severity="error" sx={{ mb: 2 }}>
+                    {error}
+                  </Alert>
+                )}
+                {!loading && !error && showAll ? (
                   // Show all goals
-                  mockGoals.map((goal) => {
+                  goals.map((goal) => {
                     const progress = calculateGoalProgress(goal);
                     return (
                       <Box key={goal.id} sx={{ mb: 3 }}>
@@ -726,7 +927,7 @@ const HomePage: React.FC = () => {
                       </Box>
                     );
                   })
-                ) : filteredGoals.length > 0 ? (
+                ) : !loading && !error && filteredGoals.length > 0 ? (
                   // Show filtered goals
                   filteredGoals.map((goal) => {
                     const progress = calculateGoalProgress(goal);
@@ -872,7 +1073,7 @@ const HomePage: React.FC = () => {
                   ))} */}
                 </AvatarGroup>
                 <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-                  {mockUsers.length} team members managing goals
+                  {users.length} team members managing goals
                 </Typography>
               </Box>
 
@@ -883,8 +1084,10 @@ const HomePage: React.FC = () => {
                 </Typography>
                 <Box sx={{ mt: 1 }}>
                   {Object.entries(statusConfig).map(([status, config]) => {
-                    const count = mockGoals.filter(g => g.status === status).length;
-                    const percentage = Math.round((count / mockGoals.length) * 100);
+                    const count = goals.filter(g => g.status === status).length;
+                    const percentage = goals.length
+                      ? Math.round((count / goals.length) * 100)
+                      : 0;
                     return (
                       <Box key={status} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -916,6 +1119,118 @@ const HomePage: React.FC = () => {
           Explore All Goals
         </Button>
       </Box>
+
+      {/* Create Goal Dialog */}
+      <Dialog
+        open={createDialogOpen}
+        onClose={handleCloseCreateDialog}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          {isSubGoal ? 'Create New Sub-Goal' : 'Create New Goal'}
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, pt: 2 }}>
+            {createGoalError && (
+              <Alert severity="error">{createGoalError}</Alert>
+            )}
+
+            {isSubGoal && (
+              <FormControl fullWidth>
+                <InputLabel>Parent Goal</InputLabel>
+                <Select
+                  value={selectedParentGoal}
+                  label="Parent Goal"
+                  onChange={(e) => setSelectedParentGoal(e.target.value)}
+                >
+                  {goals.map((goal) => (
+                    <MenuItem key={goal.id} value={goal.id}>
+                      {goal.shortDescription}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            )}
+
+            <TextField
+              fullWidth
+              label="Short Description"
+              value={newGoalShortDesc}
+              onChange={(e) => setNewGoalShortDesc(e.target.value)}
+              required
+              placeholder="e.g., Improve code quality standards"
+            />
+
+            <TextField
+              fullWidth
+              label="Long Description"
+              value={newGoalLongDesc}
+              onChange={(e) => setNewGoalLongDesc(e.target.value)}
+              required
+              multiline
+              rows={4}
+              placeholder="Provide a detailed description of the goal..."
+            />
+
+            <FormControl fullWidth required>
+              <InputLabel>Owner</InputLabel>
+              <Select
+                value={newGoalOwnerEmail}
+                label="Owner"
+                onChange={(e) => setNewGoalOwnerEmail(e.target.value)}
+                required
+                error={!newGoalOwnerEmail}
+              >
+                {users.length === 0 ? (
+                  <MenuItem disabled value="">
+                    No users available
+                  </MenuItem>
+                ) : (
+                  users.map((user) => (
+                    <MenuItem key={user.id} value={user.email}>
+                      {user.firstName} {user.lastName} ({user.email})
+                    </MenuItem>
+                  ))
+                )}
+              </Select>
+              {users.length === 0 && (
+                <Typography variant="caption" color="error" sx={{ mt: 0.5 }}>
+                  No users found. Please create a user first.
+                </Typography>
+              )}
+            </FormControl>
+
+            <FormControl fullWidth>
+              <InputLabel>Status</InputLabel>
+              <Select
+                value={newGoalStatus}
+                label="Status"
+                onChange={(e) => setNewGoalStatus(e.target.value as GoalStatus)}
+              >
+                <MenuItem value="DRAFT">Draft</MenuItem>
+                <MenuItem value="APPROVED">Approved</MenuItem>
+                <MenuItem value="PUBLISHED">Published</MenuItem>
+                <MenuItem value="ACHIEVED">Achieved</MenuItem>
+                <MenuItem value="RETIRED">Retired</MenuItem>
+              </Select>
+            </FormControl>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseCreateDialog} disabled={createGoalLoading}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleCreateGoal}
+            variant="contained"
+            disabled={createGoalLoading}
+            startIcon={<AddIcon />}
+          >
+            {createGoalLoading ? 'Creating...' : 'Create Goal'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

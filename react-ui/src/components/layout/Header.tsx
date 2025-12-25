@@ -14,8 +14,11 @@ import {
   //Search as SearchIcon,
   Notifications as NotificationsIcon,
   Help as HelpIcon,
+  Logout as LogoutIcon,
   //Close as CloseIcon,
 } from '@mui/icons-material';
+import { useNavigate } from 'react-router-dom';
+import { clearAuthToken, isDevMode } from '../../api/authService';
 
 // Define the search context type
 interface SearchContextType {
@@ -34,8 +37,19 @@ interface HeaderProps {
 }
 
 const Header: React.FC<HeaderProps> = ({ onSearchChange }) => {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [, setShowClearButton] = useState(false);
+
+  const handleLogout = () => {
+    clearAuthToken();
+    if (isDevMode()) {
+      navigate('/login');
+    } else {
+      // In non-dev mode, just clear token and reload
+      window.location.reload();
+    }
+  };
 
   // Handle search input change
   // const handleSearchChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
@@ -167,6 +181,15 @@ const Header: React.FC<HeaderProps> = ({ onSearchChange }) => {
             
             <IconButton size="large">
               <HelpIcon />
+            </IconButton>
+
+            <IconButton 
+              size="large" 
+              onClick={handleLogout}
+              title="Logout"
+              sx={{ color: 'error.main' }}
+            >
+              <LogoutIcon />
             </IconButton>
           </Box>
         </Toolbar>

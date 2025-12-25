@@ -6,20 +6,21 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "tenants", uniqueConstraints = {
-    @UniqueConstraint(columnNames = "subdomain")
+@Table(name = "epm_tenants", uniqueConstraints = {
+    @UniqueConstraint(columnNames = "fqdn")
 })
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 public class Tenant {
 
+    /**
+     * Fully Qualified Domain Name used as the primary tenant identifier (primary key).
+     * Example: acme.example.com or localhost
+     */
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    @Column(name = "subdomain", nullable = false, unique = true)
-    private String subdomain;
+    @Column(name = "fqdn", nullable = false, unique = true, length = 255)
+    private String fqdn;
 
     @Column(name = "name", nullable = false)
     private String name;
