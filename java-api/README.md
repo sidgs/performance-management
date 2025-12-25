@@ -76,7 +76,6 @@ The API will be available at:
 - `GET /api/goals` - Get all goals
 - `GET /api/goals/{id}` - Get goal by ID
 - `GET /api/goals/owner/{email}` - Get goals by owner email
-- `GET /api/goals/root` - Get root goals (no parent)
 - `PUT /api/goals/{id}` - Update goal
 - `POST /api/goals/{goalId}/assign/{userEmail}` - Assign goal to user
 - `DELETE /api/goals/{id}` - Delete goal

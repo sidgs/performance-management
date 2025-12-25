@@ -149,6 +149,7 @@ public class MutationResolver implements GraphQLMutationResolver {
         goalDTO.setLongDescription(input.getLongDescription());
         goalDTO.setOwnerEmail(input.getOwnerEmail());
         goalDTO.setStatus(input.getStatus());
+        goalDTO.setConfidential(input.getConfidential() != null ? input.getConfidential() : false);
         
         if (input.getCreationDate() != null) {
             goalDTO.setCreationDate(LocalDate.parse(input.getCreationDate()));
@@ -184,6 +185,9 @@ public class MutationResolver implements GraphQLMutationResolver {
         goalDTO.setShortDescription(input.getShortDescription());
         goalDTO.setLongDescription(input.getLongDescription());
         goalDTO.setStatus(input.getStatus());
+        if (input.getConfidential() != null) {
+            goalDTO.setConfidential(input.getConfidential());
+        }
         
         if (input.getCompletionDate() != null) {
             goalDTO.setCompletionDate(LocalDate.parse(input.getCompletionDate()));
@@ -413,6 +417,7 @@ public class MutationResolver implements GraphQLMutationResolver {
         private String targetCompletionDate;
         private Goal.GoalStatus status;
         private Long parentGoalId;
+        private Boolean confidential;
         private List<KPIInput> kpis;
 
         // Getters and setters
@@ -434,6 +439,8 @@ public class MutationResolver implements GraphQLMutationResolver {
         public void setStatus(Goal.GoalStatus status) { this.status = status; }
         public Long getParentGoalId() { return parentGoalId; }
         public void setParentGoalId(Long parentGoalId) { this.parentGoalId = parentGoalId; }
+        public Boolean getConfidential() { return confidential; }
+        public void setConfidential(Boolean confidential) { this.confidential = confidential; }
         public List<KPIInput> getKpis() { return kpis; }
         public void setKpis(List<KPIInput> kpis) { this.kpis = kpis; }
     }

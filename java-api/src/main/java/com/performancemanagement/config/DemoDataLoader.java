@@ -81,14 +81,11 @@ public class DemoDataLoader implements CommandLineRunner {
             // Phase 1: Create all users (without manager relationships)
             Map<String, User> userMap = createUsers(demoData.users, tenant);
 
-            // Phase 2: Set manager relationships
-            setManagerRelationships(demoData.users, userMap);
-
-            // Phase 3: Create departments
+            // Phase 2: Create departments
             Map<String, Department> departmentMap = createDepartments(demoData.departments, tenant, userMap);
 
-            // Phase 4: Assign users to departments
-            assignUsersToDepartments(demoData.departments, userMap, departmentMap);
+            // Phase 3: Assign users to departments (explicitly from JSON)
+            assignUsersToDepartments(demoData.users, userMap, departmentMap);
 
             // Phase 5: Create goals (root goals first, then children)
             Map<String, Goal> goalMap = createGoals(demoData.goals, tenant, userMap, departmentMap);
@@ -131,22 +128,6 @@ public class DemoDataLoader implements CommandLineRunner {
         return userMap;
     }
 
-    private void setManagerRelationships(List<DemoData.UserData> usersData, Map<String, User> userMap) {
-        for (DemoData.UserData userData : usersData) {
-            if (userData.managerEmail != null && !userData.managerEmail.isEmpty()) {
-                User user = userMap.get(userData.email);
-                User manager = userMap.get(userData.managerEmail);
-                if (user != null && manager != null) {
-                    user.setManager(manager);
-                    userRepository.save(user);
-                    logger.debug("Set manager {} for user {}", userData.managerEmail, userData.email);
-                } else {
-                    logger.warn("Could not set manager relationship: user={}, manager={}", 
-                        userData.email, userData.managerEmail);
-                }
-            }
-        }
-    }
 
     private Map<String, Department> createDepartments(
             List<DemoData.DepartmentData> departmentsData, 
@@ -210,38 +191,21 @@ public class DemoDataLoader implements CommandLineRunner {
     }
 
     private void assignUsersToDepartments(
-            List<DemoData.DepartmentData> departmentsData,
+            List<DemoData.UserData> usersData,
             Map<String, User> userMap,
             Map<String, Department> departmentMap) {
-        // Note: The JSON structure doesn't explicitly list which users belong to which departments.
-        // We'll assign users based on their manager's department.
-        // Strategy:
-        // 1. If user's manager is a department manager, assign user to that department
-        // 2. Otherwise, if user's manager has a department, assign user to the same department
-        
-        for (User user : userMap.values()) {
-            if (user.getManager() != null) {
-                // First, check if manager is a department manager
-                Department managerDepartment = null;
-                for (Department dept : departmentMap.values()) {
-                    if (dept.getManager() != null && dept.getManager().getId().equals(user.getManager().getId())) {
-                        managerDepartment = dept;
-                        break;
-                    }
-                }
-                
-                // If manager is a department manager, assign user to that department
-                if (managerDepartment != null) {
-                    user.setDepartment(managerDepartment);
+        // Assign users to departments based on explicit departmentName in JSON
+        for (DemoData.UserData userData : usersData) {
+            if (userData.departmentName != null && !userData.departmentName.isEmpty()) {
+                User user = userMap.get(userData.email);
+                Department department = departmentMap.get(userData.departmentName);
+                if (user != null && department != null) {
+                    user.setDepartment(department);
                     userRepository.save(user);
-                    logger.debug("Assigned user {} to department {} (manager is dept manager)", 
-                        user.getEmail(), managerDepartment.getName());
-                } else if (user.getManager().getDepartment() != null) {
-                    // Otherwise, assign to the same department as manager
-                    user.setDepartment(user.getManager().getDepartment());
-                    userRepository.save(user);
-                    logger.debug("Assigned user {} to department {} (same as manager)", 
-                        user.getEmail(), user.getManager().getDepartment().getName());
+                    logger.debug("Assigned user {} to department {}", userData.email, userData.departmentName);
+                } else {
+                    logger.warn("Could not assign user {} to department {}: user or department not found", 
+                        userData.email, userData.departmentName);
                 }
             }
         }
@@ -381,8 +345,8 @@ public class DemoDataLoader implements CommandLineRunner {
             public String email;
             public String title;
             public String role;
-            @JsonProperty("managerEmail")
-            public String managerEmail;
+            @JsonProperty("departmentName")
+            public String departmentName;
         }
 
         @JsonIgnoreProperties(ignoreUnknown = true)

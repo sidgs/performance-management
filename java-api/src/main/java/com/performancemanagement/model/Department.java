@@ -3,6 +3,7 @@ package com.performancemanagement.model;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
@@ -14,6 +15,7 @@ import java.util.Set;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@EqualsAndHashCode(exclude = {"manager", "managerAssistant", "coOwner", "parentDepartment", "childDepartments", "users"})
 public class Department {
 
     @Id
@@ -31,7 +33,7 @@ public class Department {
     private String smallDescription;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "manager_id", nullable = false)
+    @JoinColumn(name = "manager_id", nullable = true)
     private User manager;
 
     @ManyToOne(fetch = FetchType.LAZY)

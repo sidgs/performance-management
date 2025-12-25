@@ -5,6 +5,8 @@ import io.jsonwebtoken.Jws;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
@@ -22,10 +24,12 @@ import java.util.List;
  * Token requirements:
  * - Must contain: username, email, roles, permissions, tenantId
  * - Must contain an expiration (exp) claim
- * - In local or dev profile, unsigned tokens are allowed as long as they are not expired.
+ * - In local, dev, or demo profiles, unsigned tokens are allowed as long as they are not expired.
  */
 @Component
 public class JwtTokenProvider {
+
+    private static final Logger logger = LoggerFactory.getLogger(JwtTokenProvider.class);
 
     private final SecretKey secretKey;
     private final Environment environment;
@@ -69,6 +73,7 @@ public class JwtTokenProvider {
                 claims = jwsClaims.getBody();
             }
         } catch (Exception ex) {
+            logger.debug("JWT parsing failed (unsigned attempt): {} - {}", ex.getClass().getSimpleName(), ex.getMessage());
             // If parsing as unsecured JWT fails in dev/local, fall back to signed parsing
             if (isUnsignedAllowed) {
                 try {
@@ -77,7 +82,9 @@ public class JwtTokenProvider {
                             .build()
                             .parseClaimsJws(token);
                     claims = jwsClaims.getBody();
-                } catch (Exception ignored) {
+                    logger.debug("JWT parsing succeeded with signed token fallback");
+                } catch (Exception signedEx) {
+                    logger.debug("JWT parsing failed (signed fallback): {} - {}", signedEx.getClass().getSimpleName(), signedEx.getMessage());
                     return null;
                 }
             } else {
@@ -93,10 +100,12 @@ public class JwtTokenProvider {
         Date expiration = claims.getExpiration();
         if (expiration == null) {
             // No expiration claim - reject token
+            logger.debug("JWT token rejected: missing expiration (exp) claim");
             return null;
         }
         if (expiration.toInstant().isBefore(Instant.now())) {
             // Token has expired
+            logger.debug("JWT token rejected: token expired at {}, current time is {}", expiration, Instant.now());
             return null;
         }
 
@@ -133,6 +142,7 @@ public class JwtTokenProvider {
 
         // Email and tenantId are required; username can be derived from email if missing
         if (email == null || tenantId == null) {
+            logger.debug("JWT token rejected: missing required claims - email: {}, tenantId: {}", email != null, tenantId != null);
             return null;
         }
         
@@ -146,7 +156,7 @@ public class JwtTokenProvider {
 
     private boolean isUnsignedAllowed() {
         return Arrays.stream(environment.getActiveProfiles())
-                .anyMatch(p -> p.equalsIgnoreCase("dev") || p.equalsIgnoreCase("local"));
+                .anyMatch(p -> p.equalsIgnoreCase("dev") || p.equalsIgnoreCase("local") || p.equalsIgnoreCase("demo"));
     }
 
     /**

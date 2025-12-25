@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -14,9 +14,6 @@ import {
   IconButton,
   TextField,
   Paper,
-  Fade,
-  Slide,
-  Badge,
   AvatarGroup,
   Dialog,
   DialogTitle,
@@ -36,11 +33,6 @@ import {
   ArrowForward as ArrowForwardIcon,
   Search as SearchIcon,
   Close as CloseIcon,
-  Chat as ChatIcon,
-  Send as SendIcon,
-  SmartToy as BotIcon,
-  Person as PersonIcon,
-  Close as CloseChatIcon,
   CheckCircle as CheckCircleIcon,
   Pending as PendingIcon,
   PublishedWithChanges as PublishedIcon,
@@ -51,13 +43,6 @@ import {
 import { graphqlRequest } from '../api/graphqlClient';
 import { getCurrentUserEmail } from '../api/authService';
 import type { Goal, GoalStatus, User } from '../types';
-
-interface ChatMessage {
-  id: number;
-  text: string;
-  sender: 'user' | 'bot';
-  timestamp: Date;
-}
 
 // GraphQL-backed data will be loaded on mount
 
@@ -81,6 +66,7 @@ const statusConfig = {
   APPROVED: { label: 'Approved', color: 'info' as const, icon: <CheckCircleIcon /> },
   PUBLISHED: { label: 'Published', color: 'primary' as const, icon: <PublishedIcon /> },
   ACHIEVED: { label: 'Achieved', color: 'success' as const, icon: <CheckCircleIcon /> },
+  ARCHIVED: { label: 'Archived', color: 'default' as const, icon: <DraftIcon /> },
   RETIRED: { label: 'Retired', color: 'warning' as const, icon: <PendingIcon /> },
 };
 
@@ -93,20 +79,6 @@ const HomePage: React.FC = () => {
   const [showAll, setShowAll] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
-  // Chatbot states
-  const [isChatOpen, setIsChatOpen] = useState(false);
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
-    {
-      id: 1,
-      text: "Hello! I'm your Performance Assistant. How can I help you today?",
-      sender: 'bot',
-      timestamp: new Date(),
-    }
-  ]);
-  const [newMessage, setNewMessage] = useState('');
-  const [unreadMessages, setUnreadMessages] = useState(0);
-  const chatContainerRef = useRef<HTMLDivElement>(null);
 
   // Create goal dialog states
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -219,68 +191,10 @@ const HomePage: React.FC = () => {
     }
   }, [searchQuery]);
 
-  // Auto-scroll to bottom when new messages arrive
-  useEffect(() => {
-    if (chatContainerRef.current && isChatOpen) {
-      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
-    }
-  }, [chatMessages, isChatOpen]);
-
-  // Handle new bot messages when chat opens
-  useEffect(() => {
-    if (isChatOpen && unreadMessages > 0) {
-      setUnreadMessages(0);
-    }
-  }, [isChatOpen, unreadMessages]);
-
   // Clear search
   const handleClearSearch = () => {
     setSearchQuery('');
     setShowAll(true);
-  };
-
-  // Chatbot functions (unchanged)
-  const handleSendMessage = async () => {
-    if (!newMessage.trim()) return;
-
-    // Add user message
-    const userMessage: ChatMessage = {
-      id: chatMessages.length + 1,
-      text: newMessage,
-      sender: 'user',
-      timestamp: new Date(),
-    };
-    
-    setChatMessages(prev => [...prev, userMessage]);
-    setNewMessage('');
-    
-    // Simulate API call
-    setTimeout(() => {
-      const botResponse: ChatMessage = {
-        id: chatMessages.length + 2,
-        text: "We are processing your request.",
-        sender: 'bot',
-        timestamp: new Date(),
-      };
-      
-      setChatMessages(prev => [...prev, botResponse]);
-      
-      // Increment unread count if chat is closed
-      if (!isChatOpen) {
-        setUnreadMessages(prev => prev + 1);
-      }
-    }, 1000);
-  };
-
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSendMessage();
-    }
-  };
-
-  const toggleChat = () => {
-    setIsChatOpen(!isChatOpen);
   };
 
   // Calculate dashboard statistics from goals data
@@ -530,207 +444,10 @@ const HomePage: React.FC = () => {
 
   return (
     <Box>
-      {/* Floating Chatbot Button */}
-      <Fade in={!isChatOpen}>
-        <Box
-          sx={{
-            position: 'fixed',
-            bottom: 24,
-            right: 24,
-            zIndex: 1000,
-          }}
-        >
-          <Badge
-            badgeContent={unreadMessages}
-            color="error"
-            invisible={unreadMessages === 0}
-          >
-            <Button
-              variant="contained"
-              onClick={toggleChat}
-              startIcon={<ChatIcon />}
-              sx={{
-                backgroundColor: 'primary.main',
-                color: 'white',
-                borderRadius: '50px',
-                px: 3,
-                py: 1.5,
-                boxShadow: 3,
-                '&:hover': {
-                  backgroundColor: 'primary.dark',
-                  transform: 'scale(1.05)',
-                  transition: 'transform 0.2s',
-                },
-              }}
-            >
-              Performance Assistant
-            </Button>
-          </Badge>
-        </Box>
-      </Fade>
-
-      {/* Chatbot Interface - UNCHANGED */}
-      <Slide direction="up" in={isChatOpen} mountOnEnter unmountOnExit>
-        <Paper
-          elevation={10}
-          sx={{
-            position: 'fixed',
-            bottom: 24,
-            right: 24,
-            width: 380,
-            height: 500,
-            zIndex: 1001,
-            display: 'flex',
-            flexDirection: 'column',
-            borderRadius: 2,
-            overflow: 'hidden',
-            backgroundColor: 'background.paper',
-          }}
-        >
-          {/* Chat Header */}
-          <Box
-            sx={{
-              backgroundColor: 'primary.main',
-              color: 'white',
-              p: 2,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-            }}
-          >
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-              <BotIcon />
-              <Typography variant="h6" fontWeight={600}>
-                Performance Assistant
-              </Typography>
-            </Box>
-            <IconButton onClick={toggleChat} size="small" sx={{ color: 'white' }}>
-              <CloseChatIcon />
-            </IconButton>
-          </Box>
-
-          {/* Chat Messages */}
-          <Box
-            ref={chatContainerRef}
-            sx={{
-              flex: 1,
-              p: 2,
-              overflowY: 'auto',
-              backgroundColor: 'grey.50',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 2,
-            }}
-          >
-            {chatMessages.map((message) => (
-              <Box
-                key={message.id}
-                sx={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: message.sender === 'user' ? 'flex-end' : 'flex-start',
-                }}
-              >
-                <Box
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    gap: 1,
-                    maxWidth: '80%',
-                    flexDirection: message.sender === 'user' ? 'row-reverse' : 'row',
-                  }}
-                >
-                  <Avatar
-                    sx={{
-                      width: 32,
-                      height: 32,
-                      bgcolor: message.sender === 'user' ? 'secondary.main' : 'primary.main',
-                    }}
-                  >
-                    {message.sender === 'user' ? <PersonIcon /> : <BotIcon />}
-                  </Avatar>
-                  <Paper
-                    elevation={1}
-                    sx={{
-                      p: 1.5,
-                      backgroundColor: message.sender === 'user' ? 'primary.light' : 'white',
-                      color: message.sender === 'user' ? 'white' : 'text.primary',
-                      borderRadius: 2,
-                      borderTopLeftRadius: message.sender === 'user' ? 12 : 4,
-                      borderTopRightRadius: message.sender === 'user' ? 4 : 12,
-                    }}
-                  >
-                    <Typography variant="body2">{message.text}</Typography>
-                    <Typography
-                      variant="caption"
-                      sx={{
-                        display: 'block',
-                        mt: 0.5,
-                        opacity: 0.7,
-                        textAlign: message.sender === 'user' ? 'right' : 'left',
-                      }}
-                    >
-                      {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </Typography>
-                  </Paper>
-                </Box>
-              </Box>
-            ))}
-          </Box>
-
-          {/* Chat Input */}
-          <Box
-            sx={{
-              p: 2,
-              borderTop: 1,
-              borderColor: 'divider',
-              backgroundColor: 'white',
-            }}
-          >
-            <Box sx={{ display: 'flex', gap: 1 }}>
-              <TextField
-                fullWidth
-                size="small"
-                placeholder="Type your message..."
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                onKeyPress={handleKeyPress}
-                multiline
-                maxRows={3}
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    borderRadius: 2,
-                  },
-                }}
-              />
-              <IconButton
-                onClick={handleSendMessage}
-                disabled={!newMessage.trim()}
-                sx={{
-                  backgroundColor: 'primary.main',
-                  color: 'white',
-                  '&:hover': {
-                    backgroundColor: 'primary.dark',
-                  },
-                  '&.Mui-disabled': {
-                    backgroundColor: 'grey.300',
-                  },
-                }}
-              >
-                <SendIcon />
-              </IconButton>
-            </Box>
-            <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-              Press Enter to send, Shift+Enter for new line
-            </Typography>
-          </Box>
-        </Paper>
-      </Slide>
-
       {/* Hero Section */}
       <Box sx={{ mb: 4 }}>
         <Typography variant="h1" gutterBottom>
-          Performance Intelligence
+          Pulse
         </Typography>
         <Typography variant="h5" color="text.secondary" sx={{ mb: 3 }}>
           Track, manage, and achieve organizational goals with AI-driven insights.
@@ -1213,6 +930,7 @@ const HomePage: React.FC = () => {
                 <MenuItem value="APPROVED">Approved</MenuItem>
                 <MenuItem value="PUBLISHED">Published</MenuItem>
                 <MenuItem value="ACHIEVED">Achieved</MenuItem>
+                <MenuItem value="ARCHIVED">Archived</MenuItem>
                 <MenuItem value="RETIRED">Retired</MenuItem>
               </Select>
             </FormControl>

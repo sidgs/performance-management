@@ -49,12 +49,6 @@ public class GoalController {
         return new ResponseEntity<>(goals, HttpStatus.OK);
     }
 
-    @GetMapping("/root")
-    public ResponseEntity<List<GoalDTO>> getRootGoals() {
-        List<GoalDTO> goals = goalService.getRootGoals();
-        return new ResponseEntity<>(goals, HttpStatus.OK);
-    }
-
     @PutMapping("/{id}")
     public ResponseEntity<GoalDTO> updateGoal(@PathVariable Long id, @RequestBody GoalDTO goalDTO) {
         try {
@@ -62,6 +56,8 @@ public class GoalController {
             return new ResponseEntity<>(updated, HttpStatus.OK);
         } catch (IllegalArgumentException e) {
             return new ResponseEntity<>(null, HttpStatus.NOT_FOUND);
+        } catch (IllegalStateException e) {
+            return new ResponseEntity<>(null, HttpStatus.BAD_REQUEST);
         }
     }
 

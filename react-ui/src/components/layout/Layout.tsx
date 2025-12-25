@@ -1,8 +1,6 @@
 import React, { ReactNode } from 'react';
 import { Box } from '@mui/material';
-import Header from './Header';
-import SideNavigation from './SideNavigation';
-import Footer from './Footer';
+import MenuCallout from './MenuCallout';
 import Breadcrumbs from './Breadcrumbs';
 
 interface LayoutProps {
@@ -12,23 +10,22 @@ interface LayoutProps {
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh', flexDirection: 'column' }}>
-      <Header />
       <Box sx={{ display: 'flex', flex: 1 }}>
-        <SideNavigation />
         <Box
           component="main"
           sx={{
             flexGrow: 1,
+            width: '100%',
             p: 3,
             backgroundColor: 'background.default',
-            minHeight: 'calc(100vh - 120px)',
+            minHeight: '100vh',
           }}
         >
           <Breadcrumbs />
           <Box sx={{ mt: 2 }}>{children}</Box>
         </Box>
       </Box>
-      <Footer />
+      <MenuCallout />
     </Box>
   );
 };

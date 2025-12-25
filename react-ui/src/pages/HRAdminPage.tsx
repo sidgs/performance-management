@@ -51,6 +51,7 @@ import {
   setDepartmentManager,
   moveUserToDepartment,
   getDepartmentMembers,
+  getEligibleManagersForDepartment,
 } from '../api/departmentService';
 import { graphqlRequest } from '../api/graphqlClient';
 import { isHrAdmin } from '../api/authService';
@@ -64,6 +65,7 @@ const HRAdminPage: React.FC = () => {
   const [selectedTab, setSelectedTab] = useState(0);
   const [selectedDepartment, setSelectedDepartment] = useState<Department | null>(null);
   const [departmentMembers, setDepartmentMembers] = useState<User[]>([]);
+  const [eligibleManagers, setEligibleManagers] = useState<User[]>([]);
 
   // Dialog states
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -76,6 +78,7 @@ const HRAdminPage: React.FC = () => {
   const [newDeptName, setNewDeptName] = useState('');
   const [newDeptDescription, setNewDeptDescription] = useState('');
   const [newDeptManagerEmail, setNewDeptManagerEmail] = useState('');
+  const [newDeptParentId, setNewDeptParentId] = useState<string>('');
   const [selectedUserEmail, setSelectedUserEmail] = useState('');
   const [selectedMoveUserId, setSelectedMoveUserId] = useState('');
   const [selectedMoveDeptId, setSelectedMoveDeptId] = useState('');
@@ -125,7 +128,7 @@ const HRAdminPage: React.FC = () => {
   };
 
   const handleCreateDepartment = async () => {
-    if (!newDeptName.trim() || !newDeptDescription.trim() || !newDeptManagerEmail.trim()) {
+    if (!newDeptName.trim() || !newDeptDescription.trim()) {
       setError('Please fill in all required fields');
       return;
     }
@@ -136,18 +139,74 @@ const HRAdminPage: React.FC = () => {
       await createDepartment({
         name: newDeptName,
         smallDescription: newDeptDescription,
-        managerEmail: newDeptManagerEmail,
+        managerEmail: newDeptManagerEmail.trim() || undefined,
+        parentDepartmentId: newDeptParentId ? Number(newDeptParentId) : undefined,
       });
       await loadData();
       setCreateDialogOpen(false);
       setNewDeptName('');
       setNewDeptDescription('');
       setNewDeptManagerEmail('');
+      setNewDeptParentId('');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create department');
     } finally {
       setLoading(false);
     }
+  };
+
+  // Helper function to build hierarchical department list for dropdown
+  // Returns departments in a flat list with visual hierarchy indicators
+  const buildDepartmentHierarchy = (depts: Department[], excludeId?: string): Department[] => {
+    const result: Department[] = [];
+    const deptMap = new Map<string, Department>();
+    const childrenMap = new Map<string, Department[]>();
+    
+    // Build maps
+    depts.forEach(dept => {
+      if (dept.id !== excludeId) {
+        deptMap.set(dept.id, dept);
+        if (dept.parentDepartment) {
+          const parentId = dept.parentDepartment.id;
+          if (!childrenMap.has(parentId)) {
+            childrenMap.set(parentId, []);
+          }
+          childrenMap.get(parentId)!.push(dept);
+        }
+      }
+    });
+    
+    // Recursive function to add departments in hierarchical order
+    const addDepartment = (dept: Department, level: number) => {
+      result.push(dept);
+      const children = childrenMap.get(dept.id) || [];
+      children.forEach(child => addDepartment(child, level + 1));
+    };
+    
+    // Start with root departments (no parent)
+    depts.forEach(dept => {
+      if (!dept.parentDepartment && dept.id !== excludeId) {
+        addDepartment(dept, 0);
+      }
+    });
+    
+    return result;
+  };
+  
+  // Helper function to get display name with hierarchy indicator
+  const getDepartmentDisplayName = (dept: Department, allDepts: Department[]): string => {
+    if (!dept.parentDepartment) {
+      return dept.name;
+    }
+    // Count depth
+    let depth = 0;
+    let current: Department | undefined = dept;
+    while (current?.parentDepartment) {
+      depth++;
+      current = allDepts.find(d => d.id === current.parentDepartment?.id);
+    }
+    const indent = '  '.repeat(depth);
+    return `${indent}└─ ${dept.name}`;
   };
 
   const handleDeleteDepartment = async (id: string) => {
@@ -274,6 +333,7 @@ const HRAdminPage: React.FC = () => {
               <TableRow>
                 <TableCell>Name</TableCell>
                 <TableCell>Description</TableCell>
+                <TableCell>Parent Department</TableCell>
                 <TableCell>Manager</TableCell>
                 <TableCell>Status</TableCell>
                 <TableCell>Members</TableCell>
@@ -294,6 +354,9 @@ const HRAdminPage: React.FC = () => {
                 >
                   <TableCell>{dept.name}</TableCell>
                   <TableCell>{dept.smallDescription}</TableCell>
+                  <TableCell>
+                    {dept.parentDepartment ? dept.parentDepartment.name : <em>Root Department</em>}
+                  </TableCell>
                   <TableCell>
                     {dept.manager ? `${dept.manager.firstName} ${dept.manager.lastName}` : 'N/A'}
                   </TableCell>
@@ -342,7 +405,17 @@ const HRAdminPage: React.FC = () => {
                 <Button
                   size="small"
                   startIcon={<EditIcon />}
-                  onClick={() => setSetManagerDialogOpen(true)}
+                  onClick={async () => {
+                    if (selectedDepartment) {
+                      try {
+                        const eligible = await getEligibleManagersForDepartment(selectedDepartment.id);
+                        setEligibleManagers(eligible);
+                      } catch (err) {
+                        setError(err instanceof Error ? err.message : 'Failed to load eligible managers');
+                      }
+                    }
+                    setSetManagerDialogOpen(true);
+                  }}
                 >
                   Set Manager
                 </Button>
@@ -350,6 +423,9 @@ const HRAdminPage: React.FC = () => {
             </Box>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
               {selectedDepartment.smallDescription}
+            </Typography>
+            <Typography variant="subtitle2" sx={{ mb: 1 }}>
+              Parent Department: {selectedDepartment.parentDepartment ? selectedDepartment.parentDepartment.name : <em>Root Department</em>}
             </Typography>
             <Typography variant="subtitle2" sx={{ mb: 1 }}>
               Manager: {selectedDepartment.manager ? `${selectedDepartment.manager.firstName} ${selectedDepartment.manager.lastName}` : 'N/A'}
@@ -377,7 +453,13 @@ const HRAdminPage: React.FC = () => {
       )}
 
       {/* Create Department Dialog */}
-      <Dialog open={createDialogOpen} onClose={() => setCreateDialogOpen(false)} maxWidth="sm" fullWidth>
+      <Dialog open={createDialogOpen} onClose={() => {
+        setCreateDialogOpen(false);
+        setNewDeptName('');
+        setNewDeptDescription('');
+        setNewDeptManagerEmail('');
+        setNewDeptParentId('');
+      }} maxWidth="sm" fullWidth>
         <DialogTitle>Create New Department</DialogTitle>
         <DialogContent>
           <TextField
@@ -398,13 +480,33 @@ const HRAdminPage: React.FC = () => {
             multiline
             rows={3}
           />
-          <FormControl fullWidth margin="normal" required>
-            <InputLabel>Manager</InputLabel>
+          <FormControl fullWidth margin="normal">
+            <InputLabel>Parent Department (Optional)</InputLabel>
+            <Select
+              value={newDeptParentId}
+              onChange={(e) => setNewDeptParentId(e.target.value)}
+              label="Parent Department (Optional)"
+            >
+              <MenuItem value="">
+                <em>None (Root Department)</em>
+              </MenuItem>
+              {buildDepartmentHierarchy(departments).map((dept) => (
+                <MenuItem key={dept.id} value={dept.id}>
+                  {getDepartmentDisplayName(dept, departments)}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <FormControl fullWidth margin="normal">
+            <InputLabel>Manager (Optional)</InputLabel>
             <Select
               value={newDeptManagerEmail}
               onChange={(e) => setNewDeptManagerEmail(e.target.value)}
-              label="Manager"
+              label="Manager (Optional)"
             >
+              <MenuItem value="">
+                <em>None</em>
+              </MenuItem>
               {users.map((user) => (
                 <MenuItem key={user.id} value={user.email}>
                   {user.firstName} {user.lastName} ({user.email})
@@ -414,7 +516,13 @@ const HRAdminPage: React.FC = () => {
           </FormControl>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setCreateDialogOpen(false)}>Cancel</Button>
+          <Button onClick={() => {
+            setCreateDialogOpen(false);
+            setNewDeptName('');
+            setNewDeptDescription('');
+            setNewDeptManagerEmail('');
+            setNewDeptParentId('');
+          }}>Cancel</Button>
           <Button onClick={handleCreateDepartment} variant="contained" disabled={loading}>
             Create
           </Button>
@@ -492,7 +600,11 @@ const HRAdminPage: React.FC = () => {
       </Dialog>
 
       {/* Set Manager Dialog */}
-      <Dialog open={setManagerDialogOpen} onClose={() => setSetManagerDialogOpen(false)} maxWidth="sm" fullWidth>
+      <Dialog open={setManagerDialogOpen} onClose={() => {
+        setSetManagerDialogOpen(false);
+        setSelectedUserEmail('');
+        setEligibleManagers([]);
+      }} maxWidth="sm" fullWidth>
         <DialogTitle>Set Department Manager</DialogTitle>
         <DialogContent>
           <FormControl fullWidth margin="normal" required>
@@ -502,17 +614,30 @@ const HRAdminPage: React.FC = () => {
               onChange={(e) => setSelectedUserEmail(e.target.value)}
               label="Manager"
             >
-              {users.map((user) => (
-                <MenuItem key={user.id} value={user.email}>
-                  {user.firstName} {user.lastName} ({user.email})
-                </MenuItem>
-              ))}
+              {eligibleManagers.length === 0 ? (
+                <MenuItem disabled>Loading eligible managers...</MenuItem>
+              ) : (
+                eligibleManagers.map((user) => (
+                  <MenuItem key={user.id} value={user.email}>
+                    {user.firstName} {user.lastName} ({user.email})
+                  </MenuItem>
+                ))
+              )}
             </Select>
           </FormControl>
+          {eligibleManagers.length === 0 && (
+            <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>
+              Only users that would not create circular management relationships are shown.
+            </Typography>
+          )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setSetManagerDialogOpen(false)}>Cancel</Button>
-          <Button onClick={handleSetManager} variant="contained" disabled={loading}>
+          <Button onClick={() => {
+            setSetManagerDialogOpen(false);
+            setSelectedUserEmail('');
+            setEligibleManagers([]);
+          }}>Cancel</Button>
+          <Button onClick={handleSetManager} variant="contained" disabled={loading || eligibleManagers.length === 0}>
             Set Manager
           </Button>
         </DialogActions>

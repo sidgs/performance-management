@@ -105,6 +105,8 @@ public class DepartmentController {
             return new ResponseEntity<>(department, HttpStatus.OK);
         } catch (IllegalArgumentException e) {
             return new ResponseEntity<>(null, HttpStatus.BAD_REQUEST);
+        } catch (IllegalStateException e) {
+            return new ResponseEntity<>(null, HttpStatus.BAD_REQUEST);
         }
     }
 
@@ -137,6 +139,18 @@ public class DepartmentController {
             return new ResponseEntity<>(members, HttpStatus.OK);
         } catch (IllegalArgumentException e) {
             return new ResponseEntity<>(null, HttpStatus.NOT_FOUND);
+        }
+    }
+
+    @GetMapping("/{id}/eligible-managers")
+    public ResponseEntity<List<com.performancemanagement.dto.UserDTO>> getEligibleManagersForDepartment(@PathVariable Long id) {
+        try {
+            List<com.performancemanagement.dto.UserDTO> eligibleManagers = departmentService.getEligibleManagersForDepartment(id);
+            return new ResponseEntity<>(eligibleManagers, HttpStatus.OK);
+        } catch (IllegalArgumentException e) {
+            return new ResponseEntity<>(null, HttpStatus.NOT_FOUND);
+        } catch (IllegalStateException e) {
+            return new ResponseEntity<>(null, HttpStatus.BAD_REQUEST);
         }
     }
 }
