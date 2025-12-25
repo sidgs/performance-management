@@ -28,6 +28,16 @@ export interface Goal {
   locked: boolean;
   confidential: boolean;
   kpis: KPI[];
+  notes: GoalNote[];
+}
+
+export interface GoalNote {
+  id: string;
+  goal: Goal;
+  author: User;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface KPI {

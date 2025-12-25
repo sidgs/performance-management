@@ -15,6 +15,8 @@ import com.performancemanagement.repository.UserRepository;
 import com.performancemanagement.service.AuthorizationService;
 import com.performancemanagement.service.DepartmentService;
 import com.performancemanagement.service.GoalService;
+import com.performancemanagement.service.GoalNoteService;
+import com.performancemanagement.model.GoalNote;
 import graphql.kickstart.tools.GraphQLQueryResolver;
 import org.hibernate.Hibernate;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -48,6 +50,9 @@ public class QueryResolver implements GraphQLQueryResolver {
     
     @Autowired
     private AuthorizationService authorizationService;
+
+    @Autowired
+    private GoalNoteService goalNoteService;
 
     private String getCurrentTenantId() {
         return TenantContext.getCurrentTenantId(); // Returns null if no tenant context - tenant validation is disabled
@@ -227,6 +232,11 @@ public class QueryResolver implements GraphQLQueryResolver {
                 .map(dto -> goalRepository.findByIdAndTenantId(dto.getId(), tenantId).orElse(null))
                 .filter(g -> g != null)
                 .collect(Collectors.toList());
+    }
+
+    // Goal note queries
+    public List<GoalNote> goalNotes(Long goalId) {
+        return goalNoteService.getNotesByGoalId(goalId);
     }
 
     // Tenant queries
