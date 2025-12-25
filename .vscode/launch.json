@@ -12,7 +12,7 @@
         },
         {
             "type": "java",
-            "name": "PerformanceManagementApplication",
+            "name": "epm-api",
             "request": "launch",
             "mainClass": "com.performancemanagement.PerformanceManagementApplication",
             "projectName": "performance-management-api",
@@ -23,9 +23,9 @@
         {
             "type": "node",
             "request": "launch",
-            "name": "EPM UI",
+            "name": "epm-ui",
             "runtimeExecutable": "npm",
-            "runtimeArgs": ["run", "dev"],
+            "runtimeArgs": ["run", "dev:standalone"],
             "cwd": "${workspaceFolder}/react-ui",
             "console": "integratedTerminal"
         },

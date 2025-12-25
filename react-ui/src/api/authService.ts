@@ -24,7 +24,7 @@ interface JwtResponse {
 interface LoginCredentials {
   name: string;
   email: string;
-  role: string;
+  roles: string[];
 }
 
 /**
@@ -37,7 +37,7 @@ export async function createAuthToken(credentials: LoginCredentials): Promise<st
       name: credentials.name,
       email: credentials.email,
       tenantId: 'localhost',
-      roles: [credentials.role],
+      roles: credentials.roles,
       permissions: [],
     };
 

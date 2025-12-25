@@ -67,7 +67,6 @@ import LockIcon from '@mui/icons-material/Lock';
 import LockOpenIcon from '@mui/icons-material/LockOpen';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import PersonRemoveIcon from '@mui/icons-material/PersonRemove';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 
 const GoalsPage: React.FC = () => {
   const [goals, setGoals] = useState<Goal[]>([]);

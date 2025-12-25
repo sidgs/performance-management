@@ -13,6 +13,8 @@ import {
   Select,
   MenuItem,
   Container,
+  Chip,
+  OutlinedInput,
 } from '@mui/material';
 import { Login as LoginIcon } from '@mui/icons-material';
 import { createAuthToken, isDevMode } from '../api/authService';
@@ -22,7 +24,7 @@ const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const [role, setRole] = useState<string>('user');
+  const [roles, setRoles] = useState<string[]>(['user']);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -67,8 +69,8 @@ const LoginPage: React.FC = () => {
     e.preventDefault();
     setError(null);
 
-    if (!name.trim() || !email.trim() || !role) {
-      setError('Please fill in all fields');
+    if (!name.trim() || !email.trim() || roles.length === 0) {
+      setError('Please fill in all fields and select at least one role');
       return;
     }
 
@@ -85,7 +87,7 @@ const LoginPage: React.FC = () => {
       const token = await createAuthToken({
         name: name.trim(),
         email: email.trim(),
-        role: role,
+        roles: roles,
       });
 
       if (token) {
@@ -159,15 +161,27 @@ const LoginPage: React.FC = () => {
               />
 
               <FormControl fullWidth margin="normal" required>
-                <InputLabel>Role</InputLabel>
+                <InputLabel>Roles</InputLabel>
                 <Select
-                  value={role}
-                  label="Role"
-                  onChange={(e) => setRole(e.target.value)}
+                  multiple
+                  value={roles}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setRoles(typeof value === 'string' ? value.split(',') : value);
+                  }}
+                  input={<OutlinedInput label="Roles" />}
+                  renderValue={(selected) => (
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                      {selected.map((value) => (
+                        <Chip key={value} label={value} size="small" />
+                      ))}
+                    </Box>
+                  )}
                   disabled={loading}
                 >
                   <MenuItem value="user">User</MenuItem>
                   <MenuItem value="EPM_ADMIN">EPM Admin</MenuItem>
+                  <MenuItem value="HR_ADMIN">HR Admin</MenuItem>
                   <MenuItem value="admin">Admin</MenuItem>
                   <MenuItem value="manager">Manager</MenuItem>
                 </Select>

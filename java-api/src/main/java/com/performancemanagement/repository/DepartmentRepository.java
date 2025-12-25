@@ -43,6 +43,4 @@ public interface DepartmentRepository extends JpaRepository<Department, Long> {
     // Legacy methods for backward compatibility - will be filtered by service layer
     List<Department> findByParentDepartmentId(Long parentDepartmentId);
     List<Department> findByParentDepartmentIsNull();
-    @Deprecated
-    List<Department> findByOwnerEmail(String email);
 }

@@ -5,8 +5,12 @@ import com.performancemanagement.model.Department;
 import com.performancemanagement.model.User;
 import com.performancemanagement.repository.DepartmentRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
+import java.util.Collection;
 import java.util.Objects;
 
 /**
@@ -22,17 +26,41 @@ public class AuthorizationService {
     private DepartmentRepository departmentRepository;
 
     /**
+     * Check if the current authentication has the specified role authority.
+     * Checks Spring Security authorities first (from JWT), then falls back to User entity role.
+     * @param roleName The role name to check (e.g., "EPM_ADMIN", "HR_ADMIN")
+     * @return true if the user has the role, false otherwise
+     */
+    private boolean hasRole(String roleName) {
+        // First, check Spring Security authorities (from JWT token)
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null) {
+            Collection<? extends GrantedAuthority> authorities = authentication.getAuthorities();
+            if (authorities != null) {
+                String roleAuthority = "ROLE_" + roleName;
+                boolean hasAuthority = authorities.stream()
+                        .anyMatch(auth -> auth.getAuthority().equals(roleAuthority));
+                if (hasAuthority) {
+                    return true;
+                }
+            }
+        }
+        
+        // Fallback: check User entity role (for backward compatibility)
+        User currentUser = UserContext.getCurrentUser();
+        if (currentUser != null && currentUser.getRole() != null) {
+            return currentUser.getRole().name().equals(roleName);
+        }
+        
+        return false;
+    }
+
+    /**
      * Ensure the current user has the EPM_ADMIN role.
      * Throws an {@link IllegalStateException} if the user is missing or not an admin.
      */
     public void requireEpmAdmin() {
-        User currentUser = UserContext.getCurrentUser();
-
-        if (currentUser == null) {
-            throw new IllegalStateException("Missing current user context. X-User-Email header is required.");
-        }
-
-        if (currentUser.getRole() == null || currentUser.getRole() != User.Role.EPM_ADMIN) {
+        if (!hasRole("EPM_ADMIN")) {
             throw new IllegalStateException("EPM_ADMIN role required to perform this operation.");
         }
     }
@@ -42,10 +70,7 @@ public class AuthorizationService {
      * @return true if the user is an admin, false otherwise
      */
     public boolean isEpmAdmin() {
-        User currentUser = UserContext.getCurrentUser();
-        return currentUser != null && 
-               currentUser.getRole() != null && 
-               currentUser.getRole() == User.Role.EPM_ADMIN;
+        return hasRole("EPM_ADMIN");
     }
 
     /**
@@ -53,13 +78,7 @@ public class AuthorizationService {
      * Throws an {@link IllegalStateException} if the user is missing or not an HR admin.
      */
     public void requireHrAdmin() {
-        User currentUser = UserContext.getCurrentUser();
-
-        if (currentUser == null) {
-            throw new IllegalStateException("Missing current user context. X-User-Email header is required.");
-        }
-
-        if (currentUser.getRole() == null || currentUser.getRole() != User.Role.HR_ADMIN) {
+        if (!hasRole("HR_ADMIN")) {
             throw new IllegalStateException("HR_ADMIN role required to perform this operation.");
         }
     }
@@ -69,10 +88,7 @@ public class AuthorizationService {
      * @return true if the user is an HR admin, false otherwise
      */
     public boolean isHrAdmin() {
-        User currentUser = UserContext.getCurrentUser();
-        return currentUser != null && 
-               currentUser.getRole() != null && 
-               currentUser.getRole() == User.Role.HR_ADMIN;
+        return hasRole("HR_ADMIN");
     }
 
     /**

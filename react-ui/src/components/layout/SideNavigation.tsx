@@ -28,8 +28,8 @@ import {
 import { useLocation, useNavigate } from 'react-router-dom';
 import { isEpmAdmin, isHrAdmin } from '../../api/authService';
 import { isWidgetMode } from '../../utils/widgetMode';
-import Business as BusinessIcon from '@mui/icons-material/Business';
-import Groups as GroupsIcon from '@mui/icons-material/Groups';
+import BusinessIcon from '@mui/icons-material/Business';
+import GroupsIcon from '@mui/icons-material/Groups';
 
 interface SideNavigationProps {
   open?: boolean;
