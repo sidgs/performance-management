@@ -15,8 +15,10 @@ public class DepartmentDTO {
     private Long id;
     private String name;
     private String smallDescription;
-    private String ownerEmail;
-    private String ownerName;
+    private String managerEmail;
+    private String managerName;
+    private String managerAssistantEmail;
+    private String managerAssistantName;
     private String coOwnerEmail;
     private String coOwnerName;
     private LocalDate creationDate;

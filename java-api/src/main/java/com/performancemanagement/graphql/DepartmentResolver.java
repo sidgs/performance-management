@@ -23,25 +23,50 @@ public class DepartmentResolver implements GraphQLResolver<Department> {
     }
 
     @Transactional(readOnly = true)
-    public User owner(Department department) {
+    public User manager(Department department) {
         // Re-attach the entity to the current session
         department = entityManager.merge(department);
         String tenantId = getCurrentTenantId();
         if (tenantId == null) {
-            // Tenant validation disabled - return owner if available
-            User owner = department.getOwner();
-            if (owner != null) {
-                Hibernate.initialize(owner);
-                Hibernate.initialize(owner.getTenant());
+            // Tenant validation disabled - return manager if available
+            User manager = department.getManager();
+            if (manager != null) {
+                Hibernate.initialize(manager);
+                Hibernate.initialize(manager.getTenant());
             }
-            return owner;
+            return manager;
         }
-        User owner = department.getOwner();
-        if (owner != null) {
-            Hibernate.initialize(owner);
-            Hibernate.initialize(owner.getTenant());
-            if (owner.getTenant().getFqdn().equals(tenantId)) {
-                return owner;
+        User manager = department.getManager();
+        if (manager != null) {
+            Hibernate.initialize(manager);
+            Hibernate.initialize(manager.getTenant());
+            if (manager.getTenant().getFqdn().equals(tenantId)) {
+                return manager;
+            }
+        }
+        return null;
+    }
+
+    @Transactional(readOnly = true)
+    public User managerAssistant(Department department) {
+        // Re-attach the entity to the current session
+        department = entityManager.merge(department);
+        String tenantId = getCurrentTenantId();
+        if (tenantId == null) {
+            // Tenant validation disabled - return managerAssistant if available
+            User managerAssistant = department.getManagerAssistant();
+            if (managerAssistant != null) {
+                Hibernate.initialize(managerAssistant);
+                Hibernate.initialize(managerAssistant.getTenant());
+            }
+            return managerAssistant;
+        }
+        User managerAssistant = department.getManagerAssistant();
+        if (managerAssistant != null) {
+            Hibernate.initialize(managerAssistant);
+            Hibernate.initialize(managerAssistant.getTenant());
+            if (managerAssistant.getTenant().getFqdn().equals(tenantId)) {
+                return managerAssistant;
             }
         }
         return null;

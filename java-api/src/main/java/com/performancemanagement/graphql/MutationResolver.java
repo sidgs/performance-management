@@ -252,6 +252,12 @@ public class MutationResolver implements GraphQLMutationResolver {
         return goalRepository.findByIdAndTenantId(goalDTO.getId(), tenantId).orElse(null);
     }
 
+    public Goal approveGoal(Long goalId) {
+        var goalDTO = goalService.approveGoal(goalId);
+        String tenantId = com.performancemanagement.config.TenantContext.getCurrentTenantId();
+        return goalRepository.findByIdAndTenantId(goalDTO.getId(), tenantId).orElse(null);
+    }
+
     // KPI mutations
     public KPI createKPI(Long goalId, KPIInput input) {
         var kpiDTO = new com.performancemanagement.dto.KPIDTO();
@@ -290,11 +296,12 @@ public class MutationResolver implements GraphQLMutationResolver {
 
     // Department mutations
     public Department createDepartment(DepartmentInput input) {
-        authorizationService.requireEpmAdmin();
+        authorizationService.requireHrAdmin();
         var deptDTO = new com.performancemanagement.dto.DepartmentDTO();
         deptDTO.setName(input.getName());
         deptDTO.setSmallDescription(input.getSmallDescription());
-        deptDTO.setOwnerEmail(input.getOwnerEmail());
+        deptDTO.setManagerEmail(input.getManagerEmail());
+        deptDTO.setManagerAssistantEmail(input.getManagerAssistantEmail());
         deptDTO.setCoOwnerEmail(input.getCoOwnerEmail());
         deptDTO.setStatus(input.getStatus());
         
@@ -309,10 +316,11 @@ public class MutationResolver implements GraphQLMutationResolver {
     }
 
     public Department updateDepartment(Long id, DepartmentInput input) {
-        authorizationService.requireEpmAdmin();
+        authorizationService.requireHrAdmin();
         var deptDTO = new com.performancemanagement.dto.DepartmentDTO();
         deptDTO.setName(input.getName());
         deptDTO.setSmallDescription(input.getSmallDescription());
+        deptDTO.setManagerAssistantEmail(input.getManagerAssistantEmail());
         deptDTO.setCoOwnerEmail(input.getCoOwnerEmail());
         deptDTO.setStatus(input.getStatus());
         deptDTO.setParentDepartmentId(input.getParentDepartmentId());
@@ -323,7 +331,7 @@ public class MutationResolver implements GraphQLMutationResolver {
     }
 
     public Department assignUserToDepartment(Long departmentId, String userEmail) {
-        authorizationService.requireEpmAdmin();
+        authorizationService.requireHrAdmin();
         var deptDTO = departmentService.assignUserToDepartment(departmentId, userEmail);
         String tenantId = com.performancemanagement.config.TenantContext.getCurrentTenantId();
         return departmentRepository.findByIdAndTenantId(deptDTO.getId(), tenantId).orElse(null);
@@ -331,12 +339,33 @@ public class MutationResolver implements GraphQLMutationResolver {
 
     public Boolean deleteDepartment(Long id) {
         try {
-            authorizationService.requireEpmAdmin();
+            authorizationService.requireHrAdmin();
             departmentService.deleteDepartment(id);
             return true;
         } catch (Exception e) {
             return false;
         }
+    }
+
+    public Department setDepartmentManager(Long departmentId, String userEmail) {
+        authorizationService.requireHrAdmin();
+        var deptDTO = departmentService.setDepartmentManager(departmentId, userEmail);
+        String tenantId = com.performancemanagement.config.TenantContext.getCurrentTenantId();
+        return departmentRepository.findByIdAndTenantId(deptDTO.getId(), tenantId).orElse(null);
+    }
+
+    public Department assignManagerAssistant(Long departmentId, String userEmail) {
+        authorizationService.requireDepartmentManager(departmentId);
+        var deptDTO = departmentService.assignManagerAssistant(departmentId, userEmail);
+        String tenantId = com.performancemanagement.config.TenantContext.getCurrentTenantId();
+        return departmentRepository.findByIdAndTenantId(deptDTO.getId(), tenantId).orElse(null);
+    }
+
+    public Department moveUserToDepartment(Long userId, Long departmentId) {
+        authorizationService.requireHrAdmin();
+        var deptDTO = departmentService.moveUserToDepartment(userId, departmentId);
+        String tenantId = com.performancemanagement.config.TenantContext.getCurrentTenantId();
+        return departmentRepository.findByIdAndTenantId(deptDTO.getId(), tenantId).orElse(null);
     }
 
     // Bulk upload mutation
@@ -446,7 +475,8 @@ public class MutationResolver implements GraphQLMutationResolver {
     public static class DepartmentInput {
         private String name;
         private String smallDescription;
-        private String ownerEmail;
+        private String managerEmail;
+        private String managerAssistantEmail;
         private String coOwnerEmail;
         private String creationDate;
         private Department.DepartmentStatus status;
@@ -457,8 +487,10 @@ public class MutationResolver implements GraphQLMutationResolver {
         public void setName(String name) { this.name = name; }
         public String getSmallDescription() { return smallDescription; }
         public void setSmallDescription(String smallDescription) { this.smallDescription = smallDescription; }
-        public String getOwnerEmail() { return ownerEmail; }
-        public void setOwnerEmail(String ownerEmail) { this.ownerEmail = ownerEmail; }
+        public String getManagerEmail() { return managerEmail; }
+        public void setManagerEmail(String managerEmail) { this.managerEmail = managerEmail; }
+        public String getManagerAssistantEmail() { return managerAssistantEmail; }
+        public void setManagerAssistantEmail(String managerAssistantEmail) { this.managerAssistantEmail = managerAssistantEmail; }
         public String getCoOwnerEmail() { return coOwnerEmail; }
         public void setCoOwnerEmail(String coOwnerEmail) { this.coOwnerEmail = coOwnerEmail; }
         public String getCreationDate() { return creationDate; }

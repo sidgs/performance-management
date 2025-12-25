@@ -77,6 +77,7 @@ const calculateGoalProgress = (goal: Goal): number => {
 // Status configuration
 const statusConfig = {
   DRAFT: { label: 'Draft', color: 'default' as const, icon: <DraftIcon /> },
+  PENDING_APPROVAL: { label: 'Pending Approval', color: 'warning' as const, icon: <PendingIcon /> },
   APPROVED: { label: 'Approved', color: 'info' as const, icon: <CheckCircleIcon /> },
   PUBLISHED: { label: 'Published', color: 'primary' as const, icon: <PublishedIcon /> },
   ACHIEVED: { label: 'Achieved', color: 'success' as const, icon: <CheckCircleIcon /> },

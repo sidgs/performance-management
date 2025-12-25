@@ -1,4 +1,4 @@
-export type GoalStatus = 'DRAFT' | 'APPROVED' | 'PUBLISHED' | 'ACHIEVED' | 'RETIRED';
+export type GoalStatus = 'DRAFT' | 'PENDING_APPROVAL' | 'APPROVED' | 'PUBLISHED' | 'ACHIEVED' | 'RETIRED';
 export type DepartmentStatus = 'ACTIVE' | 'DEPRECATED' | 'RETIRED';
 
 export interface User {
@@ -50,7 +50,8 @@ export interface Department {
   id: string;
   name: string;
   smallDescription: string;
-  owner: User;
+  manager: User;
+  managerAssistant?: User;
   coOwner?: User;
   creationDate: string;
   status: DepartmentStatus;

@@ -334,3 +334,11 @@ export function isEpmAdmin(): boolean {
   return roles.includes('EPM_ADMIN') || roles.includes('epm_admin');
 }
 
+/**
+ * Check if the current user has HR_ADMIN role
+ */
+export function isHrAdmin(): boolean {
+  const roles = getCurrentUserRoles();
+  return roles.includes('HR_ADMIN') || roles.includes('hr_admin');
+}
+

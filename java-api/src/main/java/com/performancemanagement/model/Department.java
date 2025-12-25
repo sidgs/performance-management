@@ -31,8 +31,12 @@ public class Department {
     private String smallDescription;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "owner_id", nullable = false)
-    private User owner;
+    @JoinColumn(name = "manager_id", nullable = false)
+    private User manager;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "manager_assistant_id")
+    private User managerAssistant;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "co_owner_id")

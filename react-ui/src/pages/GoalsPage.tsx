@@ -61,11 +61,13 @@ import {
 
 import { graphqlRequest } from '../api/graphqlClient';
 import { getCurrentUserEmail } from '../api/authService';
+import { approveGoal } from '../api/goalService';
 import type { Goal, GoalStatus, User } from '../types';
 import LockIcon from '@mui/icons-material/Lock';
 import LockOpenIcon from '@mui/icons-material/LockOpen';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import PersonRemoveIcon from '@mui/icons-material/PersonRemove';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 
 const GoalsPage: React.FC = () => {
   const [goals, setGoals] = useState<Goal[]>([]);
@@ -120,6 +122,9 @@ const GoalsPage: React.FC = () => {
   
   // Lock/unlock state
   const [lockLoading, setLockLoading] = useState<string | null>(null);
+  
+  // Approval state
+  const [approvingGoalId, setApprovingGoalId] = useState<string | null>(null);
 
   // Load goals and users from GraphQL API
   useEffect(() => {
@@ -241,10 +246,11 @@ const GoalsPage: React.FC = () => {
   });
 
   // Get unique statuses for filter
-  const statuses: GoalStatus[] = ['DRAFT', 'APPROVED', 'PUBLISHED', 'ACHIEVED', 'RETIRED'];
+  const statuses: GoalStatus[] = ['DRAFT', 'PENDING_APPROVAL', 'APPROVED', 'PUBLISHED', 'ACHIEVED', 'RETIRED'];
 
   // Status configuration
   const statusConfig = {
+    PENDING_APPROVAL: { label: 'Pending Approval', color: 'warning' as const, icon: <PendingIcon /> },
     DRAFT: { label: 'Draft', color: 'default' as const, icon: <DraftIcon /> },
     APPROVED: { label: 'Approved', color: 'info' as const, icon: <CheckCircleIcon /> },
     PUBLISHED: { label: 'Published', color: 'primary' as const, icon: <PublishedIcon /> },
@@ -422,6 +428,56 @@ const GoalsPage: React.FC = () => {
   const handleDeleteGoal = (goalId: string) => {
     setDeletingGoalId(goalId);
     setDeleteDialogOpen(true);
+  };
+
+  // Handle approve goal
+  const handleApproveGoal = async (goalId: string) => {
+    setApprovingGoalId(goalId);
+    setLoading(true);
+    setError(null);
+    try {
+      await approveGoal(goalId);
+      // Refresh goals
+      const refreshData = await graphqlRequest<{ goals: Goal[] }>(
+        `
+          query GetGoals {
+            goals {
+              id
+              shortDescription
+              longDescription
+              creationDate
+              completionDate
+              status
+              locked
+              owner {
+                id
+                firstName
+                lastName
+                email
+                title
+              }
+              childGoals {
+                id
+                status
+              }
+              assignedUsers {
+                id
+                firstName
+                lastName
+                email
+                title
+              }
+            }
+          }
+        `
+      );
+      setGoals(refreshData.goals ?? []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to approve goal');
+    } finally {
+      setLoading(false);
+      setApprovingGoalId(null);
+    }
   };
 
   // Confirm delete goal
@@ -795,6 +851,18 @@ const GoalsPage: React.FC = () => {
                     <PersonAddIcon />
                   </IconButton>
                 </Tooltip>
+                {goal.status === 'PENDING_APPROVAL' && (
+                  <Tooltip title="Approve Goal">
+                    <IconButton
+                      size="small"
+                      onClick={() => handleApproveGoal(goal.id)}
+                      color="success"
+                      disabled={approvingGoalId === goal.id || loading}
+                    >
+                      <CheckCircleIcon />
+                    </IconButton>
+                  </Tooltip>
+                )}
                 <Tooltip title="Delete">
                   <IconButton 
                     size="small" 
@@ -964,6 +1032,18 @@ const GoalsPage: React.FC = () => {
                         <PersonAddIcon />
                       </IconButton>
                     </Tooltip>
+                    {goal.status === 'PENDING_APPROVAL' && (
+                      <Tooltip title="Approve Goal">
+                        <IconButton
+                          size="small"
+                          onClick={() => handleApproveGoal(goal.id)}
+                          color="success"
+                          disabled={approvingGoalId === goal.id || loading}
+                        >
+                          <CheckCircleIcon />
+                        </IconButton>
+                      </Tooltip>
+                    )}
                     <Tooltip title="Delete">
                       <IconButton 
                         size="small" 

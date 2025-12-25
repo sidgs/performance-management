@@ -54,8 +54,8 @@ public class User {
     @OneToMany(mappedBy = "owner", cascade = CascadeType.ALL)
     private Set<Goal> ownedGoals = new HashSet<>();
 
-    @OneToMany(mappedBy = "owner", cascade = CascadeType.ALL)
-    private Set<Department> ownedDepartments = new HashSet<>();
+    @OneToMany(mappedBy = "manager", cascade = CascadeType.ALL)
+    private Set<Department> managedDepartments = new HashSet<>();
 
     @OneToMany(mappedBy = "coOwner", cascade = CascadeType.ALL)
     private Set<Department> coOwnedDepartments = new HashSet<>();
@@ -95,6 +95,8 @@ public class User {
 
     public enum Role {
         EPM_ADMIN,
-        USER
+        HR_ADMIN,
+        USER,
+        MANAGER_ASSISTANT
     }
 }

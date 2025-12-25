@@ -247,9 +247,9 @@ public class BulkUploadService {
                     Department department = departmentMap.get(deptName);
                     if (department != null) {
                         user.setDepartment(department);
-                        // If department doesn't have an owner yet, set this user as owner
-                        if (department.getOwner() == null) {
-                            department.setOwner(user);
+                        // If department doesn't have a manager yet, set this user as manager
+                        if (department.getManager() == null) {
+                            department.setManager(user);
                             departmentRepository.save(department);
                         }
                     }

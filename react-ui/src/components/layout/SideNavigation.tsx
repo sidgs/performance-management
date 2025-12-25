@@ -26,8 +26,10 @@ import {
   //NotificationsActive as NotificationsActiveIcon,
 } from '@mui/icons-material';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { isEpmAdmin } from '../../api/authService';
+import { isEpmAdmin, isHrAdmin } from '../../api/authService';
 import { isWidgetMode } from '../../utils/widgetMode';
+import Business as BusinessIcon from '@mui/icons-material/Business';
+import Groups as GroupsIcon from '@mui/icons-material/Groups';
 
 interface SideNavigationProps {
   open?: boolean;
@@ -61,6 +63,16 @@ const SideNavigation: React.FC<SideNavigationProps> = ({ open, onClose }) => {
     { text: 'Reports', icon: <ReportIcon />, path: '/reports' },
     // { text: 'Team Management', icon: <PeopleIcon />, path: '/team' },
     { text: 'Settings', icon: <SettingsIcon />, path: '/settings' },
+  ];
+
+  // Add HR Admin menu for HR_ADMIN users
+  const hrAdminMenuItems = isHrAdmin()
+    ? [{ text: 'HR Admin', icon: <BusinessIcon />, path: '/hr-admin' }]
+    : [];
+
+  // Add My Departments menu for department managers
+  const departmentManagerMenuItems = [
+    { text: 'My Departments', icon: <GroupsIcon />, path: '/departments' }
   ];
 
   // Add Bulk Upload only for EPM_ADMIN users
@@ -207,6 +219,112 @@ const SideNavigation: React.FC<SideNavigationProps> = ({ open, onClose }) => {
         </List>
 
         <Divider sx={{ my: 2 }} />
+
+        {hrAdminMenuItems.length > 0 && (
+          <>
+            <Typography
+              variant="overline"
+              sx={{
+                color: 'text.secondary',
+                fontWeight: 600,
+                letterSpacing: 1,
+                mb: 1,
+                display: 'block',
+              }}
+            >
+              HR Administration
+            </Typography>
+            <List>
+              {hrAdminMenuItems.map((item) => (
+                <ListItem key={item.text} disablePadding>
+                  <ListItemButton
+                    selected={location.pathname === item.path}
+                    onClick={() => {
+                      navigate(item.path);
+                      if (widgetMode && drawerVariant === 'temporary' && onClose) {
+                        onClose();
+                      }
+                    }}
+                    sx={{
+                      borderRadius: 2,
+                      mb: 0.5,
+                      '&.Mui-selected': {
+                        backgroundColor: 'primary.main',
+                        color: 'white',
+                        '&:hover': {
+                          backgroundColor: 'primary.dark',
+                        },
+                      },
+                    }}
+                  >
+                    <ListItemIcon
+                      sx={{
+                        color: location.pathname === item.path ? 'white' : 'inherit',
+                      }}
+                    >
+                      {item.icon}
+                    </ListItemIcon>
+                    <ListItemText primary={item.text} />
+                  </ListItemButton>
+                </ListItem>
+              ))}
+            </List>
+            <Divider sx={{ my: 2 }} />
+          </>
+        )}
+
+        {departmentManagerMenuItems.length > 0 && (
+          <>
+            <Typography
+              variant="overline"
+              sx={{
+                color: 'text.secondary',
+                fontWeight: 600,
+                letterSpacing: 1,
+                mb: 1,
+                display: 'block',
+              }}
+            >
+              Department Management
+            </Typography>
+            <List>
+              {departmentManagerMenuItems.map((item) => (
+                <ListItem key={item.text} disablePadding>
+                  <ListItemButton
+                    selected={location.pathname === item.path}
+                    onClick={() => {
+                      navigate(item.path);
+                      if (widgetMode && drawerVariant === 'temporary' && onClose) {
+                        onClose();
+                      }
+                    }}
+                    sx={{
+                      borderRadius: 2,
+                      mb: 0.5,
+                      '&.Mui-selected': {
+                        backgroundColor: 'primary.main',
+                        color: 'white',
+                        '&:hover': {
+                          backgroundColor: 'primary.dark',
+                        },
+                      },
+                    }}
+                  >
+                    <ListItemIcon
+                      sx={{
+                        color: location.pathname === item.path ? 'white' : 'inherit',
+                      }}
+                    >
+                      {item.icon}
+                    </ListItemIcon>
+                    <ListItemText primary={item.text} />
+                  </ListItemButton>
+                </ListItem>
+              ))}
+            </List>
+            <Divider sx={{ my: 2 }} />
+          </>
+        )}
 
         {adminMenuItems.length > 0 && (
           <>

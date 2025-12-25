@@ -1,11 +1,14 @@
 package com.performancemanagement.service;
 
 import com.performancemanagement.config.TenantContext;
+import com.performancemanagement.config.UserContext;
 import com.performancemanagement.dto.GoalDTO;
 import com.performancemanagement.dto.KPIDTO;
+import com.performancemanagement.model.Department;
 import com.performancemanagement.model.Goal;
 import com.performancemanagement.model.KPI;
 import com.performancemanagement.model.User;
+import com.performancemanagement.repository.DepartmentRepository;
 import com.performancemanagement.repository.GoalRepository;
 import com.performancemanagement.repository.UserRepository;
 import com.performancemanagement.repository.KPIRepository;
@@ -17,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
@@ -31,6 +35,9 @@ public class GoalService {
 
     @Autowired
     private KPIRepository kpiRepository;
+
+    @Autowired
+    private DepartmentRepository departmentRepository;
     
     private String getCurrentTenantId() {
         return TenantContext.getCurrentTenantId(); // Returns null if no tenant context - tenant validation is disabled
@@ -185,6 +192,23 @@ public class GoalService {
         User user = userRepository.findByEmailAndTenantId(userEmail, tenantId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
+        // Check if user belongs to a department and if approval is needed
+        Department userDepartment = user.getDepartment();
+        if (userDepartment != null) {
+            User goalOwner = goal.getOwner();
+            User departmentManager = userDepartment.getManager();
+            User managerAssistant = userDepartment.getManagerAssistant();
+            
+            // Check if goal owner is department manager or assistant
+            boolean isManagerOrAssistant = (departmentManager != null && Objects.equals(departmentManager.getId(), goalOwner.getId())) ||
+                                          (managerAssistant != null && Objects.equals(managerAssistant.getId(), goalOwner.getId()));
+            
+            // If goal owner is not manager or assistant, require approval
+            if (!isManagerOrAssistant) {
+                goal.setStatus(Goal.GoalStatus.PENDING_APPROVAL);
+            }
+        }
+
         // Set or update assigned date
         goal.setAssignedDate(LocalDate.now());
         
@@ -291,5 +315,80 @@ public class GoalService {
         goal.setTargetCompletionDate(targetCompletionDate);
         Goal savedGoal = goalRepository.save(goal);
         return convertToDTO(savedGoal);
+    }
+
+    @CacheEvict(value = {"goals", "goal", "goalsByOwner", "rootGoals"}, allEntries = true)
+    public GoalDTO approveGoal(Long goalId) {
+        String tenantId = requireTenantId();
+        
+        Goal goal = goalRepository.findByIdAndTenantId(goalId, tenantId)
+                .orElseThrow(() -> new IllegalArgumentException("Goal not found"));
+        
+        if (goal.getStatus() != Goal.GoalStatus.PENDING_APPROVAL) {
+            throw new IllegalStateException("Goal is not pending approval");
+        }
+        
+        // Verify that the current user is a department manager for at least one assigned user
+        User currentUser = UserContext.getCurrentUser();
+        if (currentUser == null) {
+            throw new IllegalStateException("User not authenticated");
+        }
+        
+        boolean canApprove = false;
+        for (User assignedUser : goal.getAssignedUsers()) {
+            if (assignedUser.getDepartment() != null) {
+                Department department = assignedUser.getDepartment();
+                if (department.getManager() != null && 
+                    Objects.equals(department.getManager().getId(), currentUser.getId())) {
+                    canApprove = true;
+                    break;
+                }
+            }
+        }
+        
+        if (!canApprove) {
+            throw new IllegalStateException("Only department managers can approve goals assigned to their department members");
+        }
+        
+        goal.setStatus(Goal.GoalStatus.APPROVED);
+        Goal savedGoal = goalRepository.save(goal);
+        return convertToDTO(savedGoal);
+    }
+
+    public List<GoalDTO> getGoalsPendingApprovalForDepartment(Long departmentId) {
+        String tenantId = requireTenantId();
+        if (tenantId == null) {
+            return List.of();
+        }
+        
+        // Validate department exists
+        departmentRepository.findByIdAndTenantId(departmentId, tenantId)
+                .orElseThrow(() -> new IllegalArgumentException("Department not found"));
+        
+        return goalRepository.findAllByTenantId(tenantId).stream()
+                .filter(goal -> goal.getStatus() == Goal.GoalStatus.PENDING_APPROVAL)
+                .filter(goal -> goal.getAssignedUsers().stream()
+                        .anyMatch(user -> user.getDepartment() != null && 
+                                Objects.equals(user.getDepartment().getId(), departmentId)))
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+    }
+
+    public List<GoalDTO> getDepartmentMembersGoals(Long departmentId) {
+        String tenantId = requireTenantId();
+        if (tenantId == null) {
+            return List.of();
+        }
+        
+        // Validate department exists
+        departmentRepository.findByIdAndTenantId(departmentId, tenantId)
+                .orElseThrow(() -> new IllegalArgumentException("Department not found"));
+        
+        return goalRepository.findAllByTenantId(tenantId).stream()
+                .filter(goal -> goal.getAssignedUsers().stream()
+                        .anyMatch(user -> user.getDepartment() != null && 
+                                Objects.equals(user.getDepartment().getId(), departmentId)))
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
     }
 }

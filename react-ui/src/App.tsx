@@ -11,6 +11,8 @@ import LoginPage from './pages/LoginPage';
 import NotAuthenticatedPage from './pages/NotAuthenticatedPage';
 import BulkUploadPage from './pages/BulkUploadPage';
 import TeamManagementPage from './pages/TeamManagementPage';
+import HRAdminPage from './pages/HRAdminPage';
+import DepartmentManagementPage from './pages/DepartmentManagementPage';
 import { isAuthenticated, isDevMode, setupParentTokenListener, initializeWidgetAuth } from './api/authService';
 import { isWidgetMode } from './utils/widgetMode';
 
@@ -97,6 +99,8 @@ function App() {
                 <Route path="/goals" element={<GoalsPage />} />
                 <Route path="/team" element={<TeamManagementPage />} />
                 <Route path="/bulk-upload" element={<BulkUploadPage />} />
+                <Route path="/hr-admin" element={<HRAdminPage />} />
+                <Route path="/departments" element={<DepartmentManagementPage />} />
               </Routes>
             </LayoutComponent>
           ) : widgetMode ? (

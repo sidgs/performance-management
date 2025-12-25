@@ -1,6 +1,8 @@
 package com.performancemanagement.graphql;
 
 import com.performancemanagement.config.TenantContext;
+import com.performancemanagement.dto.DepartmentDTO;
+import com.performancemanagement.dto.GoalDTO;
 import com.performancemanagement.model.Department;
 import com.performancemanagement.model.Goal;
 import com.performancemanagement.model.Tenant;
@@ -9,12 +11,15 @@ import com.performancemanagement.repository.DepartmentRepository;
 import com.performancemanagement.repository.GoalRepository;
 import com.performancemanagement.repository.TenantRepository;
 import com.performancemanagement.repository.UserRepository;
+import com.performancemanagement.service.DepartmentService;
+import com.performancemanagement.service.GoalService;
 import graphql.kickstart.tools.GraphQLQueryResolver;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Component
 public class QueryResolver implements GraphQLQueryResolver {
@@ -30,6 +35,12 @@ public class QueryResolver implements GraphQLQueryResolver {
 
     @Autowired
     private TenantRepository tenantRepository;
+
+    @Autowired
+    private DepartmentService departmentService;
+
+    @Autowired
+    private GoalService goalService;
 
     private String getCurrentTenantId() {
         return TenantContext.getCurrentTenantId(); // Returns null if no tenant context - tenant validation is disabled
@@ -129,6 +140,33 @@ public class QueryResolver implements GraphQLQueryResolver {
             return List.of(); // Tenant validation disabled - return empty list if no tenant context
         }
         return departmentRepository.findByParentDepartmentIsNullAndTenantId(tenantId);
+    }
+
+    public List<Department> departmentsManagedByMe() {
+        List<DepartmentDTO> dtos = departmentService.getDepartmentsManagedByMe();
+        String tenantId = getCurrentTenantId();
+        return dtos.stream()
+                .map(dto -> departmentRepository.findByIdAndTenantId(dto.getId(), tenantId).orElse(null))
+                .filter(d -> d != null)
+                .collect(Collectors.toList());
+    }
+
+    public List<Goal> goalsPendingApproval(Long departmentId) {
+        List<GoalDTO> dtos = goalService.getGoalsPendingApprovalForDepartment(departmentId);
+        String tenantId = getCurrentTenantId();
+        return dtos.stream()
+                .map(dto -> goalRepository.findByIdAndTenantId(dto.getId(), tenantId).orElse(null))
+                .filter(g -> g != null)
+                .collect(Collectors.toList());
+    }
+
+    public List<Goal> departmentMembersGoals(Long departmentId) {
+        List<GoalDTO> dtos = goalService.getDepartmentMembersGoals(departmentId);
+        String tenantId = getCurrentTenantId();
+        return dtos.stream()
+                .map(dto -> goalRepository.findByIdAndTenantId(dto.getId(), tenantId).orElse(null))
+                .filter(g -> g != null)
+                .collect(Collectors.toList());
     }
 
     // Tenant queries

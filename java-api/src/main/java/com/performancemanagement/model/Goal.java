@@ -73,6 +73,7 @@ public class Goal {
 
     public enum GoalStatus {
         DRAFT,
+        PENDING_APPROVAL,
         APPROVED,
         PUBLISHED,
         ACHIEVED,

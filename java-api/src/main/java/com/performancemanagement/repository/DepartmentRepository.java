@@ -17,7 +17,18 @@ public interface DepartmentRepository extends JpaRepository<Department, Long> {
     @Query("SELECT d FROM Department d WHERE d.parentDepartment IS NULL AND d.tenant.fqdn = :tenantId")
     List<Department> findByParentDepartmentIsNullAndTenantId(@Param("tenantId") String tenantId);
     
-    @Query("SELECT d FROM Department d WHERE d.owner.email = :email AND d.tenant.fqdn = :tenantId")
+    @Query("SELECT d FROM Department d WHERE d.manager.id = :managerId AND d.tenant.fqdn = :tenantId")
+    List<Department> findByManagerIdAndTenantId(@Param("managerId") Long managerId, @Param("tenantId") String tenantId);
+    
+    @Query("SELECT d FROM Department d WHERE d.managerAssistant.id = :assistantId AND d.tenant.fqdn = :tenantId")
+    List<Department> findByManagerAssistantIdAndTenantId(@Param("assistantId") Long assistantId, @Param("tenantId") String tenantId);
+    
+    @Query("SELECT d FROM Department d WHERE d.manager.email = :email AND d.tenant.fqdn = :tenantId")
+    List<Department> findByManagerEmailAndTenantId(@Param("email") String email, @Param("tenantId") String tenantId);
+    
+    // Legacy method - kept for backward compatibility but will fail if used
+    @Deprecated
+    @Query("SELECT d FROM Department d WHERE d.manager.email = :email AND d.tenant.fqdn = :tenantId")
     List<Department> findByOwnerEmailAndTenantId(@Param("email") String email, @Param("tenantId") String tenantId);
     
     @Query("SELECT d FROM Department d WHERE d.id = :id AND d.tenant.fqdn = :tenantId")
@@ -32,5 +43,6 @@ public interface DepartmentRepository extends JpaRepository<Department, Long> {
     // Legacy methods for backward compatibility - will be filtered by service layer
     List<Department> findByParentDepartmentId(Long parentDepartmentId);
     List<Department> findByParentDepartmentIsNull();
+    @Deprecated
     List<Department> findByOwnerEmail(String email);
 }

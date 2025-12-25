@@ -15,6 +15,11 @@ type Query {
     department(id: ID!): Department
     departments: [Department]
     rootDepartments: [Department]
+    departmentsManagedByMe: [Department]
+    
+    # Goal approval queries
+    goalsPendingApproval(departmentId: ID!): [Goal]
+    departmentMembersGoals(departmentId: ID!): [Goal]
     
     # Tenant queries
     tenants: [Tenant]
@@ -36,6 +41,7 @@ type Mutation {
     unlockGoal(id: ID!): Goal
     deleteGoal(id: ID!): Boolean
     updateTargetCompletionDate(goalId: ID!, targetCompletionDate: String): Goal
+    approveGoal(goalId: ID!): Goal
     
     # KPI mutations
     createKPI(goalId: ID!, input: KPIInput!): KPI
@@ -47,6 +53,9 @@ type Mutation {
     updateDepartment(id: ID!, input: DepartmentInput!): Department
     assignUserToDepartment(departmentId: ID!, userEmail: String!): Department
     deleteDepartment(id: ID!): Boolean
+    setDepartmentManager(departmentId: ID!, userEmail: String!): Department
+    assignManagerAssistant(departmentId: ID!, userEmail: String!): Department
+    moveUserToDepartment(userId: ID!, departmentId: ID!): Department
     
     # Bulk upload mutation
     bulkUploadUsers(csvData: String!): BulkUploadResult
@@ -101,6 +110,7 @@ enum KPIStatus {
 
 enum GoalStatus {
     DRAFT
+    PENDING_APPROVAL
     APPROVED
     PUBLISHED
     ACHIEVED
@@ -111,7 +121,8 @@ type Department {
     id: ID!
     name: String!
     smallDescription: String!
-    owner: User!
+    manager: User!
+    managerAssistant: User
     coOwner: User
     creationDate: String!
     status: DepartmentStatus!
@@ -171,7 +182,8 @@ input KPIUpdateInput {
 input DepartmentInput {
     name: String!
     smallDescription: String!
-    ownerEmail: String!
+    managerEmail: String!
+    managerAssistantEmail: String
     coOwnerEmail: String
     creationDate: String
     status: DepartmentStatus

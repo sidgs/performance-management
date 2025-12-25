@@ -84,4 +84,34 @@ public class GoalController {
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
     }
+
+    @PostMapping("/{id}/approve")
+    public ResponseEntity<GoalDTO> approveGoal(@PathVariable Long id) {
+        try {
+            GoalDTO goal = goalService.approveGoal(id);
+            return new ResponseEntity<>(goal, HttpStatus.OK);
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return new ResponseEntity<>(null, HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    @GetMapping("/pending-approval")
+    public ResponseEntity<List<GoalDTO>> getGoalsPendingApproval(@RequestParam Long departmentId) {
+        try {
+            List<GoalDTO> goals = goalService.getGoalsPendingApprovalForDepartment(departmentId);
+            return new ResponseEntity<>(goals, HttpStatus.OK);
+        } catch (IllegalArgumentException e) {
+            return new ResponseEntity<>(null, HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    @GetMapping("/department/{id}/members")
+    public ResponseEntity<List<GoalDTO>> getDepartmentMembersGoals(@PathVariable Long id) {
+        try {
+            List<GoalDTO> goals = goalService.getDepartmentMembersGoals(id);
+            return new ResponseEntity<>(goals, HttpStatus.OK);
+        } catch (IllegalArgumentException e) {
+            return new ResponseEntity<>(null, HttpStatus.NOT_FOUND);
+        }
+    }
 }
