@@ -8,6 +8,8 @@ import {
   CircularProgress,
   Stack,
   Avatar,
+  Button,
+  Chip,
 } from '@mui/material';
 import {
   Send as SendIcon,
@@ -57,6 +59,20 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     }
   };
 
+  const handlePromptClick = (prompt: string) => {
+    if (!isLoading && sessionId) {
+      onSendMessage(prompt);
+    }
+  };
+
+  const suggestedPrompts = [
+    "Show me my goals",
+    "Create a new goal",
+    "Help me manage my team's performance",
+    "What are my KPIs?",
+    "List all departments",
+  ];
+
   const formatTimestamp = (timestamp?: string) => {
     if (!timestamp) return '';
     try {
@@ -97,15 +113,49 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
               justifyContent: 'center',
               height: '100%',
               color: 'text.secondary',
+              px: 2,
             }}
           >
             <AgentIcon sx={{ fontSize: 64, mb: 2, opacity: 0.5 }} />
-            <Typography variant="h6" color="text.secondary">
-              Start a conversation
+            <Typography variant="h6" color="text.secondary" sx={{ mb: 3 }}>
+              How can I help you today?
             </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-              Send a message to begin chatting with Pulse AI
-            </Typography>
+            <Stack
+              direction="column"
+              spacing={1.5}
+              sx={{
+                width: '100%',
+                maxWidth: '500px',
+                alignItems: 'center',
+              }}
+            >
+              {suggestedPrompts.map((prompt, index) => (
+                <Button
+                  key={index}
+                  variant="outlined"
+                  onClick={() => handlePromptClick(prompt)}
+                  disabled={!sessionId || isLoading}
+                  sx={{
+                    width: '100%',
+                    justifyContent: 'flex-start',
+                    textTransform: 'none',
+                    py: 1.5,
+                    px: 2,
+                    borderRadius: 2,
+                    borderColor: 'divider',
+                    color: 'text.primary',
+                    '&:hover': {
+                      borderColor: 'primary.main',
+                      bgcolor: 'action.hover',
+                    },
+                  }}
+                >
+                  <Typography variant="body1" sx={{ textAlign: 'left' }}>
+                    {prompt}
+                  </Typography>
+                </Button>
+              ))}
+            </Stack>
           </Box>
         ) : (
           messages.map((message, index) => {

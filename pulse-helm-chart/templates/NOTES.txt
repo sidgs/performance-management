@@ -1,0 +1,46 @@
+1. Get the application URLs by running these commands:
+{{- if .Values.ingress.enabled }}
+{{- range $host := .Values.ingress.hosts }}
+  {{- range $path := $host.paths }}
+  http{{ if $.Values.ingress.tls }}s{{ end }}://{{ $host.host }}{{ $path.path }}
+  {{- end }}
+{{- end }}
+{{- else if contains "NodePort" .Values.javaApi.service.type }}
+  export NODE_PORT=$(kubectl get --namespace {{ .Release.Namespace }} -o jsonpath="{.spec.ports[0].nodePort}" services {{ .Values.javaApi.name }})
+  export NODE_IP=$(kubectl get nodes --namespace {{ .Release.Namespace }} -o jsonpath="{.items[0].status.addresses[0].address}")
+  echo http://$NODE_IP:$NODE_PORT
+{{- else if contains "LoadBalancer" .Values.javaApi.service.type }}
+     NOTE: It may take a few minutes for the LoadBalancer IP to be available.
+           You can watch the status of by running 'kubectl get --namespace {{ .Release.Namespace }} svc -w {{ .Values.javaApi.name }}'
+  export SERVICE_IP=$(kubectl get svc --namespace {{ .Release.Namespace }} {{ .Values.javaApi.name }} --template "{{"{{ range (index .status.loadBalancer.ingress 0) }}{{.}}{{ end }}"}}")
+  echo http://$SERVICE_IP:{{ .Values.javaApi.service.port }}
+{{- else if contains "ClusterIP" .Values.javaApi.service.type }}
+  export POD_NAME=$(kubectl get pods --namespace {{ .Release.Namespace }} -l "app.kubernetes.io/name={{ .Values.javaApi.name }},app.kubernetes.io/instance={{ .Release.Name }}" -o jsonpath="{.items[0].metadata.name}")
+  export CONTAINER_PORT=$(kubectl get pod --namespace {{ .Release.Namespace }} $POD_NAME -o jsonpath="{.spec.containers[0].ports[0].containerPort}")
+  echo "Visit http://127.0.0.1:8080 to use your application"
+  kubectl --namespace {{ .Release.Namespace }} port-forward $POD_NAME 8080:$CONTAINER_PORT
+{{- end }}
+
+2. Java API Service:
+   Service Name: {{ .Values.javaApi.name }}
+   Port: {{ .Values.javaApi.service.port }}
+   GraphQL Endpoint: http://{{ .Values.javaApi.name }}:{{ .Values.javaApi.service.port }}/api/v1/epm/graphql
+
+3. Agent AI Service:
+   Service Name: {{ .Values.agentAi.name }}
+   Port: {{ .Values.agentAi.service.port }}
+   Health Check: http://{{ .Values.agentAi.name }}:{{ .Values.agentAi.service.port }}/api/v1/pulse-epm-agent/health
+
+{{- if .Values.postgresql.enabled }}
+4. PostgreSQL Database:
+   Host: {{ .Values.postgresql.auth.database }}
+   Username: {{ .Values.postgresql.auth.username }}
+   Password: Set via secret
+{{- end }}
+
+{{- if .Values.redis.enabled }}
+5. Redis Cache:
+   Host: redis
+   Port: 6379
+{{- end }}
+

@@ -79,6 +79,7 @@ Edit `.env` and set:
 - `GOOGLE_CLOUD_PROJECT`: Your Google Cloud project ID
 - `GOOGLE_API_KEY`: Your Google API key (or configure service account)
 - `GRAPHQL_API_URL`: GraphQL endpoint URL (default: `http://localhost:8080/api/v1/performance-management/graphql`)
+- `JWT_ALLOW_UNSIGNED`: Set to `true` to allow unsigned JWT tokens (alg=none) for development/testing. Defaults to `false`. Can also be enabled via `DEV_MODE=true`.
 - Database configuration (defaults: localhost, dev/dev/dev)
 
 ### 3. Database Setup

@@ -59,13 +59,18 @@
                 "--host",
                 "0.0.0.0",
                 "--port",
-                "8000",
+                "8001",
                 "--reload"
             ],
             "cwd": "${workspaceFolder}/pulse-agent-ai",
             "console": "integratedTerminal",
             "justMyCode": false,
-            "env": {},
+            "env": {
+                "PORT": "8001",
+                "JWT_ALLOW_UNSIGNED": "true",
+                "GOOGLE_CLOUD_PROJECT": "sami-ai-agentspace",
+                "GOOGLE_API_KEY": "AIzaSyAj5ETkRyxaKrhdsoB6HDWDS5eY93X4JRE"
+            },
             "envFile": "${workspaceFolder}/pulse-agent-ai/.env",
             "pythonPath": "${workspaceFolder}/pulse-agent-ai/.venv/bin/python"
         }

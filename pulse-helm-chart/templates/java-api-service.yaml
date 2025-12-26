@@ -1,0 +1,18 @@
+{{- if .Values.javaApi.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.javaApi.name }}
+  labels:
+    {{- include "pulse-performance-management.javaApi.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.javaApi.service.type }}
+  ports:
+    - port: {{ .Values.javaApi.service.port }}
+      targetPort: {{ .Values.javaApi.service.targetPort }}
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "pulse-performance-management.javaApi.selectorLabels" . | nindent 4 }}
+{{- end }}
+

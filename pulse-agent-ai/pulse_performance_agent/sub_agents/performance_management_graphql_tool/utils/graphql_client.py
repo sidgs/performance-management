@@ -1,4 +1,6 @@
 import os
+import traceback
+import logging
 import httpx
 import contextvars
 from typing import Optional, Dict, Any
@@ -52,6 +54,20 @@ class GraphQLClient:
         if auth_token:
             headers["Authorization"] = f"Bearer {auth_token}"
 
+        # Log the GraphQL request
+        import json as json_module
+        logging.info("=" * 80)
+        logging.info("GraphQL Request")
+        logging.info("=" * 80)
+        logging.info(f"URL: {self.base_url}")
+        logging.info(f"Query:\n{query}")
+        if variables:
+            logging.info(f"Variables: {json_module.dumps(variables, indent=2)}")
+        else:
+            logging.info("Variables: None")
+        logging.info(f"Token present: {bool(auth_token)}")
+        logging.info("-" * 80)
+
         with httpx.Client() as client:
             try:
                 response = client.post(
@@ -63,10 +79,34 @@ class GraphQLClient:
                 response.raise_for_status()
                 result = response.json()
                 
+                # Log the GraphQL response
                 if "errors" in result:
+                    logging.error("=" * 80)
+                    logging.error("GraphQL Response - ERRORS")
+                    logging.error("=" * 80)
+                    logging.error(f"Errors: {json_module.dumps(result['errors'], indent=2)}")
+                    if "data" in result:
+                        logging.error(f"Partial Data: {json_module.dumps(result.get('data', {}), indent=2)}")
+                    logging.error("=" * 80)
+                    traceback.print_exc()
+                    logging.error(f"GraphQL Errors: {result['errors']}", exc_info=True)
                     raise Exception(f"GraphQL Errors: {result['errors']}")
                 
-                return result.get("data", {})
+                # Log successful response
+                response_data = result.get("data", {})
+                logging.info("GraphQL Response - SUCCESS")
+                logging.info("-" * 80)
+                logging.info(f"Response Data: {json_module.dumps(response_data, indent=2)}")
+                logging.info("=" * 80)
+                
+                return response_data
             except httpx.HTTPError as e:
+                logging.error("=" * 80)
+                logging.error("GraphQL Response - HTTP ERROR")
+                logging.error("=" * 80)
+                logging.error(f"HTTP Error: {str(e)}")
+                logging.error("=" * 80)
+                traceback.print_exc()
+                logging.error(f"HTTP Error in GraphQL request: {e}", exc_info=True)
                 raise Exception(f"HTTP Error: {str(e)}")
 

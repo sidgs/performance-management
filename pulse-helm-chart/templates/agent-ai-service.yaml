@@ -1,0 +1,18 @@
+{{- if .Values.agentAi.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.agentAi.name }}
+  labels:
+    {{- include "pulse-performance-management.agentAi.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.agentAi.service.type }}
+  ports:
+    - port: {{ .Values.agentAi.service.port }}
+      targetPort: {{ .Values.agentAi.service.targetPort }}
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "pulse-performance-management.agentAi.selectorLabels" . | nindent 4 }}
+{{- end }}
+

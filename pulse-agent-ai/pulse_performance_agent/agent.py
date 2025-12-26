@@ -1,4 +1,6 @@
 import os
+import traceback
+import logging
 from dotenv import load_dotenv
 from google.adk.agents.llm_agent import Agent
 from google.adk.tools.agent_tool import AgentTool
@@ -17,7 +19,8 @@ def load_instructions(filename: str = "agent-instructions.txt") -> str:
         with open(file_path, "r") as f:
             return f.read().strip()
     except Exception as e:
-        print(f"Warning: Could not load instructions from {filename}, using default. Error: {e}")
+        traceback.print_exc()
+        logging.error(f"Warning: Could not load instructions from {filename}, using default. Error: {e}", exc_info=True)
         return """You are the Performance Management Assistant. 
         Your goal is to help users manage their goals, users, and departments.
         """

@@ -33,12 +33,15 @@ public class JwtTokenProvider {
 
     private final SecretKey secretKey;
     private final Environment environment;
+    private final String jwtAllowUnsignedProperty;
 
     public JwtTokenProvider(
             @Value("${security.jwt.secret:change-me-secret}") String secret,
+            @Value("${security.jwt.allow-unsigned:}") String jwtAllowUnsigned,
             Environment environment
     ) {
         this.environment = environment;
+        this.jwtAllowUnsignedProperty = jwtAllowUnsigned;
 
         byte[] keyBytes = secret.getBytes(StandardCharsets.UTF_8);
         // JJWT requires >= 256-bit keys for HMAC-SHA algorithms.
@@ -155,6 +158,18 @@ public class JwtTokenProvider {
     }
 
     private boolean isUnsignedAllowed() {
+        // First check JWT_ALLOW_UNSIGNED environment variable (takes precedence)
+        String envVar = System.getenv("JWT_ALLOW_UNSIGNED");
+        if (envVar != null && !envVar.trim().isEmpty()) {
+            return "true".equalsIgnoreCase(envVar.trim());
+        }
+        
+        // Then check security.jwt.allow-unsigned property
+        if (jwtAllowUnsignedProperty != null && !jwtAllowUnsignedProperty.trim().isEmpty()) {
+            return "true".equalsIgnoreCase(jwtAllowUnsignedProperty.trim());
+        }
+        
+        // Fall back to profile-based check (dev/local/demo)
         return Arrays.stream(environment.getActiveProfiles())
                 .anyMatch(p -> p.equalsIgnoreCase("dev") || p.equalsIgnoreCase("local") || p.equalsIgnoreCase("demo"));
     }

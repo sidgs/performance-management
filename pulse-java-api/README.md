@@ -169,6 +169,14 @@ spring.datasource.password=your_password
 spring.jpa.database-platform=org.hibernate.dialect.PostgreSQLDialect
 ```
 
+## JWT Configuration
+
+The API supports both signed and unsigned JWT tokens. By default, unsigned tokens are only allowed in `dev`, `local`, or `demo` profiles.
+
+To explicitly enable unsigned JWT tokens, set the `JWT_ALLOW_UNSIGNED` environment variable to `true`, or configure `security.jwt.allow-unsigned=true` in `application.properties`. The environment variable takes precedence over the property configuration.
+
+**Note**: Unsigned tokens are still validated for expiration and required claims (email, tenantId). Only signature verification is skipped when unsigned tokens are allowed.
+
 ## Testing with Postman
 
 A Postman collection is provided at `Performance_Management_API.postman_collection.json`. Import this collection into Postman to test all API endpoints.

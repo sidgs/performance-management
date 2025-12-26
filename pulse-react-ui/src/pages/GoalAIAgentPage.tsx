@@ -15,6 +15,7 @@ import {
   listSessions,
   getSessionState,
   sendChatMessage,
+  deleteSession,
   getUserIdFromToken,
   getUserNameFromToken,
   type SessionInfo,
@@ -258,31 +259,44 @@ const GoalAIAgentPage: React.FC = () => {
     }
   }, [selectedSessionId, userId, isLoadingChat]);
 
-  // Handle deleting a session (optional - if API supports it)
+  // Handle deleting a session
   const handleDeleteSession = useCallback(async (sessionId: string) => {
-    // Note: Delete endpoint may not be fully implemented in the API
-    // For now, just remove from local state if it's not the selected session
-    if (sessionId === selectedSessionId) {
-      // If deleting selected session, select another one or create new
-      const otherSessions = sessions.filter((s) => s.session_id !== sessionId);
-      if (otherSessions.length > 0) {
-        setSelectedSessionId(otherSessions[0].session_id);
-      } else {
-        setSelectedSessionId(null);
-        await handleCreateSession();
-      }
+    if (!userId) {
+      console.error('Cannot delete session: user ID not available');
+      return;
     }
 
-    // Remove from sessions list
-    setSessions((prev) => prev.filter((s) => s.session_id !== sessionId));
-    
-    // Remove messages
-    setMessages((prev) => {
-      const newMap = new Map(prev);
-      newMap.delete(sessionId);
-      return newMap;
-    });
-  }, [selectedSessionId, sessions, handleCreateSession]);
+    try {
+      // Call the API to delete the session
+      await deleteSession(sessionId, userId);
+      
+      // If deleting selected session, select another one or create new
+      if (sessionId === selectedSessionId) {
+        const otherSessions = sessions.filter((s) => s.session_id !== sessionId);
+        if (otherSessions.length > 0) {
+          setSelectedSessionId(otherSessions[0].session_id);
+        } else {
+          setSelectedSessionId(null);
+          await handleCreateSession();
+        }
+      }
+
+      // Remove from sessions list
+      setSessions((prev) => prev.filter((s) => s.session_id !== sessionId));
+      
+      // Remove messages
+      setMessages((prev) => {
+        const newMap = new Map(prev);
+        newMap.delete(sessionId);
+        return newMap;
+      });
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to delete session';
+      console.error('Error deleting session:', err);
+      setError(`Failed to delete session: ${errorMessage}`);
+      // Don't remove from local state if API call failed
+    }
+  }, [selectedSessionId, sessions, userId, handleCreateSession]);
 
   if (loading) {
     return (

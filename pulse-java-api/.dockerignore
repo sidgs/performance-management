@@ -1,0 +1,12 @@
+target/
+.git/
+.gitignore
+.DS_Store
+*.iml
+.idea/
+.vscode/
+*.log
+*.swp
+*.swo
+*~
+

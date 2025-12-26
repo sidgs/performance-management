@@ -1,0 +1,135 @@
+{{- if .Values.agentAi.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.agentAi.name }}
+  labels:
+    {{- include "pulse-performance-management.agentAi.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.agentAi.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "pulse-performance-management.agentAi.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "pulse-performance-management.agentAi.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+      - name: {{ .Values.agentAi.name }}
+        image: "{{ include "pulse-performance-management.imageRegistry" . }}/{{ .Values.agentAi.image.repository }}:{{ .Values.agentAi.image.tag }}"
+        imagePullPolicy: {{ .Values.agentAi.image.pullPolicy }}
+        ports:
+        - name: http
+          containerPort: {{ .Values.agentAi.config.port }}
+          protocol: TCP
+        env:
+        - name: PORT
+          value: {{ .Values.agentAi.config.port | quote }}
+        - name: DB_HOST
+          value: {{ .Values.agentAi.config.database.host | quote }}
+        - name: DB_PORT
+          value: {{ .Values.agentAi.config.database.port | quote }}
+        - name: DB_USER
+          value: {{ .Values.agentAi.config.database.user | quote }}
+        {{- if .Values.agentAi.config.database.password }}
+        - name: DB_PASSWORD
+          value: {{ .Values.agentAi.config.database.password | quote }}
+        {{- else if .Values.agentAi.config.database.passwordEnvVar }}
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.agentAi.name }}-env
+              key: {{ .Values.agentAi.config.database.passwordEnvVar }}
+              optional: true
+        {{- else }}
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.agentAi.name }}-secret
+              key: database-password
+        {{- end }}
+        - name: DB_NAME
+          value: {{ .Values.agentAi.config.database.name | quote }}
+        - name: DATABASE_URL
+          value: "postgresql+asyncpg://{{ .Values.agentAi.config.database.user }}:$(DB_PASSWORD)@{{ .Values.agentAi.config.database.host }}:{{ .Values.agentAi.config.database.port }}/{{ .Values.agentAi.config.database.name }}"
+        - name: GRAPHQL_API_URL
+          value: {{ .Values.agentAi.config.graphqlApiUrl | quote }}
+        - name: GOOGLE_CLOUD_PROJECT
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.agentAi.name }}-secret
+              key: google-cloud-project
+        - name: GOOGLE_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.agentAi.name }}-secret
+              key: google-api-key
+        - name: JWT_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.agentAi.name }}-secret
+              key: jwt-secret-key
+        - name: DEV_MODE
+          value: {{ .Values.agentAi.config.jwt.devMode | quote }}
+        - name: JWT_ALLOW_UNSIGNED
+          value: {{ .Values.agentAi.config.jwt.allowUnsigned | quote }}
+        - name: APP_NAME
+          value: {{ .Values.agentAi.config.appName | quote }}
+        - name: AGENT_NAME
+          value: {{ .Values.agentAi.config.agentName | quote }}
+        {{- if .Values.agentAi.healthCheck.enabled }}
+        livenessProbe:
+          httpGet:
+            path: {{ .Values.agentAi.healthCheck.path }}
+            port: http
+          initialDelaySeconds: {{ .Values.agentAi.healthCheck.initialDelaySeconds }}
+          periodSeconds: {{ .Values.agentAi.healthCheck.periodSeconds }}
+          timeoutSeconds: {{ .Values.agentAi.healthCheck.timeoutSeconds }}
+          failureThreshold: {{ .Values.agentAi.healthCheck.failureThreshold }}
+        readinessProbe:
+          httpGet:
+            path: {{ .Values.agentAi.healthCheck.path }}
+            port: http
+          initialDelaySeconds: {{ .Values.agentAi.healthCheck.initialDelaySeconds }}
+          periodSeconds: {{ .Values.agentAi.healthCheck.periodSeconds }}
+          timeoutSeconds: {{ .Values.agentAi.healthCheck.timeoutSeconds }}
+          failureThreshold: {{ .Values.agentAi.healthCheck.failureThreshold }}
+        {{- end }}
+        resources:
+          {{- toYaml .Values.agentAi.resources | nindent 10 }}
+      {{- if .Values.agentAi.autoscaling.enabled }}
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ .Values.agentAi.name }}
+  labels:
+    {{- include "pulse-performance-management.agentAi.labels" . | nindent 4 }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ .Values.agentAi.name }}
+  minReplicas: {{ .Values.agentAi.autoscaling.minReplicas }}
+  maxReplicas: {{ .Values.agentAi.autoscaling.maxReplicas }}
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: {{ .Values.agentAi.autoscaling.targetCPUUtilizationPercentage }}
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: {{ .Values.agentAi.autoscaling.targetMemoryUtilizationPercentage }}
+  {{- end }}
+{{- end }}
+

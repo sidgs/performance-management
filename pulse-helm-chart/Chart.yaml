@@ -1,0 +1,13 @@
+apiVersion: v2
+name: pulse-performance-management
+description: A Helm chart for Pulse Performance Management System (Java API and AI Agent)
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+keywords:
+  - performance-management
+  - api
+  - ai-agent
+maintainers:
+  - name: Pulse Team
+

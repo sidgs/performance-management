@@ -1,0 +1,119 @@
+# Example values file for Pulse Performance Management
+# Copy this file and customize for your environment
+# Usage: helm install pulse-performance-management ./pulse-helm-chart -f values-example.yaml
+
+# Global settings
+global:
+  imageRegistry: sidgs.jfrog.io/sidgs
+  # imagePullSecrets:
+  #   - name: regcred
+
+# Java API Configuration
+javaApi:
+  enabled: true
+  replicaCount: 2
+  
+  image:
+    repository: pulse-java-api
+    tag: latest
+    pullPolicy: IfNotPresent
+  
+  config:
+    springProfilesActive: prod
+    serverPort: 8080
+    
+    # Database configuration
+    database:
+      type: postgresql
+      host: postgresql  # Use service name if using included PostgreSQL
+      port: 5432
+      name: performance_management
+      username: postgres
+      
+    # Redis configuration
+    redis:
+      host: redis  # Use service name if using included Redis
+      port: 6379
+      timeout: 2000ms
+
+# Agent AI Configuration
+agentAi:
+  enabled: true
+  replicaCount: 2
+  
+  image:
+    repository: pulse-agent-ai
+    tag: latest
+    pullPolicy: IfNotPresent
+  
+  config:
+    port: 8000
+    
+    # Database configuration for session storage
+    database:
+      host: postgresql
+      port: 5432
+      name: pulse_agent_sessions
+      user: postgres
+      
+    # GraphQL API URL (points to Java API service)
+    graphqlApiUrl: http://pulse-java-api:8080/api/v1/epm/graphql
+    
+    # Google Cloud configuration
+    googleCloud:
+      project: ""  # Set via secret
+      apiKey: ""   # Set via secret
+
+# PostgreSQL Database (optional - set to false if using external)
+postgresql:
+  enabled: true
+  auth:
+    database: performance_management
+    username: postgres
+    # password: ""  # Set via secret or use existingSecret
+  primary:
+    persistence:
+      enabled: true
+      size: 10Gi
+
+# Redis (optional - set to false if using external)
+redis:
+  enabled: true
+  auth:
+    enabled: false
+  master:
+    persistence:
+      enabled: true
+      size: 8Gi
+
+# Ingress configuration
+ingress:
+  enabled: false
+  # enabled: true
+  # className: nginx
+  # hosts:
+  #   - host: performance-management.example.com
+  #     paths:
+  #       - path: /api/v1/epm
+  #         pathType: Prefix
+  #         service: pulse-java-api
+  #       - path: /api/v1/pulse-epm-agent
+  #         pathType: Prefix
+  #         service: pulse-agent-ai
+
+# Secrets - IMPORTANT: Set these values via --set or external secrets management
+# DO NOT commit actual secrets to version control
+secrets:
+  javaApi:
+    databasePassword: ""  # Set via: --set secrets.javaApi.databasePassword=$(echo -n 'password' | base64)
+    redisPassword: ""      # Set via: --set secrets.javaApi.redisPassword=$(echo -n 'password' | base64)
+  agentAi:
+    databasePassword: ""     # Set via: --set secrets.agentAi.databasePassword=$(echo -n 'password' | base64)
+    googleCloudProject: ""  # Set via: --set secrets.agentAi.googleCloudProject=$(echo -n 'project-id' | base64)
+    googleApiKey: ""        # Set via: --set secrets.agentAi.googleApiKey=$(echo -n 'api-key' | base64)
+    jwtSecretKey: ""        # Set via: --set secrets.agentAi.jwtSecretKey=$(echo -n 'secret-key' | base64)
+  postgresql:
+    password: ""  # Set via: --set secrets.postgresql.password=$(echo -n 'password' | base64)
+  redis:
+    password: ""  # Set via: --set secrets.redis.password=$(echo -n 'password' | base64)
+

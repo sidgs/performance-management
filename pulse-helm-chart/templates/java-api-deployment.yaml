@@ -1,0 +1,160 @@
+{{- if .Values.javaApi.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.javaApi.name }}
+  labels:
+    {{- include "pulse-performance-management.javaApi.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.javaApi.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "pulse-performance-management.javaApi.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "pulse-performance-management.javaApi.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+      - name: {{ .Values.javaApi.name }}
+        image: "{{ include "pulse-performance-management.imageRegistry" . }}/{{ .Values.javaApi.image.repository }}:{{ .Values.javaApi.image.tag }}"
+        imagePullPolicy: {{ .Values.javaApi.image.pullPolicy }}
+        ports:
+        - name: http
+          containerPort: {{ .Values.javaApi.config.serverPort }}
+          protocol: TCP
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: {{ .Values.javaApi.config.springProfilesActive | quote }}
+        - name: SERVER_PORT
+          value: {{ .Values.javaApi.config.serverPort | quote }}
+        - name: SERVER_SERVLET_CONTEXT_PATH
+          value: {{ .Values.javaApi.config.contextPath | quote }}
+        {{- if eq .Values.javaApi.config.database.type "postgresql" }}
+        - name: SPRING_DATASOURCE_URL
+          value: "jdbc:postgresql://{{ .Values.javaApi.config.database.host }}:{{ .Values.javaApi.config.database.port }}/{{ .Values.javaApi.config.database.name }}"
+        - name: SPRING_DATASOURCE_USERNAME
+          value: {{ .Values.javaApi.config.database.username | quote }}
+        {{- if .Values.javaApi.config.database.password }}
+        - name: SPRING_DATASOURCE_PASSWORD
+          value: {{ .Values.javaApi.config.database.password | quote }}
+        {{- else if .Values.javaApi.config.database.passwordEnvVar }}
+        - name: SPRING_DATASOURCE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.javaApi.name }}-env
+              key: {{ .Values.javaApi.config.database.passwordEnvVar }}
+              optional: true
+        {{- else }}
+        - name: SPRING_DATASOURCE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.javaApi.name }}-secret
+              key: database-password
+        {{- end }}
+        - name: SPRING_DATASOURCE_DRIVER_CLASS_NAME
+          value: "org.postgresql.Driver"
+        - name: SPRING_JPA_DATABASE_PLATFORM
+          value: "org.hibernate.dialect.PostgreSQLDialect"
+        {{- else }}
+        - name: SPRING_DATASOURCE_URL
+          value: "jdbc:sqlite:performance_management.db?journal_mode=WAL&synchronous=NORMAL&busy_timeout=5000"
+        - name: SPRING_DATASOURCE_DRIVER_CLASS_NAME
+          value: "org.sqlite.JDBC"
+        - name: SPRING_JPA_DATABASE_PLATFORM
+          value: "org.hibernate.community.dialect.SQLiteDialect"
+        {{- end }}
+        - name: SPRING_JPA_HIBERNATE_DDL_AUTO
+          value: {{ .Values.javaApi.config.jpa.ddlAuto | quote }}
+        - name: SPRING_JPA_SHOW_SQL
+          value: {{ .Values.javaApi.config.jpa.showSql | quote }}
+        - name: SPRING_JPA_PROPERTIES_HIBERNATE_FORMAT_SQL
+          value: {{ .Values.javaApi.config.jpa.formatSql | quote }}
+        - name: SPRING_REDIS_HOST
+          value: {{ .Values.javaApi.config.redis.host | quote }}
+        - name: SPRING_REDIS_PORT
+          value: {{ .Values.javaApi.config.redis.port | quote }}
+        {{- if .Values.javaApi.config.redis.password }}
+        - name: SPRING_REDIS_PASSWORD
+          value: {{ .Values.javaApi.config.redis.password | quote }}
+        {{- else if .Values.javaApi.config.redis.passwordEnvVar }}
+        - name: SPRING_REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.javaApi.name }}-env
+              key: {{ .Values.javaApi.config.redis.passwordEnvVar }}
+              optional: true
+        {{- end }}
+        - name: SPRING_REDIS_TIMEOUT
+          value: {{ .Values.javaApi.config.redis.timeout | quote }}
+        - name: SPRING_CACHE_TYPE
+          value: "redis"
+        - name: SPRING_CACHE_REDIS_TIME_TO_LIVE
+          value: "3600000"
+        - name: AUTO_PROVISION_TENANT
+          value: {{ .Values.javaApi.config.autoProvision.tenant | quote }}
+        - name: AUTO_PROVISION_USER
+          value: {{ .Values.javaApi.config.autoProvision.user | quote }}
+        - name: JWT_ALLOW_UNSIGNED
+          value: {{ .Values.javaApi.config.jwt.allowUnsigned | quote }}
+        - name: LOGGING_LEVEL_COM_PERFORMANCEMANAGEMENT
+          value: {{ .Values.javaApi.config.logging.level.com_performancemanagement | quote }}
+        - name: LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_WEB
+          value: {{ .Values.javaApi.config.logging.level.org_springframework_web | quote }}
+        - name: LOGGING_LEVEL_ORG_HIBERNATE_SQL
+          value: {{ .Values.javaApi.config.logging.level.org_hibernate_SQL | quote }}
+        {{- if .Values.javaApi.healthCheck.enabled }}
+        livenessProbe:
+          httpGet:
+            path: {{ .Values.javaApi.healthCheck.path }}
+            port: http
+          initialDelaySeconds: {{ .Values.javaApi.healthCheck.initialDelaySeconds }}
+          periodSeconds: {{ .Values.javaApi.healthCheck.periodSeconds }}
+          timeoutSeconds: {{ .Values.javaApi.healthCheck.timeoutSeconds }}
+          failureThreshold: {{ .Values.javaApi.healthCheck.failureThreshold }}
+        readinessProbe:
+          httpGet:
+            path: {{ .Values.javaApi.healthCheck.path }}
+            port: http
+          initialDelaySeconds: {{ .Values.javaApi.healthCheck.initialDelaySeconds }}
+          periodSeconds: {{ .Values.javaApi.healthCheck.periodSeconds }}
+          timeoutSeconds: {{ .Values.javaApi.healthCheck.timeoutSeconds }}
+          failureThreshold: {{ .Values.javaApi.healthCheck.failureThreshold }}
+        {{- end }}
+        resources:
+          {{- toYaml .Values.javaApi.resources | nindent 10 }}
+      {{- if .Values.javaApi.autoscaling.enabled }}
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ .Values.javaApi.name }}
+  labels:
+    {{- include "pulse-performance-management.javaApi.labels" . | nindent 4 }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ .Values.javaApi.name }}
+  minReplicas: {{ .Values.javaApi.autoscaling.minReplicas }}
+  maxReplicas: {{ .Values.javaApi.autoscaling.maxReplicas }}
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: {{ .Values.javaApi.autoscaling.targetCPUUtilizationPercentage }}
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: {{ .Values.javaApi.autoscaling.targetMemoryUtilizationPercentage }}
+  {{- end }}
+{{- end }}
+

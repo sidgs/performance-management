@@ -60,7 +60,7 @@ export default defineConfig({
       },
       // Proxy all API calls for the agent API to the FastAPI app
       '/api/v1/pulse-epm-agent': {
-        target: 'http://localhost:8000',
+        target: 'http://localhost:8001',
         changeOrigin: true,
         secure: false,
       },

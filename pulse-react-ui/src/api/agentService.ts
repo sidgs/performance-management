@@ -73,10 +73,24 @@ async function agentApiRequest<T>(
     throw new Error('Authentication required. Please log in.');
   }
 
+  // Build headers object, ensuring Authorization header is always included
+  // Convert options.headers to a plain object if it's a Headers instance
+  const optionsHeaders: Record<string, string> = {};
+  if (options.headers) {
+    if (options.headers instanceof Headers) {
+      options.headers.forEach((value, key) => {
+        optionsHeaders[key] = value;
+      });
+    } else if (typeof options.headers === 'object') {
+      Object.assign(optionsHeaders, options.headers);
+    }
+  }
+
+  // Merge headers, ensuring Authorization header is always set and cannot be overridden
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    'Authorization': `Bearer ${token}`,
-    ...(options.headers as Record<string, string>),
+    ...optionsHeaders,
+    'Authorization': `Bearer ${token}`, // Always set Authorization last to ensure it's never overridden
   };
 
   // Use relative URL when proxied (when VITE_AGENT_API_URL is not set), otherwise use full URL
@@ -238,6 +252,21 @@ export async function sendChatMessage(
       body: JSON.stringify({
         message,
       }),
+    }
+  );
+}
+
+/**
+ * Delete a session
+ */
+export async function deleteSession(
+  sessionId: string,
+  userId: string
+): Promise<{ message: string; session_id: string }> {
+  return agentApiRequest<{ message: string; session_id: string }>(
+    `${AGENT_API_PATH}/sessions/${sessionId}?user_id=${encodeURIComponent(userId)}`,
+    {
+      method: 'DELETE',
     }
   );
 }

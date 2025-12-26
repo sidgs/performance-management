@@ -1,3 +1,5 @@
+import traceback
+import logging
 from .graphql_client import GraphQLClient
 from . import queries
 from typing import Optional, List
@@ -32,11 +34,15 @@ def get_user(user_id: str, token: Optional[str] = None) -> str:
         user_id: The ID of the user
         token: JWT token for authentication (from session state)
     """
+    logging.info(f"[TOOL CALL] get_user(user_id='{user_id}')")
     try:
         variables = {"id": user_id}
         result = client.execute(queries.GET_USER, variables, token=token)
+        logging.info(f"[TOOL RESULT] get_user - Success: {json.dumps(result)}")
         return json.dumps(result)
     except Exception as e:
+        traceback.print_exc()
+        logging.error(f"Error fetching user: {e}", exc_info=True)
         return f"Error fetching user: {str(e)}"
 
 
@@ -47,11 +53,15 @@ def get_user_by_email(email: str, token: Optional[str] = None) -> str:
         email: The email address of the user
         token: JWT token for authentication (from session state)
     """
+    logging.info(f"[TOOL CALL] get_user_by_email(email='{email}')")
     try:
         variables = {"email": email}
         result = client.execute(queries.GET_USER_BY_EMAIL, variables, token=token)
+        logging.info(f"[TOOL RESULT] get_user_by_email - Success: {json.dumps(result)}")
         return json.dumps(result)
     except Exception as e:
+        traceback.print_exc()
+        logging.error(f"Error fetching user by email: {e}", exc_info=True)
         return f"Error fetching user by email: {str(e)}"
 
 
@@ -61,10 +71,14 @@ def list_users(token: Optional[str] = None) -> str:
     Args:
         token: JWT token for authentication (from session state)
     """
+    logging.info("[TOOL CALL] list_users()")
     try:
         result = client.execute(queries.GET_USERS, None, token=token)
+        logging.info(f"[TOOL RESULT] list_users - Success: {json.dumps(result)}")
         return json.dumps(result)
     except Exception as e:
+        traceback.print_exc()
+        logging.error(f"Error listing users: {e}", exc_info=True)
         return f"Error listing users: {str(e)}"
 
 
@@ -80,6 +94,8 @@ def get_team_members(manager_id: str, token: Optional[str] = None) -> str:
         result = client.execute(queries.GET_TEAM_MEMBERS, variables, token=token)
         return json.dumps(result)
     except Exception as e:
+        traceback.print_exc()
+        logging.error(f"Error fetching team members: {e}", exc_info=True)
         return f"Error fetching team members: {str(e)}"
 
 
@@ -97,6 +113,7 @@ def create_user(first_name: str, last_name: str, email: str, title: Optional[str
         department_id: Optional department ID
         token: JWT token for authentication (from session state)
     """
+    logging.info(f"[TOOL CALL] create_user(first_name='{first_name}', last_name='{last_name}', email='{email}', title={title}, manager_id={manager_id}, department_id={department_id})")
     try:
         input_data = {
             "firstName": first_name,
@@ -108,8 +125,11 @@ def create_user(first_name: str, last_name: str, email: str, title: Optional[str
         }
         variables = {"input": input_data}
         result = client.execute(queries.CREATE_USER, variables, token=token)
+        logging.info(f"[TOOL RESULT] create_user - Success: {json.dumps(result)}")
         return json.dumps(result)
     except Exception as e:
+        traceback.print_exc()
+        logging.error(f"Error creating user: {e}", exc_info=True)
         return f"Error creating user: {str(e)}"
 
 
@@ -148,6 +168,8 @@ def update_user(user_id: str, first_name: Optional[str] = None, last_name: Optio
         result = client.execute(queries.UPDATE_USER, variables, token=token)
         return json.dumps(result)
     except Exception as e:
+        traceback.print_exc()
+        logging.error(f"Error updating user: {e}", exc_info=True)
         return f"Error updating user: {str(e)}"
 
 
@@ -163,6 +185,8 @@ def delete_user(user_id: str, token: Optional[str] = None) -> str:
         result = client.execute(queries.DELETE_USER, variables, token=token)
         return json.dumps(result)
     except Exception as e:
+        traceback.print_exc()
+        logging.error(f"Error deleting user: {e}", exc_info=True)
         return f"Error deleting user: {str(e)}"
 
 
@@ -179,6 +203,8 @@ def set_user_manager(user_id: str, manager_id: Optional[str] = None, token: Opti
         result = client.execute(queries.SET_USER_MANAGER, variables, token=token)
         return json.dumps(result)
     except Exception as e:
+        traceback.print_exc()
+        logging.error(f"Error setting user manager: {e}", exc_info=True)
         return f"Error setting user manager: {str(e)}"
 
 
@@ -191,11 +217,15 @@ def get_goal(goal_id: str, token: Optional[str] = None) -> str:
         goal_id: The ID of the goal
         token: JWT token for authentication (from session state)
     """
+    logging.info(f"[TOOL CALL] get_goal(goal_id='{goal_id}')")
     try:
         variables = {"id": goal_id}
         result = client.execute(queries.GET_GOAL, variables, token=token)
+        logging.info(f"[TOOL RESULT] get_goal - Success: {json.dumps(result)}")
         return json.dumps(result)
     except Exception as e:
+        traceback.print_exc()
+        logging.error(f"Error fetching goal: {e}", exc_info=True)
         return f"Error fetching goal: {str(e)}"
 
 
@@ -205,10 +235,14 @@ def list_goals(token: Optional[str] = None) -> str:
     Args:
         token: JWT token for authentication (from session state)
     """
+    logging.info("[TOOL CALL] list_goals()")
     try:
         result = client.execute(queries.GET_GOALS, None, token=token)
+        logging.info(f"[TOOL RESULT] list_goals - Success: {json.dumps(result)}")
         return json.dumps(result)
     except Exception as e:
+        traceback.print_exc()
+        logging.error(f"Error listing goals: {e}", exc_info=True)
         return f"Error listing goals: {str(e)}"
 
 
@@ -219,11 +253,15 @@ def get_goals_by_owner(owner_email: str, token: Optional[str] = None) -> str:
         owner_email: Email of the goal owner
         token: JWT token for authentication (from session state)
     """
+    logging.info(f"[TOOL CALL] get_goals_by_owner(owner_email='{owner_email}')")
     try:
         variables = {"email": owner_email}
         result = client.execute(queries.GET_GOALS_BY_OWNER, variables, token=token)
+        logging.info(f"[TOOL RESULT] get_goals_by_owner - Success: {json.dumps(result)}")
         return json.dumps(result)
     except Exception as e:
+        traceback.print_exc()
+        logging.error(f"Error fetching goals by owner: {e}", exc_info=True)
         return f"Error fetching goals by owner: {str(e)}"
 
 
@@ -237,6 +275,8 @@ def get_all_goals_for_hr(token: Optional[str] = None) -> str:
         result = client.execute(queries.GET_ALL_GOALS_FOR_HR, None, token=token)
         return json.dumps(result)
     except Exception as e:
+        traceback.print_exc()
+        logging.error(f"Error fetching all goals for HR: {e}", exc_info=True)
         return f"Error fetching all goals for HR: {str(e)}"
 
 
@@ -252,6 +292,8 @@ def get_goals_pending_approval(department_id: str, token: Optional[str] = None) 
         result = client.execute(queries.GET_GOALS_PENDING_APPROVAL, variables, token=token)
         return json.dumps(result)
     except Exception as e:
+        traceback.print_exc()
+        logging.error(f"Error fetching goals pending approval: {e}", exc_info=True)
         return f"Error fetching goals pending approval: {str(e)}"
 
 
@@ -267,6 +309,8 @@ def get_department_members_goals(department_id: str, token: Optional[str] = None
         result = client.execute(queries.GET_DEPARTMENT_MEMBERS_GOALS, variables, token=token)
         return json.dumps(result)
     except Exception as e:
+        traceback.print_exc()
+        logging.error(f"Error fetching department members goals: {e}", exc_info=True)
         return f"Error fetching department members goals: {str(e)}"
 
 
@@ -282,6 +326,8 @@ def get_goal_notes(goal_id: str, token: Optional[str] = None) -> str:
         result = client.execute(queries.GET_GOAL_NOTES, variables, token=token)
         return json.dumps(result)
     except Exception as e:
+        traceback.print_exc()
+        logging.error(f"Error fetching goal notes: {e}", exc_info=True)
         return f"Error fetching goal notes: {str(e)}"
 
 
@@ -307,6 +353,7 @@ def create_goal(short_description: str, long_description: str, owner_email: str,
         kpis: List of KPI input dictionaries
         token: JWT token for authentication (from session state)
     """
+    logging.info(f"[TOOL CALL] create_goal(short_description='{short_description[:50]}...', owner_email='{owner_email}', status={status}, parent_goal_id={parent_goal_id})")
     try:
         input_data = {
             "shortDescription": short_description,
@@ -323,8 +370,11 @@ def create_goal(short_description: str, long_description: str, owner_email: str,
         }
         variables = {"input": input_data}
         result = client.execute(queries.CREATE_GOAL, variables, token=token)
+        logging.info(f"[TOOL RESULT] create_goal - Success: {json.dumps(result)}")
         return json.dumps(result)
     except Exception as e:
+        traceback.print_exc()
+        logging.error(f"Error creating goal: {e}", exc_info=True)
         return f"Error creating goal: {str(e)}"
 
 
@@ -352,6 +402,7 @@ def update_goal(goal_id: str, short_description: Optional[str] = None,
         kpis: New KPIs list
         token: JWT token for authentication (from session state)
     """
+    logging.info(f"[TOOL CALL] update_goal(goal_id='{goal_id}', status={status}, owner_email={owner_email})")
     try:
         input_data = {}
         if short_description is not None:
@@ -379,8 +430,11 @@ def update_goal(goal_id: str, short_description: Optional[str] = None,
         
         variables = {"id": goal_id, "input": input_data}
         result = client.execute(queries.UPDATE_GOAL, variables, token=token)
+        logging.info(f"[TOOL RESULT] update_goal - Success: {json.dumps(result)}")
         return json.dumps(result)
     except Exception as e:
+        traceback.print_exc()
+        logging.error(f"Error updating goal: {e}", exc_info=True)
         return f"Error updating goal: {str(e)}"
 
 
@@ -397,6 +451,8 @@ def assign_goal_to_user(goal_id: str, user_email: str, token: Optional[str] = No
         result = client.execute(queries.ASSIGN_GOAL_TO_USER, variables, token=token)
         return json.dumps(result)
     except Exception as e:
+        traceback.print_exc()
+        logging.error(f"Error assigning goal to user: {e}", exc_info=True)
         return f"Error assigning goal to user: {str(e)}"
 
 
@@ -413,6 +469,8 @@ def unassign_goal_from_user(goal_id: str, user_email: str, token: Optional[str] 
         result = client.execute(queries.UNASSIGN_GOAL_FROM_USER, variables, token=token)
         return json.dumps(result)
     except Exception as e:
+        traceback.print_exc()
+        logging.error(f"Error unassigning goal from user: {e}", exc_info=True)
         return f"Error unassigning goal from user: {str(e)}"
 
 
@@ -428,6 +486,8 @@ def lock_goal(goal_id: str, token: Optional[str] = None) -> str:
         result = client.execute(queries.LOCK_GOAL, variables, token=token)
         return json.dumps(result)
     except Exception as e:
+        traceback.print_exc()
+        logging.error(f"Error locking goal: {e}", exc_info=True)
         return f"Error locking goal: {str(e)}"
 
 
@@ -443,6 +503,8 @@ def unlock_goal(goal_id: str, token: Optional[str] = None) -> str:
         result = client.execute(queries.UNLOCK_GOAL, variables, token=token)
         return json.dumps(result)
     except Exception as e:
+        traceback.print_exc()
+        logging.error(f"Error unlocking goal: {e}", exc_info=True)
         return f"Error unlocking goal: {str(e)}"
 
 
@@ -458,6 +520,8 @@ def delete_goal(goal_id: str, token: Optional[str] = None) -> str:
         result = client.execute(queries.DELETE_GOAL, variables, token=token)
         return json.dumps(result)
     except Exception as e:
+        traceback.print_exc()
+        logging.error(f"Error deleting goal: {e}", exc_info=True)
         return f"Error deleting goal: {str(e)}"
 
 
@@ -478,6 +542,8 @@ def update_target_completion_date(goal_id: str, target_completion_date: Optional
         result = client.execute(queries.UPDATE_TARGET_COMPLETION_DATE, variables, token=token)
         return json.dumps(result)
     except Exception as e:
+        traceback.print_exc()
+        logging.error(f"Error updating target completion date: {e}", exc_info=True)
         return f"Error updating target completion date: {str(e)}"
 
 
@@ -493,6 +559,8 @@ def approve_goal(goal_id: str, token: Optional[str] = None) -> str:
         result = client.execute(queries.APPROVE_GOAL, variables, token=token)
         return json.dumps(result)
     except Exception as e:
+        traceback.print_exc()
+        logging.error(f"Error approving goal: {e}", exc_info=True)
         return f"Error approving goal: {str(e)}"
 
 
@@ -521,6 +589,8 @@ def create_kpi(goal_id: str, description: str, due_date: str, status: Optional[s
         result = client.execute(queries.CREATE_KPI, variables, token=token)
         return json.dumps(result)
     except Exception as e:
+        traceback.print_exc()
+        logging.error(f"Error creating KPI: {e}", exc_info=True)
         return f"Error creating KPI: {str(e)}"
 
 
@@ -552,6 +622,8 @@ def update_kpi(kpi_id: str, description: Optional[str] = None, status: Optional[
         result = client.execute(queries.UPDATE_KPI, variables, token=token)
         return json.dumps(result)
     except Exception as e:
+        traceback.print_exc()
+        logging.error(f"Error updating KPI: {e}", exc_info=True)
         return f"Error updating KPI: {str(e)}"
 
 
@@ -567,6 +639,8 @@ def delete_kpi(kpi_id: str, token: Optional[str] = None) -> str:
         result = client.execute(queries.DELETE_KPI, variables, token=token)
         return json.dumps(result)
     except Exception as e:
+        traceback.print_exc()
+        logging.error(f"Error deleting KPI: {e}", exc_info=True)
         return f"Error deleting KPI: {str(e)}"
 
 
@@ -584,6 +658,8 @@ def get_department(department_id: str, token: Optional[str] = None) -> str:
         result = client.execute(queries.GET_DEPARTMENT, variables, token=token)
         return json.dumps(result)
     except Exception as e:
+        traceback.print_exc()
+        logging.error(f"Error fetching department: {e}", exc_info=True)
         return f"Error fetching department: {str(e)}"
 
 
@@ -597,6 +673,8 @@ def list_departments(token: Optional[str] = None) -> str:
         result = client.execute(queries.GET_DEPARTMENTS, None, token=token)
         return json.dumps(result)
     except Exception as e:
+        traceback.print_exc()
+        logging.error(f"Error listing departments: {e}", exc_info=True)
         return f"Error listing departments: {str(e)}"
 
 
@@ -610,6 +688,8 @@ def get_root_departments(token: Optional[str] = None) -> str:
         result = client.execute(queries.GET_ROOT_DEPARTMENTS, None, token=token)
         return json.dumps(result)
     except Exception as e:
+        traceback.print_exc()
+        logging.error(f"Error fetching root departments: {e}", exc_info=True)
         return f"Error fetching root departments: {str(e)}"
 
 
@@ -623,6 +703,8 @@ def get_departments_managed_by_me(token: Optional[str] = None) -> str:
         result = client.execute(queries.GET_DEPARTMENTS_MANAGED_BY_ME, None, token=token)
         return json.dumps(result)
     except Exception as e:
+        traceback.print_exc()
+        logging.error(f"Error fetching departments managed by me: {e}", exc_info=True)
         return f"Error fetching departments managed by me: {str(e)}"
 
 
@@ -658,6 +740,8 @@ def create_department(name: str, small_description: str, manager_email: Optional
         result = client.execute(queries.CREATE_DEPARTMENT, variables, token=token)
         return json.dumps(result)
     except Exception as e:
+        traceback.print_exc()
+        logging.error(f"Error creating department: {e}", exc_info=True)
         return f"Error creating department: {str(e)}"
 
 
@@ -703,6 +787,8 @@ def update_department(department_id: str, name: Optional[str] = None,
         result = client.execute(queries.UPDATE_DEPARTMENT, variables, token=token)
         return json.dumps(result)
     except Exception as e:
+        traceback.print_exc()
+        logging.error(f"Error updating department: {e}", exc_info=True)
         return f"Error updating department: {str(e)}"
 
 
@@ -719,6 +805,8 @@ def assign_user_to_department(department_id: str, user_email: str, token: Option
         result = client.execute(queries.ASSIGN_USER_TO_DEPARTMENT, variables, token=token)
         return json.dumps(result)
     except Exception as e:
+        traceback.print_exc()
+        logging.error(f"Error assigning user to department: {e}", exc_info=True)
         return f"Error assigning user to department: {str(e)}"
 
 
@@ -734,6 +822,8 @@ def delete_department(department_id: str, token: Optional[str] = None) -> str:
         result = client.execute(queries.DELETE_DEPARTMENT, variables, token=token)
         return json.dumps(result)
     except Exception as e:
+        traceback.print_exc()
+        logging.error(f"Error deleting department: {e}", exc_info=True)
         return f"Error deleting department: {str(e)}"
 
 
@@ -750,6 +840,8 @@ def set_department_manager(department_id: str, user_email: str, token: Optional[
         result = client.execute(queries.SET_DEPARTMENT_MANAGER, variables, token=token)
         return json.dumps(result)
     except Exception as e:
+        traceback.print_exc()
+        logging.error(f"Error setting department manager: {e}", exc_info=True)
         return f"Error setting department manager: {str(e)}"
 
 
@@ -766,6 +858,8 @@ def assign_manager_assistant(department_id: str, user_email: str, token: Optiona
         result = client.execute(queries.ASSIGN_MANAGER_ASSISTANT, variables, token=token)
         return json.dumps(result)
     except Exception as e:
+        traceback.print_exc()
+        logging.error(f"Error assigning manager assistant: {e}", exc_info=True)
         return f"Error assigning manager assistant: {str(e)}"
 
 
@@ -782,6 +876,8 @@ def move_user_to_department(user_id: str, department_id: str, token: Optional[st
         result = client.execute(queries.MOVE_USER_TO_DEPARTMENT, variables, token=token)
         return json.dumps(result)
     except Exception as e:
+        traceback.print_exc()
+        logging.error(f"Error moving user to department: {e}", exc_info=True)
         return f"Error moving user to department: {str(e)}"
 
 
@@ -797,6 +893,8 @@ def list_tenants(token: Optional[str] = None) -> str:
         result = client.execute(queries.GET_TENANTS, None, token=token)
         return json.dumps(result)
     except Exception as e:
+        traceback.print_exc()
+        logging.error(f"Error listing tenants: {e}", exc_info=True)
         return f"Error listing tenants: {str(e)}"
 
 
@@ -815,6 +913,8 @@ def create_goal_note(goal_id: str, content: str, token: Optional[str] = None) ->
         result = client.execute(queries.CREATE_GOAL_NOTE, variables, token=token)
         return json.dumps(result)
     except Exception as e:
+        traceback.print_exc()
+        logging.error(f"Error creating goal note: {e}", exc_info=True)
         return f"Error creating goal note: {str(e)}"
 
 
@@ -831,6 +931,8 @@ def update_goal_note(note_id: str, content: str, token: Optional[str] = None) ->
         result = client.execute(queries.UPDATE_GOAL_NOTE, variables, token=token)
         return json.dumps(result)
     except Exception as e:
+        traceback.print_exc()
+        logging.error(f"Error updating goal note: {e}", exc_info=True)
         return f"Error updating goal note: {str(e)}"
 
 
@@ -846,6 +948,8 @@ def delete_goal_note(note_id: str, token: Optional[str] = None) -> str:
         result = client.execute(queries.DELETE_GOAL_NOTE, variables, token=token)
         return json.dumps(result)
     except Exception as e:
+        traceback.print_exc()
+        logging.error(f"Error deleting goal note: {e}", exc_info=True)
         return f"Error deleting goal note: {str(e)}"
 
 
@@ -863,5 +967,7 @@ def bulk_upload_users(csv_data: str, token: Optional[str] = None) -> str:
         result = client.execute(queries.BULK_UPLOAD_USERS, variables, token=token)
         return json.dumps(result)
     except Exception as e:
+        traceback.print_exc()
+        logging.error(f"Error bulk uploading users: {e}", exc_info=True)
         return f"Error bulk uploading users: {str(e)}"
 

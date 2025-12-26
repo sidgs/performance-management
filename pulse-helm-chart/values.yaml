@@ -1,0 +1,238 @@
+# Default values for pulse-performance-management
+# This is a YAML-formatted file.
+
+# Global settings
+global:
+  imageRegistry: sidgs.jfrog.io/sidgs
+  imagePullSecrets: []
+
+# Java API Configuration
+javaApi:
+  enabled: true
+  name: pulse-java-api
+  
+  image:
+    repository: pulse-java-api
+    tag: latest
+    pullPolicy: IfNotPresent
+  
+  replicaCount: 1
+  
+  service:
+    type: ClusterIP
+    port: 8080
+    targetPort: 8080
+  
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+    requests:
+      cpu: 500m
+      memory: 512Mi
+  
+  autoscaling:
+    enabled: false
+    minReplicas: 2
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 80
+    targetMemoryUtilizationPercentage: 80
+  
+  # Spring Boot configuration
+  config:
+    springProfilesActive: prod
+    serverPort: 8080
+    contextPath: /api/v1/epm/
+    
+    # Database configuration
+    database:
+      type: postgresql  # postgresql or sqlite
+      host: postgresql
+      port: 5432
+      name: performance_management
+      username: postgres
+      password: ""  # Set password directly as environment variable value, or leave empty to use secret
+      passwordEnvVar: ""  # Alternative: Reference password from external secret (e.g., "DB_PASSWORD" from pulse-java-api-env secret)
+      
+    # Redis configuration
+    redis:
+      host: redis
+      port: 6379
+      password: ""  # Set password directly as environment variable value, or leave empty to use secret
+      passwordEnvVar: ""  # Alternative: Reference password from external secret (e.g., "REDIS_PASSWORD" from pulse-java-api-env secret)
+      timeout: 2000ms
+      
+    # JPA configuration
+    jpa:
+      ddlAuto: update
+      showSql: false
+      formatSql: false
+      
+    # Auto-provisioning
+    autoProvision:
+      tenant: true
+      user: true
+      
+    # JWT Configuration
+    jwt:
+      allowUnsigned: true  # Set to true to allow unsigned JWT tokens (alg=none)
+      
+    # Logging
+    logging:
+      level:
+        com_performancemanagement: INFO
+        org_springframework_web: INFO
+        org_hibernate_SQL: WARN
+
+  # Health check configuration
+  healthCheck:
+    enabled: true
+    path: /api/v1/epm/
+    initialDelaySeconds: 40
+    periodSeconds: 30
+    timeoutSeconds: 3
+    failureThreshold: 3
+
+# Agent AI Configuration
+agentAi:
+  enabled: true
+  name: pulse-agent-ai
+  
+  image:
+    repository: pulse-agent-ai
+    tag: latest
+    pullPolicy: IfNotPresent
+  
+  replicaCount: 2
+  
+  service:
+    type: ClusterIP
+    port: 8000
+    targetPort: 8000
+  
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+    requests:
+      cpu: 500m
+      memory: 512Mi
+  
+  autoscaling:
+    enabled: false
+    minReplicas: 2
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 80
+    targetMemoryUtilizationPercentage: 80
+  
+  # Environment configuration
+  config:
+    port: 8000
+    
+    # Database configuration for session storage
+    database:
+      host: postgresql
+      port: 5432
+      name: pulse_agent_sessions
+      user: postgres
+      password: ""  # Set password directly as environment variable value, or leave empty to use secret
+      passwordEnvVar: ""  # Alternative: Reference password from external secret (e.g., "AGENT_DB_PASSWORD" from pulse-agent-ai-env secret)
+      
+    # GraphQL API URL (points to Java API)
+    graphqlApiUrl: http://pulse-java-api:8080/api/v1/epm/graphql
+    
+    # Google Cloud configuration
+    googleCloud:
+      project: ""  # Set via secret
+      apiKey: ""  # Set via secret (or use service account)
+      
+    # JWT configuration
+    jwt:
+      secretKey: ""  # Set via secret
+      devMode: false
+      allowUnsigned: false  # Set to true to allow unsigned JWT tokens (alg=none)
+      
+    # Application settings
+    appName: pulse_performance_management
+    agentName: pulse_performance_agent
+
+  # Health check configuration
+  healthCheck:
+    enabled: true
+    path: /api/v1/pulse-epm-agent/health
+    initialDelaySeconds: 10
+    periodSeconds: 30
+    timeoutSeconds: 3
+    failureThreshold: 3
+
+# PostgreSQL Database (optional - can use external database)
+postgresql:
+  enabled: true
+  auth:
+    database: performance_management
+    username: postgres
+    password: ""  # Set via secret or use postgresql.auth.existingSecret
+  primary:
+    persistence:
+      enabled: true
+      size: 10Gi
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+
+# Redis (optional - can use external Redis)
+redis:
+  enabled: true
+  auth:
+    enabled: false
+    password: ""  # Set via secret or use redis.auth.existingSecret
+  master:
+    persistence:
+      enabled: true
+      size: 8Gi
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+
+# Ingress configuration
+ingress:
+  enabled: false
+  className: nginx
+  annotations: {}
+  hosts:
+    - host: performance-management.example.com
+      paths:
+        - path: /api/v1/epm
+          pathType: Prefix
+          service: pulse-java-api
+        - path: /api/v1/pulse-epm-agent
+          pathType: Prefix
+          service: pulse-agent-ai
+  tls: []
+  #  - secretName: performance-management-tls
+  #    hosts:
+  #      - performance-management.example.com
+
+# Secrets (values should be set via --set or secrets file)
+secrets:
+  javaApi:
+    databasePassword: ""
+    redisPassword: ""
+  agentAi:
+    databasePassword: ""
+    googleCloudProject: ""
+    googleApiKey: ""
+    jwtSecretKey: ""
+  postgresql:
+    password: ""
+  redis:
+    password: ""
+
