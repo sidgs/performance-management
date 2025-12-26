@@ -5,6 +5,13 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Python Debugger: Current File",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal"
+        },
+        {
             "type": "java",
             "name": "Current File",
             "request": "launch",
@@ -35,12 +42,15 @@
             "request": "launch",
             "name": "epm-ui",
             "runtimeExecutable": "npm",
-            "runtimeArgs": ["run", "dev:standalone"],
+            "runtimeArgs": [
+                "run",
+                "dev:standalone"
+            ],
             "cwd": "${workspaceFolder}/pulse-react-ui",
             "console": "integratedTerminal"
         },
         {
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "name": "pulse-epm-agent",
             "module": "uvicorn",
@@ -55,7 +65,9 @@
             "cwd": "${workspaceFolder}/pulse-agent-ai",
             "console": "integratedTerminal",
             "justMyCode": false,
-            "env": {}
+            "env": {},
+            "envFile": "${workspaceFolder}/pulse-agent-ai/.env",
+            "pythonPath": "${workspaceFolder}/pulse-agent-ai/.venv/bin/python"
         }
     ]
 }

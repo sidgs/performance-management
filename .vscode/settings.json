@@ -2,6 +2,8 @@
   "accessibility.signals.terminalBell": {
     "sound": "off"
   },
-    "terminal.integrated.enableVisualBell": false
+    "terminal.integrated.enableVisualBell": false,
+    "accessibility.signalOptions.volume": 5,
+    "liveshare.accessibility.soundsEnabled": false
   }
   

@@ -14,7 +14,7 @@ Java Spring Boot REST and GraphQL API for the Performance Management System.
 ## Project Structure
 
 ```
-java-api/
+pulse-java-api/
 ├── src/
 │   ├── main/
 │   │   ├── java/com/performancemanagement/
@@ -44,7 +44,7 @@ java-api/
 ### Building the Project
 
 ```bash
-cd java-api
+cd pulse-java-api
 mvn clean install
 ```
 

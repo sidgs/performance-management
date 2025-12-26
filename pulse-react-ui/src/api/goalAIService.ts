@@ -1,14 +1,18 @@
 import { getAuthToken, getCurrentUserEmail, getCurrentUserRoles } from './authService';
+import {
+  createSession,
+  sendChatMessage,
+  getUserIdFromToken,
+  getUserNameFromToken,
+  type ChatResponse,
+} from './agentService';
 import type { Goal } from '../types';
 
 /**
  * Service for interacting with the Pulse AI backend API
  * 
- * This service will handle:
- * - Sending user queries to the AI agent
- * - Receiving insights and recommendations
- * - Passing user context (email, roles, auth token) to the agent
- * - Allowing the agent to interact with goals on behalf of the user
+ * This service provides a higher-level interface for goal-specific AI interactions.
+ * For direct chat functionality, use the agentService directly.
  */
 
 interface AgentMessage {
@@ -67,45 +71,47 @@ export async function getAgentContext(): Promise<AgentContext | null> {
  * Send a message to the AI agent and get a response
  * 
  * @param message - The user's message/query
- * @param conversationHistory - Optional conversation history for context
+ * @param conversationHistory - Optional conversation history for context (not used directly, session maintains history)
+ * @param sessionId - Optional session ID. If not provided, a new session will be created.
  * @returns Agent response with insights, recommendations, etc.
  */
 export async function sendMessageToAgent(
   message: string,
-  conversationHistory?: AgentMessage[]
+  conversationHistory?: AgentMessage[],
+  sessionId?: string
 ): Promise<AgentResponse> {
-  // TODO: Implement actual API call to agent backend
-  // This is a placeholder structure
-
   const context = await getAgentContext();
   if (!context) {
     throw new Error('Unable to get user context for agent');
   }
 
-  // Placeholder implementation
-  // In the future, this will make an API call like:
-  // const response = await fetch('/api/v1/goal-ai/chat', {
-  //   method: 'POST',
-  //   headers: {
-  //     'Content-Type': 'application/json',
-  //     'Authorization': `Bearer ${context.authToken}`,
-  //   },
-  //   body: JSON.stringify({
-  //     message,
-  //     context: {
-  //       userEmail: context.userEmail,
-  //       userRoles: context.userRoles,
-  //     },
-  //     conversationHistory,
-  //     goals: context.availableGoals,
-  //   }),
-  // });
+  const userId = getUserIdFromToken();
+  if (!userId) {
+    throw new Error('Unable to get user ID from token');
+  }
 
+  // If no session ID provided, create a new session
+  let currentSessionId = sessionId;
+  if (!currentSessionId) {
+    const userEmail = getCurrentUserEmail();
+    const userName = getUserNameFromToken();
+    const sessionResponse = await createSession(userId, userEmail || undefined, userName || undefined);
+    currentSessionId = sessionResponse.session_id;
+  }
+
+  // Send message to agent
+  const chatResponse: ChatResponse = await sendChatMessage(currentSessionId, userId, message);
+
+  // Transform response to match expected interface
   return {
-    message: 'Agent integration coming soon',
+    message: chatResponse.response,
     insights: [],
     recommendations: [],
     relatedGoals: [],
+    metadata: {
+      sessionId: currentSessionId,
+      agentName: chatResponse.agent_name,
+    },
   };
 }
 
@@ -183,15 +189,20 @@ export async function performGoalAction(
  * @returns Session ID for the conversation
  */
 export async function initializeAgentSession(): Promise<string> {
-  // TODO: Implement session initialization
-  // This will create a session on the backend with user context
-
   const context = await getAgentContext();
   if (!context) {
     throw new Error('Unable to get user context for agent');
   }
 
-  // Placeholder
-  return 'session-placeholder';
+  const userId = getUserIdFromToken();
+  if (!userId) {
+    throw new Error('Unable to get user ID from token');
+  }
+
+  const userEmail = getCurrentUserEmail();
+  const userName = getUserNameFromToken();
+  const sessionResponse = await createSession(userId, userEmail || undefined, userName || undefined);
+  
+  return sessionResponse.session_id;
 }
 

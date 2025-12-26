@@ -8,7 +8,7 @@ This document outlines the requirements for a Performance Management System that
 
 ### 2.1 Technology Stack
 
-**Backend (java-api)**
+**Backend (pulse-java-api)**
 - Framework: Java Spring Boot
 - Build & Dependency Management: Maven
 - Persistence: JPA (Java Persistence API)
@@ -31,7 +31,7 @@ This document outlines the requirements for a Performance Management System that
 
 ```
 performance-management/
-├── java-api/          # Java Spring Boot backend
+├── pulse-java-api/          # Java Spring Boot backend
 ├── agents-api/        # Google ADK agent layer
 └── UI-app/           # React frontend
 ```
