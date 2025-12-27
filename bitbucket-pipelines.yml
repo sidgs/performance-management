@@ -143,6 +143,7 @@ definitions:
             echo "Upgrading Helm release ${HELM_RELEASE_NAME} in namespace ${HELM_NAMESPACE}..."
             helm upgrade --install ${HELM_RELEASE_NAME} . \
               --namespace ${HELM_NAMESPACE} \
+              --create-namespace \
               --set javaApi.image.tag=${RELEASE_VERSION} \
               --set agentAi.image.tag=${RELEASE_VERSION} \
               --values ${VALUES_FILE} \
@@ -177,14 +178,14 @@ pipelines:
             changesets:
               includePaths:
                 - pulse-agent-ai/**
-                - bitbucket-pipelines.yml
+                # - bitbucket-pipelines.yml
       - step:
           <<: *build-pulse-java-api
           condition:
             changesets:
               includePaths:
                 - pulse-java-api/**
-                - bitbucket-pipelines.yml
+                # - bitbucket-pipelines.yml
       - step:
           <<: *deploy-manual
     'release/*':
