@@ -141,7 +141,7 @@ definitions:
             VALUES_FILE=${VALUES_FILE:-values-release.yaml}
             # Upgrade Helm release with new image tags
             echo "Upgrading Helm release ${HELM_RELEASE_NAME} in namespace ${HELM_NAMESPACE}..."
-            helm upgrade --install ${HELM_RELEASE_NAME} ./pulse-helm-chart \
+            helm upgrade --install ${HELM_RELEASE_NAME} . \
               --namespace ${HELM_NAMESPACE} \
               --set javaApi.image.tag=${RELEASE_VERSION} \
               --set agentAi.image.tag=${RELEASE_VERSION} \
