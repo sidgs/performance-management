@@ -53,7 +53,7 @@ ingress:
     # Add any ingress annotations needed for your environment
     # nginx.ingress.kubernetes.io/ssl-redirect: "false"  # Uncomment if not using TLS in dev
   hosts:
-    - host: "*apps.sidgs.net"  # Replace with your dev hostname
+    - host: "*.sidgs.net"  # Replace with your dev hostname
       paths:
         - path: /api/v1/epm
           pathType: Prefix
