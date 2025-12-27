@@ -146,9 +146,7 @@ definitions:
               --create-namespace \
               --set javaApi.image.tag=${RELEASE_VERSION} \
               --set agentAi.image.tag=${RELEASE_VERSION} \
-              --values ${VALUES_FILE} \
-              --wait \
-              --timeout 10m
+              --values ${VALUES_FILE} 
 
             # If this is a branch (not a tag), do a rolling restart of the deployments
             if [[ -z "${BITBUCKET_TAG}" && -n "${BITBUCKET_BRANCH}" ]]; then
