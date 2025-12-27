@@ -92,6 +92,16 @@ public class AuthorizationService {
     }
 
     /**
+     * Ensure the current user has either EPM_ADMIN or HR_ADMIN role.
+     * Throws an {@link IllegalStateException} if the user is missing or doesn't have either role.
+     */
+    public void requireEpmOrHrAdmin() {
+        if (!hasRole("EPM_ADMIN") && !hasRole("HR_ADMIN")) {
+            throw new IllegalStateException("EPM_ADMIN or HR_ADMIN role required to perform this operation.");
+        }
+    }
+
+    /**
      * Ensure the current user is a manager of the specified department.
      * Throws an {@link IllegalStateException} if the user is missing or not the department manager.
      */

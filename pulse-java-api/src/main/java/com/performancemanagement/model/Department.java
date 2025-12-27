@@ -15,7 +15,7 @@ import java.util.Set;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@EqualsAndHashCode(exclude = {"manager", "managerAssistant", "coOwner", "parentDepartment", "childDepartments", "users"})
+@EqualsAndHashCode(exclude = {"manager", "managerAssistant", "coOwner", "parentDepartment", "childDepartments", "users", "teams"})
 public class Department {
 
     @Id
@@ -60,6 +60,9 @@ public class Department {
 
     @OneToMany(mappedBy = "department", cascade = CascadeType.ALL)
     private Set<User> users = new HashSet<>();
+
+    @OneToMany(mappedBy = "department", cascade = CascadeType.ALL)
+    private Set<Team> teams = new HashSet<>();
 
     public enum DepartmentStatus {
         ACTIVE,

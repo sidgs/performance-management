@@ -2,6 +2,7 @@ package com.performancemanagement.graphql;
 
 import com.performancemanagement.config.TenantContext;
 import com.performancemanagement.model.Department;
+import com.performancemanagement.model.Team;
 import com.performancemanagement.model.User;
 import graphql.kickstart.tools.GraphQLResolver;
 import jakarta.persistence.EntityManager;
@@ -167,6 +168,28 @@ public class DepartmentResolver implements GraphQLResolver<Department> {
                     Hibernate.initialize(user.getTenant());
                 })
                 .filter(user -> user.getTenant().getFqdn().equals(tenantId))
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<Team> teams(Department department) {
+        department = entityManager.merge(department);
+        Hibernate.initialize(department.getTeams());
+        String tenantId = getCurrentTenantId();
+        if (tenantId == null) {
+            return department.getTeams().stream()
+                    .peek(team -> {
+                        Hibernate.initialize(team);
+                        Hibernate.initialize(team.getTenant());
+                    })
+                    .toList();
+        }
+        return department.getTeams().stream()
+                .peek(team -> {
+                    Hibernate.initialize(team);
+                    Hibernate.initialize(team.getTenant());
+                })
+                .filter(team -> team.getTenant().getFqdn().equals(tenantId))
                 .toList();
     }
 }

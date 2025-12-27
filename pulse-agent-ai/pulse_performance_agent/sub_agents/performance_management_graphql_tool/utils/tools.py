@@ -881,6 +881,170 @@ def move_user_to_department(user_id: str, department_id: str, token: Optional[st
         return f"Error moving user to department: {str(e)}"
 
 
+# ===== TEAM TOOLS =====
+
+def get_team(team_id: str, token: Optional[str] = None) -> str:
+    """Get a team by ID.
+    
+    Args:
+        team_id: The ID of the team
+        token: JWT token for authentication (from session state)
+    """
+    try:
+        variables = {"id": team_id}
+        result = client.execute(queries.GET_TEAM, variables, token=token)
+        return json.dumps(result)
+    except Exception as e:
+        traceback.print_exc()
+        logging.error(f"Error fetching team: {e}", exc_info=True)
+        return f"Error fetching team: {str(e)}"
+
+
+def list_teams(token: Optional[str] = None) -> str:
+    """List all teams.
+    
+    Args:
+        token: JWT token for authentication (from session state)
+    """
+    try:
+        result = client.execute(queries.GET_TEAMS, None, token=token)
+        return json.dumps(result)
+    except Exception as e:
+        traceback.print_exc()
+        logging.error(f"Error listing teams: {e}", exc_info=True)
+        return f"Error listing teams: {str(e)}"
+
+
+def get_teams_by_department(department_id: str, token: Optional[str] = None) -> str:
+    """Get teams by department ID.
+    
+    Args:
+        department_id: ID of the department
+        token: JWT token for authentication (from session state)
+    """
+    try:
+        variables = {"departmentId": department_id}
+        result = client.execute(queries.GET_TEAMS_BY_DEPARTMENT, variables, token=token)
+        return json.dumps(result)
+    except Exception as e:
+        traceback.print_exc()
+        logging.error(f"Error fetching teams by department: {e}", exc_info=True)
+        return f"Error fetching teams by department: {str(e)}"
+
+
+def create_team(name: str, department_id: str, team_lead_email: str,
+                description: Optional[str] = None, token: Optional[str] = None) -> str:
+    """Create a new team.
+    
+    Args:
+        name: Name of the team
+        department_id: ID of the department
+        team_lead_email: Email of the team lead
+        description: Optional description of the team
+        token: JWT token for authentication (from session state)
+    """
+    try:
+        input_data = {
+            "name": name,
+            "departmentId": department_id,
+            "teamLeadEmail": team_lead_email,
+            "description": description
+        }
+        variables = {"input": input_data}
+        result = client.execute(queries.CREATE_TEAM, variables, token=token)
+        return json.dumps(result)
+    except Exception as e:
+        traceback.print_exc()
+        logging.error(f"Error creating team: {e}", exc_info=True)
+        return f"Error creating team: {str(e)}"
+
+
+def update_team(team_id: str, name: Optional[str] = None, description: Optional[str] = None,
+                department_id: Optional[str] = None, team_lead_email: Optional[str] = None,
+                token: Optional[str] = None) -> str:
+    """Update an existing team.
+    
+    Args:
+        team_id: ID of the team to update
+        name: New name
+        description: New description
+        department_id: New department ID
+        team_lead_email: New team lead email
+        token: JWT token for authentication (from session state)
+    """
+    try:
+        input_data = {}
+        if name is not None:
+            input_data["name"] = name
+        if description is not None:
+            input_data["description"] = description
+        if department_id is not None:
+            input_data["departmentId"] = department_id
+        if team_lead_email is not None:
+            input_data["teamLeadEmail"] = team_lead_email
+        
+        variables = {"id": team_id, "input": input_data}
+        result = client.execute(queries.UPDATE_TEAM, variables, token=token)
+        return json.dumps(result)
+    except Exception as e:
+        traceback.print_exc()
+        logging.error(f"Error updating team: {e}", exc_info=True)
+        return f"Error updating team: {str(e)}"
+
+
+def delete_team(team_id: str, token: Optional[str] = None) -> str:
+    """Delete a team.
+    
+    Args:
+        team_id: ID of the team to delete
+        token: JWT token for authentication (from session state)
+    """
+    try:
+        variables = {"id": team_id}
+        result = client.execute(queries.DELETE_TEAM, variables, token=token)
+        return json.dumps(result)
+    except Exception as e:
+        traceback.print_exc()
+        logging.error(f"Error deleting team: {e}", exc_info=True)
+        return f"Error deleting team: {str(e)}"
+
+
+def assign_user_to_team(team_id: str, user_email: str, token: Optional[str] = None) -> str:
+    """Assign a user to a team.
+    
+    Args:
+        team_id: ID of the team
+        user_email: Email of the user
+        token: JWT token for authentication (from session state)
+    """
+    try:
+        variables = {"teamId": team_id, "userEmail": user_email}
+        result = client.execute(queries.ASSIGN_USER_TO_TEAM, variables, token=token)
+        return json.dumps(result)
+    except Exception as e:
+        traceback.print_exc()
+        logging.error(f"Error assigning user to team: {e}", exc_info=True)
+        return f"Error assigning user to team: {str(e)}"
+
+
+def remove_user_from_team(team_id: str, user_email: str, token: Optional[str] = None) -> str:
+    """Remove a user from a team.
+    
+    Args:
+        team_id: ID of the team
+        user_email: Email of the user
+        token: JWT token for authentication (from session state)
+    """
+    try:
+        variables = {"teamId": team_id, "userEmail": user_email}
+        result = client.execute(queries.REMOVE_USER_FROM_TEAM, variables, token=token)
+        return json.dumps(result)
+    except Exception as e:
+        traceback.print_exc()
+        logging.error(f"Error removing user from team: {e}", exc_info=True)
+        return f"Error removing user from team: {str(e)}"
+
+
 # ===== TENANT TOOLS =====
 
 def list_tenants(token: Optional[str] = None) -> str:

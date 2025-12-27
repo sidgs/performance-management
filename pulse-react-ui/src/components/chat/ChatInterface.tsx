@@ -16,6 +16,7 @@ import {
   SmartToy as AgentIcon,
   Person as PersonIcon,
 } from '@mui/icons-material';
+import ReactMarkdown from 'react-markdown';
 
 export interface ChatMessage {
   role: 'user' | 'assistant';
@@ -189,9 +190,71 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                     borderRadius: 2,
                   }}
                 >
-                  <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-                    {message.content}
-                  </Typography>
+                  <Box
+                    sx={{
+                      '& p': {
+                        margin: 0,
+                        marginBottom: 1,
+                        '&:last-child': {
+                          marginBottom: 0,
+                        },
+                      },
+                      '& ul, & ol': {
+                        margin: 0,
+                        marginBottom: 1,
+                        paddingLeft: 2,
+                        '&:last-child': {
+                          marginBottom: 0,
+                        },
+                      },
+                      '& li': {
+                        marginBottom: 0.5,
+                        '&:last-child': {
+                          marginBottom: 0,
+                        },
+                      },
+                      '& strong': {
+                        fontWeight: 600,
+                      },
+                      '& h1, & h2, & h3, & h4, & h5, & h6': {
+                        marginTop: 0,
+                        marginBottom: 1,
+                        fontWeight: 600,
+                        '&:first-of-type': {
+                          marginTop: 0,
+                        },
+                      },
+                      '& code': {
+                        backgroundColor: isUser ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.05)',
+                        padding: '2px 4px',
+                        borderRadius: '3px',
+                        fontSize: '0.9em',
+                        fontFamily: 'monospace',
+                      },
+                      '& pre': {
+                        backgroundColor: isUser ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
+                        padding: '8px',
+                        borderRadius: '4px',
+                        overflow: 'auto',
+                        marginBottom: 1,
+                        '& code': {
+                          backgroundColor: 'transparent',
+                          padding: 0,
+                        },
+                      },
+                      '& blockquote': {
+                        borderLeft: `3px solid ${isUser ? 'rgba(255, 255, 255, 0.5)' : 'rgba(0, 0, 0, 0.2)'}`,
+                        paddingLeft: 1,
+                        marginLeft: 0,
+                        marginRight: 0,
+                        fontStyle: 'italic',
+                        opacity: 0.9,
+                      },
+                      wordBreak: 'break-word',
+                    }}
+                  >
+                    <ReactMarkdown>{message.content}</ReactMarkdown>
+                  </Box>
                   {message.timestamp && (
                     <Typography
                       variant="caption"

@@ -1087,13 +1087,22 @@ const GoalsPage: React.FC = () => {
     }
   };
 
-  // Get assignable users (self + team members)
+  // Get assignable users (self + team members + department members)
   const getAssignableUsers = (): User[] => {
     const assignable: User[] = [];
     
     // Add current user
     if (currentUser) {
       assignable.push(currentUser);
+    }
+    
+    // Add team members if current user is a team lead
+    if (currentUser?.team?.teamLead?.email === currentUser?.email && currentUser?.team?.users) {
+      currentUser.team.users.forEach(member => {
+        if (!assignable.find(u => u.email === member.email)) {
+          assignable.push(member);
+        }
+      });
     }
     
     // Add department members

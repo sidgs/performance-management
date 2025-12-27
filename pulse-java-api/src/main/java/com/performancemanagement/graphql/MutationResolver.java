@@ -8,13 +8,16 @@ import com.performancemanagement.repository.DepartmentRepository;
 import com.performancemanagement.repository.GoalRepository;
 import com.performancemanagement.repository.KPIRepository;
 import com.performancemanagement.repository.GoalNoteRepository;
+import com.performancemanagement.repository.TeamRepository;
 import com.performancemanagement.repository.UserRepository;
 import com.performancemanagement.service.AuthorizationService;
 import com.performancemanagement.service.DepartmentService;
 import com.performancemanagement.service.GoalService;
 import com.performancemanagement.service.KPIService;
 import com.performancemanagement.service.GoalNoteService;
+import com.performancemanagement.service.TeamService;
 import com.performancemanagement.service.UserService;
+import com.performancemanagement.model.Team;
 import com.performancemanagement.model.GoalNote;
 import graphql.kickstart.tools.GraphQLMutationResolver;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -61,6 +64,12 @@ public class MutationResolver implements GraphQLMutationResolver {
 
     @Autowired
     private GoalNoteRepository goalNoteRepository;
+
+    @Autowired
+    private TeamService teamService;
+
+    @Autowired
+    private TeamRepository teamRepository;
 
     // User mutations
     public User createUser(UserInput input) {
@@ -403,6 +412,56 @@ public class MutationResolver implements GraphQLMutationResolver {
         return departmentRepository.findByIdAndTenantId(deptDTO.getId(), tenantId).orElse(null);
     }
 
+    // Team mutations
+    public Team createTeam(TeamInput input) {
+        authorizationService.requireEpmOrHrAdmin();
+        var teamDTO = new com.performancemanagement.dto.TeamDTO();
+        teamDTO.setName(input.getName());
+        teamDTO.setDescription(input.getDescription());
+        teamDTO.setDepartmentId(input.getDepartmentId());
+        teamDTO.setTeamLeadEmail(input.getTeamLeadEmail());
+        
+        var created = teamService.createTeam(teamDTO);
+        String tenantId = com.performancemanagement.config.TenantContext.getCurrentTenantId();
+        return teamRepository.findByIdAndTenantId(created.getId(), tenantId).orElse(null);
+    }
+
+    public Team updateTeam(Long id, TeamInput input) {
+        authorizationService.requireEpmOrHrAdmin();
+        var teamDTO = new com.performancemanagement.dto.TeamDTO();
+        teamDTO.setName(input.getName());
+        teamDTO.setDescription(input.getDescription());
+        teamDTO.setTeamLeadEmail(input.getTeamLeadEmail());
+        
+        var updated = teamService.updateTeam(id, teamDTO);
+        String tenantId = com.performancemanagement.config.TenantContext.getCurrentTenantId();
+        return teamRepository.findByIdAndTenantId(updated.getId(), tenantId).orElse(null);
+    }
+
+    public Boolean deleteTeam(Long id) {
+        try {
+            authorizationService.requireEpmOrHrAdmin();
+            teamService.deleteTeam(id);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    public Team assignUserToTeam(Long teamId, String userEmail) {
+        authorizationService.requireEpmOrHrAdmin();
+        var teamDTO = teamService.assignUserToTeam(teamId, userEmail);
+        String tenantId = com.performancemanagement.config.TenantContext.getCurrentTenantId();
+        return teamRepository.findByIdAndTenantId(teamDTO.getId(), tenantId).orElse(null);
+    }
+
+    public Team removeUserFromTeam(Long teamId, String userEmail) {
+        authorizationService.requireEpmOrHrAdmin();
+        var teamDTO = teamService.removeUserFromTeam(teamId, userEmail);
+        String tenantId = com.performancemanagement.config.TenantContext.getCurrentTenantId();
+        return teamRepository.findByIdAndTenantId(teamDTO.getId(), tenantId).orElse(null);
+    }
+
     // Bulk upload mutation
     public com.performancemanagement.dto.BulkUploadDTO.BulkUploadResult bulkUploadUsers(String csvData) {
         authorizationService.requireEpmAdmin();
@@ -537,5 +596,22 @@ public class MutationResolver implements GraphQLMutationResolver {
         public void setStatus(Department.DepartmentStatus status) { this.status = status; }
         public Long getParentDepartmentId() { return parentDepartmentId; }
         public void setParentDepartmentId(Long parentDepartmentId) { this.parentDepartmentId = parentDepartmentId; }
+    }
+
+    public static class TeamInput {
+        private String name;
+        private String description;
+        private Long departmentId;
+        private String teamLeadEmail;
+
+        // Getters and setters
+        public String getName() { return name; }
+        public void setName(String name) { this.name = name; }
+        public String getDescription() { return description; }
+        public void setDescription(String description) { this.description = description; }
+        public Long getDepartmentId() { return departmentId; }
+        public void setDepartmentId(Long departmentId) { this.departmentId = departmentId; }
+        public String getTeamLeadEmail() { return teamLeadEmail; }
+        public void setTeamLeadEmail(String teamLeadEmail) { this.teamLeadEmail = teamLeadEmail; }
     }
 }

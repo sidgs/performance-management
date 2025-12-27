@@ -56,6 +56,16 @@ tools_list = [
     tools_module.assign_manager_assistant,
     tools_module.move_user_to_department,
     
+    # Team tools
+    tools_module.get_team,
+    tools_module.list_teams,
+    tools_module.get_teams_by_department,
+    tools_module.create_team,
+    tools_module.update_team,
+    tools_module.delete_team,
+    tools_module.assign_user_to_team,
+    tools_module.remove_user_from_team,
+    
     # Tenant tools
     tools_module.list_tenants,
     

@@ -10,12 +10,15 @@ import com.performancemanagement.model.Tenant;
 import com.performancemanagement.model.User;
 import com.performancemanagement.repository.DepartmentRepository;
 import com.performancemanagement.repository.GoalRepository;
+import com.performancemanagement.repository.TeamRepository;
 import com.performancemanagement.repository.TenantRepository;
 import com.performancemanagement.repository.UserRepository;
 import com.performancemanagement.service.AuthorizationService;
 import com.performancemanagement.service.DepartmentService;
 import com.performancemanagement.service.GoalService;
 import com.performancemanagement.service.GoalNoteService;
+import com.performancemanagement.service.TeamService;
+import com.performancemanagement.model.Team;
 import com.performancemanagement.model.GoalNote;
 import graphql.kickstart.tools.GraphQLQueryResolver;
 import org.hibernate.Hibernate;
@@ -53,6 +56,12 @@ public class QueryResolver implements GraphQLQueryResolver {
 
     @Autowired
     private GoalNoteService goalNoteService;
+
+    @Autowired
+    private TeamRepository teamRepository;
+
+    @Autowired
+    private TeamService teamService;
 
     private String getCurrentTenantId() {
         return TenantContext.getCurrentTenantId(); // Returns null if no tenant context - tenant validation is disabled
@@ -102,7 +111,45 @@ public class QueryResolver implements GraphQLQueryResolver {
         if (tenantId == null) {
             return null; // Tenant validation disabled - return null if no tenant context
         }
-        return goalRepository.findByIdAndTenantId(id, tenantId).orElse(null);
+        
+        Goal goal = goalRepository.findByIdAndTenantId(id, tenantId).orElse(null);
+        if (goal == null) {
+            return null;
+        }
+        
+        // Get current logged-in user
+        User currentUser = UserContext.getCurrentUser();
+        if (currentUser == null) {
+            throw new IllegalStateException("You do not have permission to view this goal");
+        }
+        
+        // Check authorization using GoalService helper method
+        // We need to initialize lazy collections first
+        Hibernate.initialize(goal.getOwner());
+        Hibernate.initialize(goal.getAssignedUsers());
+        if (goal.getOwner() != null) {
+            Hibernate.initialize(goal.getOwner().getDepartment());
+            Hibernate.initialize(goal.getOwner().getTeam());
+        }
+        if (goal.getAssignedUsers() != null) {
+            goal.getAssignedUsers().forEach(user -> {
+                Hibernate.initialize(user.getDepartment());
+                Hibernate.initialize(user.getTeam());
+            });
+        }
+        if (currentUser.getDepartment() != null) {
+            Hibernate.initialize(currentUser.getDepartment());
+        }
+        if (currentUser.getTeam() != null) {
+            Hibernate.initialize(currentUser.getTeam());
+        }
+        
+        // Use GoalService to check authorization
+        if (!goalService.canUserViewGoal(currentUser, goal)) {
+            throw new IllegalStateException("You do not have permission to view this goal");
+        }
+        
+        return goal;
     }
 
     @Transactional(readOnly = true)
@@ -119,41 +166,52 @@ public class QueryResolver implements GraphQLQueryResolver {
             return List.of();
         }
         
-        // Filter goals to only include:
-        // 1. Goals owned by the current user
-        // 2. Goals assigned to the current user
-        // 3. Goals owned by users in the current user's department
-        // 4. Goals assigned to users in the current user's department
-        Department userDepartment = currentUser.getDepartment();
-        List<Goal> goals;
-        if (userDepartment != null) {
-            goals = goalRepository.findGoalsForUserAndDepartment(
-                tenantId, 
-                currentUser.getId(), 
-                userDepartment.getId()
-            );
-        } else {
-            // User has no department, only return goals owned by or assigned to the user
-            goals = goalRepository.findGoalsForUser(tenantId, currentUser.getId());
-        }
+        // Fetch all goals for the tenant
+        List<Goal> allGoals = goalRepository.findAllByTenantId(tenantId);
         
         // Initialize lazy collections before filtering
-        goals.forEach(goal -> {
+        allGoals.forEach(goal -> {
             Hibernate.initialize(goal.getAssignedUsers());
             Hibernate.initialize(goal.getOwner());
+            if (goal.getOwner() != null) {
+                Hibernate.initialize(goal.getOwner().getDepartment());
+                Hibernate.initialize(goal.getOwner().getTeam());
+            }
+            if (goal.getAssignedUsers() != null) {
+                goal.getAssignedUsers().forEach(user -> {
+                    Hibernate.initialize(user.getDepartment());
+                    Hibernate.initialize(user.getTeam());
+                });
+            }
         });
         
-        // Filter confidential goals: only show if user is owner or assigned
-        return goals.stream()
+        // Initialize current user's relationships
+        if (currentUser.getDepartment() != null) {
+            Hibernate.initialize(currentUser.getDepartment());
+        }
+        if (currentUser.getTeam() != null) {
+            Hibernate.initialize(currentUser.getTeam());
+        }
+        
+        // Filter goals based on RBAC rules using GoalService helper
+        return allGoals.stream()
                 .filter(goal -> {
+                    // First check if user can view the goal based on RBAC rules
+                    if (!goalService.canUserViewGoal(currentUser, goal)) {
+                        return false;
+                    }
+                    
+                    // Then apply confidential goal filtering: only show if user is owner or assigned
                     if (goal.getConfidential() != null && goal.getConfidential()) {
-                        // Confidential goal: only show if user is owner or assigned
-                        boolean isOwner = goal.getOwner().getId().equals(currentUser.getId());
-                        boolean isAssigned = goal.getAssignedUsers().stream()
-                                .anyMatch(user -> user.getId().equals(currentUser.getId()));
+                        boolean isOwner = goal.getOwner() != null && 
+                                         goal.getOwner().getId().equals(currentUser.getId());
+                        boolean isAssigned = goal.getAssignedUsers() != null && 
+                                           goal.getAssignedUsers().stream()
+                                                   .anyMatch(user -> user.getId().equals(currentUser.getId()));
                         return isOwner || isAssigned;
                     }
-                    // Non-confidential goal: show based on existing department filtering
+                    
+                    // Non-confidential goal that passed RBAC check
                     return true;
                 })
                 .toList();
@@ -179,7 +237,44 @@ public class QueryResolver implements GraphQLQueryResolver {
         if (tenantId == null) {
             return List.of(); // Tenant validation disabled - return empty list if no tenant context
         }
-        return goalRepository.findByOwnerEmailAndTenantId(email, tenantId);
+        
+        // Get current logged-in user
+        User currentUser = UserContext.getCurrentUser();
+        if (currentUser == null) {
+            return List.of(); // No user logged in, return empty list
+        }
+        
+        // Fetch goals by owner
+        List<Goal> goals = goalRepository.findByOwnerEmailAndTenantId(email, tenantId);
+        
+        // Initialize lazy collections before filtering
+        goals.forEach(goal -> {
+            Hibernate.initialize(goal.getAssignedUsers());
+            Hibernate.initialize(goal.getOwner());
+            if (goal.getOwner() != null) {
+                Hibernate.initialize(goal.getOwner().getDepartment());
+                Hibernate.initialize(goal.getOwner().getTeam());
+            }
+            if (goal.getAssignedUsers() != null) {
+                goal.getAssignedUsers().forEach(user -> {
+                    Hibernate.initialize(user.getDepartment());
+                    Hibernate.initialize(user.getTeam());
+                });
+            }
+        });
+        
+        // Initialize current user's relationships
+        if (currentUser.getDepartment() != null) {
+            Hibernate.initialize(currentUser.getDepartment());
+        }
+        if (currentUser.getTeam() != null) {
+            Hibernate.initialize(currentUser.getTeam());
+        }
+        
+        // Filter goals based on RBAC rules - only return goals the user can view
+        return goals.stream()
+                .filter(goal -> goalService.canUserViewGoal(currentUser, goal))
+                .toList();
     }
 
     // Department queries
@@ -237,6 +332,31 @@ public class QueryResolver implements GraphQLQueryResolver {
     // Goal note queries
     public List<GoalNote> goalNotes(Long goalId) {
         return goalNoteService.getNotesByGoalId(goalId);
+    }
+
+    // Team queries
+    public Team team(Long id) {
+        String tenantId = getCurrentTenantId();
+        if (tenantId == null) {
+            return null;
+        }
+        return teamRepository.findByIdAndTenantId(id, tenantId).orElse(null);
+    }
+
+    public List<Team> teams() {
+        String tenantId = getCurrentTenantId();
+        if (tenantId == null) {
+            return List.of();
+        }
+        return teamRepository.findByTenantId(tenantId);
+    }
+
+    public List<Team> teamsByDepartment(Long departmentId) {
+        String tenantId = getCurrentTenantId();
+        if (tenantId == null) {
+            return List.of();
+        }
+        return teamRepository.findByDepartmentIdAndTenantId(departmentId, tenantId);
     }
 
     // Tenant queries

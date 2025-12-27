@@ -16,7 +16,18 @@ query GetUser($id: ID!) {
             id
             name
         }
+        team {
+            id
+            name
+            description
+        }
         manager {
+            id
+            email
+            firstName
+            lastName
+        }
+        effectiveManager {
             id
             email
             firstName
@@ -55,7 +66,18 @@ query GetUserByEmail($email: String!) {
             id
             name
         }
+        team {
+            id
+            name
+            description
+        }
         manager {
+            id
+            email
+            firstName
+            lastName
+        }
+        effectiveManager {
             id
             email
             firstName
@@ -94,7 +116,15 @@ query GetUsers {
             id
             name
         }
+        team {
+            id
+            name
+        }
         manager {
+            id
+            email
+        }
+        effectiveManager {
             id
             email
         }
@@ -379,6 +409,17 @@ query GetDepartment($id: ID!) {
             lastName
             title
         }
+        teams {
+            id
+            name
+            description
+            teamLead {
+                id
+                email
+                firstName
+                lastName
+            }
+        }
     }
 }
 """
@@ -415,6 +456,11 @@ query GetDepartments {
             id
             email
         }
+        teams {
+            id
+            name
+            description
+        }
     }
 }
 """
@@ -439,6 +485,11 @@ query GetRootDepartments {
         users {
             id
             email
+        }
+        teams {
+            id
+            name
+            description
         }
     }
 }
@@ -476,6 +527,92 @@ query GetDepartmentsManagedByMe {
             id
             email
         }
+        teams {
+            id
+            name
+            description
+        }
+    }
+}
+"""
+
+# ===== TEAM QUERIES =====
+
+GET_TEAM = """
+query GetTeam($id: ID!) {
+    team(id: $id) {
+        id
+        name
+        description
+        department {
+            id
+            name
+        }
+        teamLead {
+            id
+            email
+            firstName
+            lastName
+        }
+        users {
+            id
+            email
+            firstName
+            lastName
+            title
+        }
+    }
+}
+"""
+
+GET_TEAMS = """
+query GetTeams {
+    teams {
+        id
+        name
+        description
+        department {
+            id
+            name
+        }
+        teamLead {
+            id
+            email
+            firstName
+            lastName
+        }
+        users {
+            id
+            email
+            firstName
+            lastName
+        }
+    }
+}
+"""
+
+GET_TEAMS_BY_DEPARTMENT = """
+query GetTeamsByDepartment($departmentId: ID!) {
+    teamsByDepartment(departmentId: $departmentId) {
+        id
+        name
+        description
+        department {
+            id
+            name
+        }
+        teamLead {
+            id
+            email
+            firstName
+            lastName
+        }
+        users {
+            id
+            email
+            firstName
+            lastName
+        }
     }
 }
 """
@@ -507,7 +644,15 @@ mutation CreateUser($input: UserInput!) {
             id
             name
         }
+        team {
+            id
+            name
+        }
         manager {
+            id
+            email
+        }
+        effectiveManager {
             id
             email
         }
@@ -528,7 +673,15 @@ mutation UpdateUser($id: ID!, $input: UserInput!) {
             id
             name
         }
+        team {
+            id
+            name
+        }
         manager {
+            id
+            email
+        }
+        effectiveManager {
             id
             email
         }
@@ -769,6 +922,11 @@ mutation CreateDepartment($input: DepartmentInput!) {
             id
             email
         }
+        teams {
+            id
+            name
+            description
+        }
     }
 }
 """
@@ -800,6 +958,11 @@ mutation UpdateDepartment($id: ID!, $input: DepartmentInput!) {
         users {
             id
             email
+        }
+        teams {
+            id
+            name
+            description
         }
     }
 }
@@ -859,6 +1022,96 @@ mutation AssignManagerAssistant($departmentId: ID!, $userEmail: String!) {
 MOVE_USER_TO_DEPARTMENT = """
 mutation MoveUserToDepartment($userId: ID!, $departmentId: ID!) {
     moveUserToDepartment(userId: $userId, departmentId: $departmentId) {
+        id
+        name
+        users {
+            id
+            email
+            firstName
+            lastName
+        }
+    }
+}
+"""
+
+# ===== TEAM MUTATIONS =====
+
+CREATE_TEAM = """
+mutation CreateTeam($input: TeamInput!) {
+    createTeam(input: $input) {
+        id
+        name
+        description
+        department {
+            id
+            name
+        }
+        teamLead {
+            id
+            email
+            firstName
+            lastName
+        }
+        users {
+            id
+            email
+            firstName
+            lastName
+        }
+    }
+}
+"""
+
+UPDATE_TEAM = """
+mutation UpdateTeam($id: ID!, $input: TeamInput!) {
+    updateTeam(id: $id, input: $input) {
+        id
+        name
+        description
+        department {
+            id
+            name
+        }
+        teamLead {
+            id
+            email
+            firstName
+            lastName
+        }
+        users {
+            id
+            email
+            firstName
+            lastName
+        }
+    }
+}
+"""
+
+DELETE_TEAM = """
+mutation DeleteTeam($id: ID!) {
+    deleteTeam(id: $id)
+}
+"""
+
+ASSIGN_USER_TO_TEAM = """
+mutation AssignUserToTeam($teamId: ID!, $userEmail: String!) {
+    assignUserToTeam(teamId: $teamId, userEmail: $userEmail) {
+        id
+        name
+        users {
+            id
+            email
+            firstName
+            lastName
+        }
+    }
+}
+"""
+
+REMOVE_USER_FROM_TEAM = """
+mutation RemoveUserFromTeam($teamId: ID!, $userEmail: String!) {
+    removeUserFromTeam(teamId: $teamId, userEmail: $userEmail) {
         id
         name
         users {

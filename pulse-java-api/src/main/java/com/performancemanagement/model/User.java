@@ -16,7 +16,7 @@ import java.util.Set;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@EqualsAndHashCode(exclude = {"department", "manager", "teamMembers", "assignedGoals", "ownedGoals", "managedDepartments", "coOwnedDepartments"})
+@EqualsAndHashCode(exclude = {"department", "team", "manager", "teamMembers", "assignedGoals", "ownedGoals", "managedDepartments", "coOwnedDepartments"})
 public class User {
 
     @Id
@@ -42,6 +42,10 @@ public class User {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "department_id")
     private Department department;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "team_id")
+    private Team team;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "manager_id")

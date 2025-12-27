@@ -17,6 +17,11 @@ type Query {
     rootDepartments: [Department]
     departmentsManagedByMe: [Department]
     
+    # Team queries
+    team(id: ID!): Team
+    teams: [Team]
+    teamsByDepartment(departmentId: ID!): [Team]
+    
     # Goal approval queries
     goalsPendingApproval(departmentId: ID!): [Goal]
     departmentMembersGoals(departmentId: ID!): [Goal]
@@ -60,6 +65,13 @@ type Mutation {
     assignManagerAssistant(departmentId: ID!, userEmail: String!): Department
     moveUserToDepartment(userId: ID!, departmentId: ID!): Department
     
+    # Team mutations
+    createTeam(input: TeamInput!): Team
+    updateTeam(id: ID!, input: TeamInput!): Team
+    deleteTeam(id: ID!): Boolean
+    assignUserToTeam(teamId: ID!, userEmail: String!): Team
+    removeUserFromTeam(teamId: ID!, userEmail: String!): Team
+    
     # Bulk upload mutation
     bulkUploadUsers(csvData: String!): BulkUploadResult
     
@@ -77,7 +89,9 @@ type User {
     title: String
     role: UserRole
     department: Department
+    team: Team
     manager: User
+    effectiveManager: User
     teamMembers: [User]
     assignedGoals: [Goal]
     ownedGoals: [Goal]
@@ -148,6 +162,16 @@ type Department {
     parentDepartment: Department
     childDepartments: [Department]
     users: [User]
+    teams: [Team]
+}
+
+type Team {
+    id: ID!
+    name: String!
+    description: String
+    department: Department!
+    teamLead: User!
+    users: [User]
 }
 
 enum DepartmentStatus {
@@ -208,6 +232,13 @@ input DepartmentInput {
     creationDate: String
     status: DepartmentStatus
     parentDepartmentId: ID
+}
+
+input TeamInput {
+    name: String!
+    description: String
+    departmentId: ID!
+    teamLeadEmail: String!
 }
 
 type GoalNote {

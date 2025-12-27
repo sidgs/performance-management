@@ -7,6 +7,7 @@ import com.performancemanagement.dto.KPIDTO;
 import com.performancemanagement.model.Department;
 import com.performancemanagement.model.Goal;
 import com.performancemanagement.model.KPI;
+import com.performancemanagement.model.Team;
 import com.performancemanagement.model.User;
 import com.performancemanagement.repository.DepartmentRepository;
 import com.performancemanagement.repository.GoalRepository;
@@ -49,6 +50,78 @@ public class GoalService {
             throw new IllegalStateException("Tenant context required for this operation");
         }
         return tenantId;
+    }
+
+    /**
+     * Check if a user can view a goal based on RBAC rules:
+     * 1. User owns the goal or is assigned to it
+     * 2. User is department manager of goal owner's or assigned user's department
+     * 3. User is in same team as goal owner or any assigned user
+     * 4. Otherwise return false
+     */
+    public boolean canUserViewGoal(User currentUser, Goal goal) {
+        if (currentUser == null || goal == null) {
+            return false;
+        }
+
+        // Rule 1: User owns the goal or is assigned to it
+        if (goal.getOwner() != null && Objects.equals(goal.getOwner().getId(), currentUser.getId())) {
+            return true;
+        }
+        
+        if (goal.getAssignedUsers() != null) {
+            boolean isAssigned = goal.getAssignedUsers().stream()
+                    .anyMatch(user -> Objects.equals(user.getId(), currentUser.getId()));
+            if (isAssigned) {
+                return true;
+            }
+        }
+
+        // Rule 2: User is department manager of goal owner's or assigned user's department
+        if (goal.getOwner() != null && goal.getOwner().getDepartment() != null) {
+            Department ownerDepartment = goal.getOwner().getDepartment();
+            if (ownerDepartment.getManager() != null && 
+                Objects.equals(ownerDepartment.getManager().getId(), currentUser.getId())) {
+                return true;
+            }
+        }
+        
+        // Check assigned users' departments
+        if (goal.getAssignedUsers() != null) {
+            for (User assignedUser : goal.getAssignedUsers()) {
+                if (assignedUser.getDepartment() != null) {
+                    Department assignedUserDepartment = assignedUser.getDepartment();
+                    if (assignedUserDepartment.getManager() != null && 
+                        Objects.equals(assignedUserDepartment.getManager().getId(), currentUser.getId())) {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        // Rule 3: User is in same team as goal owner or any assigned user
+        if (currentUser.getTeam() != null) {
+            Team userTeam = currentUser.getTeam();
+            
+            // Check if goal owner is in the same team
+            if (goal.getOwner() != null && goal.getOwner().getTeam() != null && 
+                Objects.equals(goal.getOwner().getTeam().getId(), userTeam.getId())) {
+                return true;
+            }
+            
+            // Check if any assigned user is in the same team
+            if (goal.getAssignedUsers() != null) {
+                boolean isTeamMember = goal.getAssignedUsers().stream()
+                        .anyMatch(user -> user.getTeam() != null && 
+                                Objects.equals(user.getTeam().getId(), userTeam.getId()));
+                if (isTeamMember) {
+                    return true;
+                }
+            }
+        }
+
+        // Rule 4: No other goals
+        return false;
     }
 
     @CacheEvict(value = {"goals", "goal", "goalsByOwner"}, allEntries = true)
@@ -172,8 +245,49 @@ public class GoalService {
         if (tenantId == null) {
             return null; // Tenant validation disabled
         }
+        
         Goal goal = goalRepository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> new IllegalArgumentException("Goal not found"));
+        
+        // Get current logged-in user
+        User currentUser = UserContext.getCurrentUser();
+        if (currentUser == null) {
+            throw new IllegalStateException("You do not have permission to view this goal");
+        }
+        
+        // Ensure lazy-loaded relationships are accessible within transaction
+        if (goal.getOwner() != null) {
+            goal.getOwner().getId();
+            if (goal.getOwner().getDepartment() != null) {
+                goal.getOwner().getDepartment().getId();
+            }
+            if (goal.getOwner().getTeam() != null) {
+                goal.getOwner().getTeam().getId();
+            }
+        }
+        if (goal.getAssignedUsers() != null) {
+            goal.getAssignedUsers().forEach(user -> {
+                user.getId();
+                if (user.getDepartment() != null) {
+                    user.getDepartment().getId();
+                }
+                if (user.getTeam() != null) {
+                    user.getTeam().getId();
+                }
+            });
+        }
+        if (currentUser.getDepartment() != null) {
+            currentUser.getDepartment().getId();
+        }
+        if (currentUser.getTeam() != null) {
+            currentUser.getTeam().getId();
+        }
+        
+        // Check authorization
+        if (!canUserViewGoal(currentUser, goal)) {
+            throw new IllegalStateException("You do not have permission to view this goal");
+        }
+        
         return convertToDTO(goal);
     }
 
@@ -191,35 +305,61 @@ public class GoalService {
             return List.of();
         }
         
-        // Filter goals to only include:
-        // 1. Goals owned by the current user
-        // 2. Goals assigned to the current user
-        // 3. Goals owned by users in the current user's department
-        // 4. Goals assigned to users in the current user's department
-        Department userDepartment = currentUser.getDepartment();
-        List<Goal> goals;
-        if (userDepartment != null) {
-            goals = goalRepository.findGoalsForUserAndDepartment(
-                tenantId, 
-                currentUser.getId(), 
-                userDepartment.getId()
-            );
-        } else {
-            // User has no department, only return goals owned by or assigned to the user
-            goals = goalRepository.findGoalsForUser(tenantId, currentUser.getId());
+        // Fetch all goals for the tenant
+        List<Goal> allGoals = goalRepository.findAllByTenantId(tenantId);
+        
+        // Ensure lazy-loaded relationships are accessible within transaction
+        // Access relationships to trigger lazy loading
+        allGoals.forEach(goal -> {
+            if (goal.getOwner() != null) {
+                goal.getOwner().getId(); // Access to trigger loading
+                if (goal.getOwner().getDepartment() != null) {
+                    goal.getOwner().getDepartment().getId();
+                }
+                if (goal.getOwner().getTeam() != null) {
+                    goal.getOwner().getTeam().getId();
+                }
+            }
+            if (goal.getAssignedUsers() != null) {
+                goal.getAssignedUsers().forEach(user -> {
+                    user.getId();
+                    if (user.getDepartment() != null) {
+                        user.getDepartment().getId();
+                    }
+                    if (user.getTeam() != null) {
+                        user.getTeam().getId();
+                    }
+                });
+            }
+        });
+        
+        // Ensure current user's relationships are accessible
+        if (currentUser.getDepartment() != null) {
+            currentUser.getDepartment().getId();
+        }
+        if (currentUser.getTeam() != null) {
+            currentUser.getTeam().getId();
         }
         
-        // Filter confidential goals: only show if user is owner or assigned
-        return goals.stream()
+        // Filter goals based on RBAC rules using canUserViewGoal
+        return allGoals.stream()
                 .filter(goal -> {
+                    // First check if user can view the goal based on RBAC rules
+                    if (!canUserViewGoal(currentUser, goal)) {
+                        return false;
+                    }
+                    
+                    // Then apply confidential goal filtering: only show if user is owner or assigned
                     if (goal.getConfidential() != null && goal.getConfidential()) {
-                        // Confidential goal: only show if user is owner or assigned
-                        boolean isOwner = goal.getOwner().getId().equals(currentUser.getId());
-                        boolean isAssigned = goal.getAssignedUsers().stream()
-                                .anyMatch(user -> user.getId().equals(currentUser.getId()));
+                        boolean isOwner = goal.getOwner() != null && 
+                                         Objects.equals(goal.getOwner().getId(), currentUser.getId());
+                        boolean isAssigned = goal.getAssignedUsers() != null && 
+                                           goal.getAssignedUsers().stream()
+                                                   .anyMatch(user -> Objects.equals(user.getId(), currentUser.getId()));
                         return isOwner || isAssigned;
                     }
-                    // Non-confidential goal: show based on existing department filtering
+                    
+                    // Non-confidential goal that passed RBAC check
                     return true;
                 })
                 .map(this::convertToDTO)
@@ -269,7 +409,51 @@ public class GoalService {
         if (tenantId == null) {
             return List.of(); // Tenant validation disabled - return empty list
         }
-        return goalRepository.findByOwnerEmailAndTenantId(email, tenantId).stream()
+        
+        // Get current logged-in user
+        User currentUser = UserContext.getCurrentUser();
+        if (currentUser == null) {
+            return List.of(); // No user logged in, return empty list
+        }
+        
+        // Fetch goals by owner
+        List<Goal> goals = goalRepository.findByOwnerEmailAndTenantId(email, tenantId);
+        
+        // Ensure lazy-loaded relationships are accessible within transaction
+        goals.forEach(goal -> {
+            if (goal.getOwner() != null) {
+                goal.getOwner().getId();
+                if (goal.getOwner().getDepartment() != null) {
+                    goal.getOwner().getDepartment().getId();
+                }
+                if (goal.getOwner().getTeam() != null) {
+                    goal.getOwner().getTeam().getId();
+                }
+            }
+            if (goal.getAssignedUsers() != null) {
+                goal.getAssignedUsers().forEach(user -> {
+                    user.getId();
+                    if (user.getDepartment() != null) {
+                        user.getDepartment().getId();
+                    }
+                    if (user.getTeam() != null) {
+                        user.getTeam().getId();
+                    }
+                });
+            }
+        });
+        
+        // Ensure current user's relationships are accessible
+        if (currentUser.getDepartment() != null) {
+            currentUser.getDepartment().getId();
+        }
+        if (currentUser.getTeam() != null) {
+            currentUser.getTeam().getId();
+        }
+        
+        // Filter goals based on RBAC rules - only return goals the user can view
+        return goals.stream()
+                .filter(goal -> canUserViewGoal(currentUser, goal))
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
     }
@@ -293,10 +477,14 @@ public class GoalService {
         User user = userRepository.findByEmailAndTenantId(userEmail, tenantId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
-        // Validate that the user being assigned is either the goal owner or a member of the goal owner's department
+        // Validate that the user being assigned is either:
+        // 1. The goal owner
+        // 2. A member of the goal owner's department
+        // 3. A member of a team where the goal owner is the team lead
         User goalOwner = goal.getOwner();
         boolean isOwner = Objects.equals(user.getId(), goalOwner.getId());
         boolean isInOwnerDepartment = false;
+        boolean isTeamMemberOfOwner = false;
         
         if (!isOwner && goalOwner.getDepartment() != null) {
             Department ownerDepartment = goalOwner.getDepartment();
@@ -305,27 +493,55 @@ public class GoalService {
             }
         }
         
-        if (!isOwner && !isInOwnerDepartment) {
+        // Check if goal owner is team lead of user's team
+        if (!isOwner && user.getTeam() != null && user.getTeam().getTeamLead() != null) {
+            isTeamMemberOfOwner = Objects.equals(user.getTeam().getTeamLead().getId(), goalOwner.getId());
+        }
+        
+        if (!isOwner && !isInOwnerDepartment && !isTeamMemberOfOwner) {
             throw new IllegalStateException(
-                "Goals can only be assigned to the goal owner or members of the goal owner's department. " +
-                "The user you are trying to assign is not the goal owner and is not in the same department."
+                "Goals can only be assigned to: " +
+                "1. The goal owner, " +
+                "2. Members of the goal owner's department, or " +
+                "3. Members of a team where the goal owner is the team lead. " +
+                "The user you are trying to assign does not meet any of these criteria."
             );
         }
 
-        // Check if user belongs to a department and if approval is needed
-        Department userDepartment = user.getDepartment();
-        if (userDepartment != null) {
-            User departmentManager = userDepartment.getManager();
-            User managerAssistant = userDepartment.getManagerAssistant();
-            
+        // Check if approval is needed
+        // Approval is NOT needed if:
+        // 1. Goal owner is the user being assigned (self-assignment)
+        // 2. Goal owner is department manager or assistant
+        // 3. Goal owner is team lead of user's team
+        boolean needsApproval = true;
+        
+        if (isOwner) {
+            // Self-assignment doesn't need approval
+            needsApproval = false;
+        } else {
             // Check if goal owner is department manager or assistant
-            boolean isManagerOrAssistant = (departmentManager != null && Objects.equals(departmentManager.getId(), goalOwner.getId())) ||
-                                          (managerAssistant != null && Objects.equals(managerAssistant.getId(), goalOwner.getId()));
-            
-            // If goal owner is not manager or assistant, require approval
-            if (!isManagerOrAssistant) {
-                goal.setStatus(Goal.GoalStatus.PENDING_APPROVAL);
+            Department userDepartment = user.getDepartment();
+            if (userDepartment != null) {
+                User departmentManager = userDepartment.getManager();
+                User managerAssistant = userDepartment.getManagerAssistant();
+                
+                boolean isManagerOrAssistant = (departmentManager != null && Objects.equals(departmentManager.getId(), goalOwner.getId())) ||
+                                              (managerAssistant != null && Objects.equals(managerAssistant.getId(), goalOwner.getId()));
+                
+                if (isManagerOrAssistant) {
+                    needsApproval = false;
+                }
             }
+            
+            // Check if goal owner is team lead
+            if (needsApproval && isTeamMemberOfOwner) {
+                needsApproval = false;
+            }
+        }
+        
+        // If approval is needed, set status to PENDING_APPROVAL
+        if (needsApproval) {
+            goal.setStatus(Goal.GoalStatus.PENDING_APPROVAL);
         }
 
         // Set or update assigned date
@@ -481,15 +697,28 @@ public class GoalService {
             return List.of();
         }
         
+        // Get current logged-in user
+        User currentUser = UserContext.getCurrentUser();
+        if (currentUser == null) {
+            throw new IllegalStateException("User not authenticated");
+        }
+        
         // Validate department exists
-        departmentRepository.findByIdAndTenantId(departmentId, tenantId)
+        Department department = departmentRepository.findByIdAndTenantId(departmentId, tenantId)
                 .orElseThrow(() -> new IllegalArgumentException("Department not found"));
+        
+        // Verify user is the department manager
+        if (department.getManager() == null || 
+            !Objects.equals(department.getManager().getId(), currentUser.getId())) {
+            throw new IllegalStateException("Only the department manager can view pending approval goals");
+        }
         
         return goalRepository.findAllByTenantId(tenantId).stream()
                 .filter(goal -> goal.getStatus() == Goal.GoalStatus.PENDING_APPROVAL)
-                .filter(goal -> goal.getAssignedUsers().stream()
-                        .anyMatch(user -> user.getDepartment() != null && 
-                                Objects.equals(user.getDepartment().getId(), departmentId)))
+                .filter(goal -> goal.getAssignedUsers() != null &&
+                        goal.getAssignedUsers().stream()
+                                .anyMatch(user -> user.getDepartment() != null && 
+                                        Objects.equals(user.getDepartment().getId(), departmentId)))
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
     }
@@ -500,14 +729,37 @@ public class GoalService {
             return List.of();
         }
         
+        // Get current logged-in user
+        User currentUser = UserContext.getCurrentUser();
+        if (currentUser == null) {
+            throw new IllegalStateException("User not authenticated");
+        }
+        
         // Validate department exists
-        departmentRepository.findByIdAndTenantId(departmentId, tenantId)
+        Department department = departmentRepository.findByIdAndTenantId(departmentId, tenantId)
                 .orElseThrow(() -> new IllegalArgumentException("Department not found"));
         
+        // Verify user is the department manager
+        if (department.getManager() == null || 
+            !Objects.equals(department.getManager().getId(), currentUser.getId())) {
+            throw new IllegalStateException("Only the department manager can view department members' goals");
+        }
+        
         return goalRepository.findAllByTenantId(tenantId).stream()
-                .filter(goal -> goal.getAssignedUsers().stream()
-                        .anyMatch(user -> user.getDepartment() != null && 
-                                Objects.equals(user.getDepartment().getId(), departmentId)))
+                .filter(goal -> {
+                    // Check if goal owner is in the department
+                    boolean ownerInDepartment = goal.getOwner() != null && 
+                                              goal.getOwner().getDepartment() != null &&
+                                              Objects.equals(goal.getOwner().getDepartment().getId(), departmentId);
+                    
+                    // Check if any assigned user is in the department
+                    boolean assignedUserInDepartment = goal.getAssignedUsers() != null &&
+                                                      goal.getAssignedUsers().stream()
+                                                              .anyMatch(user -> user.getDepartment() != null && 
+                                                                      Objects.equals(user.getDepartment().getId(), departmentId));
+                    
+                    return ownerInDepartment || assignedUserInDepartment;
+                })
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
     }

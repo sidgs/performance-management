@@ -148,6 +148,29 @@ public class UserService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Compute user's effective manager based on team/department hierarchy.
+     * Priority: team lead → department manager → null
+     */
+    public User getEffectiveManager(User user) {
+        if (user == null) {
+            return null;
+        }
+
+        // Priority 1: If user belongs to a team with a team lead
+        if (user.getTeam() != null && user.getTeam().getTeamLead() != null) {
+            return user.getTeam().getTeamLead();
+        }
+
+        // Priority 2: If user belongs to a department with a manager
+        if (user.getDepartment() != null && user.getDepartment().getManager() != null) {
+            return user.getDepartment().getManager();
+        }
+
+        // Priority 3: No manager
+        return null;
+    }
+
     private UserDTO convertToDTO(User user) {
         UserDTO dto = new UserDTO();
         dto.setId(user.getId());
@@ -165,9 +188,11 @@ public class UserService {
             dto.setDepartmentName(user.getDepartment().getName());
         }
         
-        if (user.getManager() != null) {
-            dto.setManagerId(user.getManager().getId());
-            dto.setManagerEmail(user.getManager().getEmail());
+        // Use effective manager instead of direct manager field
+        User effectiveManager = getEffectiveManager(user);
+        if (effectiveManager != null) {
+            dto.setManagerId(effectiveManager.getId());
+            dto.setManagerEmail(effectiveManager.getEmail());
         }
         
         return dto;

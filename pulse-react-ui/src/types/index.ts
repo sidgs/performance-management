@@ -7,9 +7,21 @@ export interface User {
   lastName: string;
   email: string;
   title: string;
+  role?: string;
   department?: Department;
+  team?: Team;
   manager?: User;
+  effectiveManager?: User;
   teamMembers?: User[];
+}
+
+export interface Team {
+  id: string;
+  name: string;
+  description?: string;
+  department: Department;
+  teamLead: User;
+  users?: User[];
 }
 
 export interface Goal {
@@ -69,6 +81,7 @@ export interface Department {
   parentDepartment?: Department;
   childDepartments: Department[];
   users: User[];
+  teams?: Team[];
 }
 
 // Component Props Types

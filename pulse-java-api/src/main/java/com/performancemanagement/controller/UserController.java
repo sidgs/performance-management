@@ -24,7 +24,7 @@ public class UserController {
     @PostMapping
     public ResponseEntity<UserDTO> createUser(@RequestBody UserDTO userDTO) {
         try {
-            authorizationService.requireEpmAdmin();
+            authorizationService.requireEpmOrHrAdmin();
             UserDTO created = userService.createUser(userDTO);
             return new ResponseEntity<>(created, HttpStatus.CREATED);
         } catch (IllegalArgumentException e) {

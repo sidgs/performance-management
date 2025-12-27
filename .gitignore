@@ -4,6 +4,10 @@
 # Log file
 *.log
 
+# PID files for Makefile
+.agent.pid
+.api.pid
+
 # BlueJ files
 *.ctxt
 
