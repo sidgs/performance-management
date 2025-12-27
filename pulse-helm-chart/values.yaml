@@ -86,7 +86,7 @@ javaApi:
 
   # Health check configuration
   healthCheck:
-    enabled: true
+    enabled: false
     path: /api/v1/epm/
     initialDelaySeconds: 40
     periodSeconds: 30
