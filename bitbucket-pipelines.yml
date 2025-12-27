@@ -35,6 +35,10 @@ definitions:
           - |
             # Get release version from script
             RELEASE_VERSION=${RELEASE_VERSION}
+            if [ -z "${RELEASE_VERSION}" ]; then
+              echo "RELEASE_VERSION is not set. Skipping build."
+              exit 0
+            fi
             echo "Building Pulse Agent AI Docker image for release: ${RELEASE_VERSION}..."
             cd pulse-agent-ai
             docker build -t sidgs.jfrog.io/sidgs/pulse-agent-ai:latest .
@@ -59,6 +63,10 @@ definitions:
           - |
             # Get release version from script
             RELEASE_VERSION=${RELEASE_VERSION}
+            if [ -z "${RELEASE_VERSION}" ]; then
+              echo "RELEASE_VERSION is not set. Skipping build."
+              exit 0
+            fi
             echo "Building Pulse Java API Docker image for release: ${RELEASE_VERSION}..."
             cd pulse-java-api
             docker build -t sidgs.jfrog.io/sidgs/pulse-java-api:latest .
@@ -81,6 +89,10 @@ definitions:
           - |
             # Get release version from script
             RELEASE_VERSION=${RELEASE_VERSION}
+            if [ -z "${RELEASE_VERSION}" ]; then
+              echo "RELEASE_VERSION is not set. Skipping deployment."
+              exit 0
+            fi
             echo "Deploying release ${RELEASE_VERSION} to Kubernetes..."
             
 
