@@ -11,6 +11,7 @@ definitions:
         script:
           - |
             # Get release version from script
+            chmod +x release-version.sh
             RELEASE_VERSION=$(./release-version.sh)
             SCRIPT_EXIT_CODE=$?
             if [ $SCRIPT_EXIT_CODE -ne 0 ]; then
