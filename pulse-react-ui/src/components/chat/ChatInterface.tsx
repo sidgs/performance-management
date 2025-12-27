@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { getCurrentUserRoles } from '../../api/authService';
 import {
   Box,
   TextField,
@@ -15,6 +16,8 @@ import {
   Send as SendIcon,
   SmartToy as AgentIcon,
   Person as PersonIcon,
+  AttachFile as AttachFileIcon,
+  Close as CloseIcon,
 } from '@mui/icons-material';
 import ReactMarkdown from 'react-markdown';
 
@@ -23,13 +26,15 @@ export interface ChatMessage {
   content: string;
   timestamp?: string;
   agent_name?: string;
+  fileName?: string;
+  fileType?: string;
 }
 
 interface ChatInterfaceProps {
   sessionId: string | null;
   messages: ChatMessage[];
   isLoading: boolean;
-  onSendMessage: (message: string) => void;
+  onSendMessage: (message: string, file?: File) => void;
 }
 
 const ChatInterface: React.FC<ChatInterfaceProps> = ({
@@ -39,7 +44,16 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   onSendMessage,
 }) => {
   const [inputMessage, setInputMessage] = useState('');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [userRoles, setUserRoles] = useState<string[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Load user roles on mount
+  useEffect(() => {
+    const roles = getCurrentUserRoles();
+    setUserRoles(roles);
+  }, []);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -47,9 +61,48 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   }, [messages]);
 
   const handleSend = () => {
-    if (inputMessage.trim() && !isLoading && sessionId) {
-      onSendMessage(inputMessage.trim());
+    if ((inputMessage.trim() || selectedFile) && !isLoading && sessionId) {
+      onSendMessage(inputMessage.trim(), selectedFile || undefined);
       setInputMessage('');
+      setSelectedFile(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file type
+      const allowedTypes = ['text/csv', 'application/pdf', 'text/plain'];
+      const allowedExtensions = ['.csv', '.pdf', '.txt'];
+      const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
+      
+      const isValidType = allowedTypes.includes(file.type) || 
+                         allowedExtensions.includes(fileExtension);
+      
+      if (!isValidType) {
+        alert('Only CSV, PDF, and TXT files are allowed.');
+        e.target.value = '';
+        return;
+      }
+
+      // Check file size (limit to 10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        alert('File size must be less than 10MB.');
+        e.target.value = '';
+        return;
+      }
+
+      setSelectedFile(file);
+    }
+  };
+
+  const handleRemoveFile = () => {
+    setSelectedFile(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   };
 
@@ -167,6 +220,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                 direction="row"
                 spacing={1}
                 justifyContent={isUser ? 'flex-end' : 'flex-start'}
+                alignItems="flex-start"
                 sx={{ width: '100%' }}
               >
                 {!isUser && (
@@ -255,6 +309,17 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                   >
                     <ReactMarkdown>{message.content}</ReactMarkdown>
                   </Box>
+                  {message.fileName && (
+                    <Chip
+                      label={message.fileName}
+                      size="small"
+                      sx={{
+                        mt: 0.5,
+                        fontSize: '0.7rem',
+                        height: 20,
+                      }}
+                    />
+                  )}
                   {message.timestamp && (
                     <Typography
                       variant="caption"
@@ -318,7 +383,37 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           bgcolor: 'background.paper',
         }}
       >
+        {selectedFile && (
+          <Box sx={{ mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Chip
+              label={selectedFile.name}
+              onDelete={handleRemoveFile}
+              size="small"
+              color="primary"
+              variant="outlined"
+            />
+            <Typography variant="caption" color="text.secondary">
+              ({Math.round(selectedFile.size / 1024)} KB)
+            </Typography>
+          </Box>
+        )}
         <Stack direction="row" spacing={1} alignItems="flex-end">
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileSelect}
+            accept=".csv,.pdf,.txt"
+            style={{ display: 'none' }}
+            disabled={!sessionId || isLoading}
+          />
+          <IconButton
+            color="primary"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={!sessionId || isLoading}
+            sx={{ mb: 0.5 }}
+          >
+            <AttachFileIcon />
+          </IconButton>
           <TextField
             fullWidth
             multiline
@@ -334,12 +429,31 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           <IconButton
             color="primary"
             onClick={handleSend}
-            disabled={!inputMessage.trim() || !sessionId || isLoading}
+            disabled={(!inputMessage.trim() && !selectedFile) || !sessionId || isLoading}
             sx={{ mb: 0.5 }}
           >
             <SendIcon />
           </IconButton>
         </Stack>
+        {/* User Roles Display */}
+        {userRoles.length > 0 && (
+          <Box sx={{ mt: 1, display: 'flex', alignItems: 'center', gap: 0.5, flexWrap: 'wrap' }}>
+            <Typography variant="caption" color="text.secondary" sx={{ mr: 0.5 }}>
+              Roles:
+            </Typography>
+            {userRoles.map((role, index) => (
+              <Chip
+                key={index}
+                label={role}
+                size="small"
+                sx={{
+                  height: 20,
+                  fontSize: '0.65rem',
+                }}
+              />
+            ))}
+          </Box>
+        )}
       </Box>
     </Box>
   );

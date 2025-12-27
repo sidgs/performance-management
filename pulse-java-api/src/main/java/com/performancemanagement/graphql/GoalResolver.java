@@ -5,6 +5,7 @@ import com.performancemanagement.model.Goal;
 import com.performancemanagement.model.KPI;
 import com.performancemanagement.model.GoalNote;
 import com.performancemanagement.model.User;
+import com.performancemanagement.model.Territory;
 import com.performancemanagement.repository.KPIRepository;
 import com.performancemanagement.service.GoalNoteService;
 import graphql.kickstart.tools.GraphQLResolver;
@@ -155,5 +156,25 @@ public class GoalResolver implements GraphQLResolver<Goal> {
         goal = entityManager.merge(goal);
         // Use service to get notes with authorization filtering
         return goalNoteService.getNotesByGoalId(goal.getId());
+    }
+
+    @Transactional(readOnly = true)
+    public Territory territory(Goal goal) {
+        // Re-attach the entity to the current session
+        goal = entityManager.merge(goal);
+        String tenantId = getCurrentTenantId();
+        Territory territory = goal.getTerritory();
+        if (territory != null) {
+            Hibernate.initialize(territory);
+            Hibernate.initialize(territory.getTenant());
+            if (tenantId == null) {
+                // Tenant validation disabled - return territory if available
+                return territory;
+            }
+            if (territory.getTenant().getFqdn().equals(tenantId)) {
+                return territory;
+            }
+        }
+        return null;
     }
 }

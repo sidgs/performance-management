@@ -384,7 +384,7 @@ def update_goal(goal_id: str, short_description: Optional[str] = None,
                 assigned_date: Optional[str] = None, target_completion_date: Optional[str] = None,
                 status: Optional[str] = None, parent_goal_id: Optional[str] = None,
                 confidential: Optional[bool] = None, kpis: Optional[List[dict]] = None,
-                token: Optional[str] = None) -> str:
+                territory_id: Optional[str] = None, token: Optional[str] = None) -> str:
     """Update an existing goal.
     
     Args:
@@ -400,9 +400,10 @@ def update_goal(goal_id: str, short_description: Optional[str] = None,
         parent_goal_id: New parent goal ID
         confidential: New confidential flag
         kpis: New KPIs list
+        territory_id: New territory ID
         token: JWT token for authentication (from session state)
     """
-    logging.info(f"[TOOL CALL] update_goal(goal_id='{goal_id}', status={status}, owner_email={owner_email})")
+    logging.info(f"[TOOL CALL] update_goal(goal_id='{goal_id}', status={status}, owner_email={owner_email}, territory_id={territory_id})")
     try:
         input_data = {}
         if short_description is not None:
@@ -427,6 +428,8 @@ def update_goal(goal_id: str, short_description: Optional[str] = None,
             input_data["confidential"] = confidential
         if kpis is not None:
             input_data["kpis"] = kpis
+        if territory_id is not None:
+            input_data["territoryId"] = territory_id
         
         variables = {"id": goal_id, "input": input_data}
         result = client.execute(queries.UPDATE_GOAL, variables, token=token)
@@ -1134,4 +1137,112 @@ def bulk_upload_users(csv_data: str, token: Optional[str] = None) -> str:
         traceback.print_exc()
         logging.error(f"Error bulk uploading users: {e}", exc_info=True)
         return f"Error bulk uploading users: {str(e)}"
+
+
+# ===== TERRITORY TOOLS =====
+
+def list_territories(token: Optional[str] = None) -> str:
+    """List all territories.
+    
+    Args:
+        token: JWT token for authentication (from session state)
+    """
+    logging.info("[TOOL CALL] list_territories()")
+    try:
+        result = client.execute(queries.GET_TERRITORIES, None, token=token)
+        logging.info(f"[TOOL RESULT] list_territories - Success: {json.dumps(result)}")
+        return json.dumps(result)
+    except Exception as e:
+        traceback.print_exc()
+        logging.error(f"Error listing territories: {e}", exc_info=True)
+        return f"Error listing territories: {str(e)}"
+
+
+def get_territory(territory_id: str, token: Optional[str] = None) -> str:
+    """Get a territory by ID.
+    
+    Args:
+        territory_id: The ID of the territory
+        token: JWT token for authentication (from session state)
+    """
+    logging.info(f"[TOOL CALL] get_territory(territory_id='{territory_id}')")
+    try:
+        variables = {"id": territory_id}
+        result = client.execute(queries.GET_TERRITORY, variables, token=token)
+        logging.info(f"[TOOL RESULT] get_territory - Success: {json.dumps(result)}")
+        return json.dumps(result)
+    except Exception as e:
+        traceback.print_exc()
+        logging.error(f"Error fetching territory: {e}", exc_info=True)
+        return f"Error fetching territory: {str(e)}"
+
+
+def create_territory(name: str, description: Optional[str] = None, token: Optional[str] = None) -> str:
+    """Create a new territory.
+    
+    Args:
+        name: Name of the territory
+        description: Optional description of the territory
+        token: JWT token for authentication (from session state)
+    """
+    logging.info(f"[TOOL CALL] create_territory(name='{name}', description='{description}')")
+    try:
+        input_data = {
+            "name": name,
+            "description": description
+        }
+        variables = {"input": input_data}
+        result = client.execute(queries.CREATE_TERRITORY, variables, token=token)
+        logging.info(f"[TOOL RESULT] create_territory - Success: {json.dumps(result)}")
+        return json.dumps(result)
+    except Exception as e:
+        traceback.print_exc()
+        logging.error(f"Error creating territory: {e}", exc_info=True)
+        return f"Error creating territory: {str(e)}"
+
+
+def update_territory(territory_id: str, name: Optional[str] = None, description: Optional[str] = None, token: Optional[str] = None) -> str:
+    """Update an existing territory.
+    
+    Args:
+        territory_id: ID of the territory to update
+        name: New name for the territory
+        description: New description for the territory
+        token: JWT token for authentication (from session state)
+    """
+    logging.info(f"[TOOL CALL] update_territory(territory_id='{territory_id}', name='{name}', description='{description}')")
+    try:
+        input_data = {}
+        if name is not None:
+            input_data["name"] = name
+        if description is not None:
+            input_data["description"] = description
+        
+        variables = {"id": territory_id, "input": input_data}
+        result = client.execute(queries.UPDATE_TERRITORY, variables, token=token)
+        logging.info(f"[TOOL RESULT] update_territory - Success: {json.dumps(result)}")
+        return json.dumps(result)
+    except Exception as e:
+        traceback.print_exc()
+        logging.error(f"Error updating territory: {e}", exc_info=True)
+        return f"Error updating territory: {str(e)}"
+
+
+def delete_territory(territory_id: str, token: Optional[str] = None) -> str:
+    """Delete a territory.
+    
+    Args:
+        territory_id: ID of the territory to delete
+        token: JWT token for authentication (from session state)
+    """
+    logging.info(f"[TOOL CALL] delete_territory(territory_id='{territory_id}')")
+    try:
+        variables = {"id": territory_id}
+        result = client.execute(queries.DELETE_TERRITORY, variables, token=token)
+        logging.info(f"[TOOL RESULT] delete_territory - Success: {json.dumps(result)}")
+        return json.dumps(result)
+    except Exception as e:
+        traceback.print_exc()
+        logging.error(f"Error deleting territory: {e}", exc_info=True)
+        return f"Error deleting territory: {str(e)}"
 

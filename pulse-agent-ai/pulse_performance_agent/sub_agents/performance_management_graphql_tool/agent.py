@@ -69,6 +69,13 @@ tools_list = [
     # Tenant tools
     tools_module.list_tenants,
     
+    # Territory tools
+    tools_module.list_territories,
+    tools_module.get_territory,
+    tools_module.create_territory,
+    tools_module.update_territory,
+    tools_module.delete_territory,
+    
     # Goal Note tools
     tools_module.create_goal_note,
     tools_module.update_goal_note,

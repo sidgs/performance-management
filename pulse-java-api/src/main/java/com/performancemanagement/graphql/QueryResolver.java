@@ -18,9 +18,14 @@ import com.performancemanagement.service.DepartmentService;
 import com.performancemanagement.service.GoalService;
 import com.performancemanagement.service.GoalNoteService;
 import com.performancemanagement.service.TeamService;
+import com.performancemanagement.service.TerritoryService;
+import com.performancemanagement.dto.TerritoryDTO;
+import com.performancemanagement.model.Territory;
+import com.performancemanagement.repository.TerritoryRepository;
 import com.performancemanagement.model.Team;
 import com.performancemanagement.model.GoalNote;
 import graphql.kickstart.tools.GraphQLQueryResolver;
+import jakarta.persistence.EntityManager;
 import org.hibernate.Hibernate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -62,6 +67,15 @@ public class QueryResolver implements GraphQLQueryResolver {
 
     @Autowired
     private TeamService teamService;
+
+    @Autowired
+    private TerritoryService territoryService;
+
+    @Autowired
+    private TerritoryRepository territoryRepository;
+
+    @Autowired
+    private EntityManager entityManager;
 
     private String getCurrentTenantId() {
         return TenantContext.getCurrentTenantId(); // Returns null if no tenant context - tenant validation is disabled
@@ -106,6 +120,7 @@ public class QueryResolver implements GraphQLQueryResolver {
     }
 
     // Goal queries
+    @Transactional(readOnly = true)
     public Goal goal(Long id) {
         String tenantId = getCurrentTenantId();
         if (tenantId == null) {
@@ -123,25 +138,45 @@ public class QueryResolver implements GraphQLQueryResolver {
             throw new IllegalStateException("You do not have permission to view this goal");
         }
         
+        // Re-attach the currentUser to the current session before accessing lazy relationships
+        currentUser = entityManager.merge(currentUser);
+        
         // Check authorization using GoalService helper method
         // We need to initialize lazy collections first
         Hibernate.initialize(goal.getOwner());
         Hibernate.initialize(goal.getAssignedUsers());
         if (goal.getOwner() != null) {
             Hibernate.initialize(goal.getOwner().getDepartment());
+            if (goal.getOwner().getDepartment() != null) {
+                // Initialize Department's manager since canUserViewGoal accesses it
+                Hibernate.initialize(goal.getOwner().getDepartment().getManager());
+            }
             Hibernate.initialize(goal.getOwner().getTeam());
         }
         if (goal.getAssignedUsers() != null) {
             goal.getAssignedUsers().forEach(user -> {
                 Hibernate.initialize(user.getDepartment());
+                if (user.getDepartment() != null) {
+                    // Initialize Department's manager since canUserViewGoal accesses it
+                    Hibernate.initialize(user.getDepartment().getManager());
+                }
                 Hibernate.initialize(user.getTeam());
             });
         }
         if (currentUser.getDepartment() != null) {
             Hibernate.initialize(currentUser.getDepartment());
+            // Initialize Department's manager if needed
+            if (currentUser.getDepartment().getManager() != null) {
+                Hibernate.initialize(currentUser.getDepartment().getManager());
+            }
         }
         if (currentUser.getTeam() != null) {
             Hibernate.initialize(currentUser.getTeam());
+        }
+        
+        // Initialize territory to avoid LazyInitializationException
+        if (goal.getTerritory() != null) {
+            Hibernate.initialize(goal.getTerritory());
         }
         
         // Use GoalService to check authorization
@@ -166,6 +201,9 @@ public class QueryResolver implements GraphQLQueryResolver {
             return List.of();
         }
         
+        // Re-attach the currentUser to the current session before accessing lazy relationships
+        final User mergedCurrentUser = entityManager.merge(currentUser);
+        
         // Fetch all goals for the tenant
         List<Goal> allGoals = goalRepository.findAllByTenantId(tenantId);
         
@@ -175,39 +213,55 @@ public class QueryResolver implements GraphQLQueryResolver {
             Hibernate.initialize(goal.getOwner());
             if (goal.getOwner() != null) {
                 Hibernate.initialize(goal.getOwner().getDepartment());
+                if (goal.getOwner().getDepartment() != null) {
+                    // Initialize Department's manager since canUserViewGoal accesses it
+                    Hibernate.initialize(goal.getOwner().getDepartment().getManager());
+                }
                 Hibernate.initialize(goal.getOwner().getTeam());
             }
             if (goal.getAssignedUsers() != null) {
                 goal.getAssignedUsers().forEach(user -> {
                     Hibernate.initialize(user.getDepartment());
+                    if (user.getDepartment() != null) {
+                        // Initialize Department's manager since canUserViewGoal accesses it
+                        Hibernate.initialize(user.getDepartment().getManager());
+                    }
                     Hibernate.initialize(user.getTeam());
                 });
+            }
+            // Initialize territory to avoid LazyInitializationException
+            if (goal.getTerritory() != null) {
+                Hibernate.initialize(goal.getTerritory());
             }
         });
         
         // Initialize current user's relationships
-        if (currentUser.getDepartment() != null) {
-            Hibernate.initialize(currentUser.getDepartment());
+        if (mergedCurrentUser.getDepartment() != null) {
+            Hibernate.initialize(mergedCurrentUser.getDepartment());
+            // Initialize Department's manager if needed
+            if (mergedCurrentUser.getDepartment().getManager() != null) {
+                Hibernate.initialize(mergedCurrentUser.getDepartment().getManager());
+            }
         }
-        if (currentUser.getTeam() != null) {
-            Hibernate.initialize(currentUser.getTeam());
+        if (mergedCurrentUser.getTeam() != null) {
+            Hibernate.initialize(mergedCurrentUser.getTeam());
         }
         
         // Filter goals based on RBAC rules using GoalService helper
         return allGoals.stream()
                 .filter(goal -> {
                     // First check if user can view the goal based on RBAC rules
-                    if (!goalService.canUserViewGoal(currentUser, goal)) {
+                    if (!goalService.canUserViewGoal(mergedCurrentUser, goal)) {
                         return false;
                     }
                     
                     // Then apply confidential goal filtering: only show if user is owner or assigned
                     if (goal.getConfidential() != null && goal.getConfidential()) {
                         boolean isOwner = goal.getOwner() != null && 
-                                         goal.getOwner().getId().equals(currentUser.getId());
+                                         goal.getOwner().getId().equals(mergedCurrentUser.getId());
                         boolean isAssigned = goal.getAssignedUsers() != null && 
                                            goal.getAssignedUsers().stream()
-                                                   .anyMatch(user -> user.getId().equals(currentUser.getId()));
+                                                   .anyMatch(user -> user.getId().equals(mergedCurrentUser.getId()));
                         return isOwner || isAssigned;
                     }
                     
@@ -232,6 +286,7 @@ public class QueryResolver implements GraphQLQueryResolver {
         return goalRepository.findAllByTenantId(tenantId);
     }
 
+    @Transactional(readOnly = true)
     public List<Goal> goalsByOwner(String email) {
         String tenantId = getCurrentTenantId();
         if (tenantId == null) {
@@ -244,6 +299,9 @@ public class QueryResolver implements GraphQLQueryResolver {
             return List.of(); // No user logged in, return empty list
         }
         
+        // Re-attach the currentUser to the current session before accessing lazy relationships
+        final User mergedCurrentUser = entityManager.merge(currentUser);
+        
         // Fetch goals by owner
         List<Goal> goals = goalRepository.findByOwnerEmailAndTenantId(email, tenantId);
         
@@ -253,27 +311,43 @@ public class QueryResolver implements GraphQLQueryResolver {
             Hibernate.initialize(goal.getOwner());
             if (goal.getOwner() != null) {
                 Hibernate.initialize(goal.getOwner().getDepartment());
+                if (goal.getOwner().getDepartment() != null) {
+                    // Initialize Department's manager since canUserViewGoal accesses it
+                    Hibernate.initialize(goal.getOwner().getDepartment().getManager());
+                }
                 Hibernate.initialize(goal.getOwner().getTeam());
             }
             if (goal.getAssignedUsers() != null) {
                 goal.getAssignedUsers().forEach(user -> {
                     Hibernate.initialize(user.getDepartment());
+                    if (user.getDepartment() != null) {
+                        // Initialize Department's manager since canUserViewGoal accesses it
+                        Hibernate.initialize(user.getDepartment().getManager());
+                    }
                     Hibernate.initialize(user.getTeam());
                 });
+            }
+            // Initialize territory to avoid LazyInitializationException
+            if (goal.getTerritory() != null) {
+                Hibernate.initialize(goal.getTerritory());
             }
         });
         
         // Initialize current user's relationships
-        if (currentUser.getDepartment() != null) {
-            Hibernate.initialize(currentUser.getDepartment());
+        if (mergedCurrentUser.getDepartment() != null) {
+            Hibernate.initialize(mergedCurrentUser.getDepartment());
+            // Initialize Department's manager if needed
+            if (mergedCurrentUser.getDepartment().getManager() != null) {
+                Hibernate.initialize(mergedCurrentUser.getDepartment().getManager());
+            }
         }
-        if (currentUser.getTeam() != null) {
-            Hibernate.initialize(currentUser.getTeam());
+        if (mergedCurrentUser.getTeam() != null) {
+            Hibernate.initialize(mergedCurrentUser.getTeam());
         }
         
         // Filter goals based on RBAC rules - only return goals the user can view
         return goals.stream()
-                .filter(goal -> goalService.canUserViewGoal(currentUser, goal))
+                .filter(goal -> goalService.canUserViewGoal(mergedCurrentUser, goal))
                 .toList();
     }
 
@@ -357,6 +431,23 @@ public class QueryResolver implements GraphQLQueryResolver {
             return List.of();
         }
         return teamRepository.findByDepartmentIdAndTenantId(departmentId, tenantId);
+    }
+
+    // Territory queries
+    public List<Territory> territories() {
+        String tenantId = getCurrentTenantId();
+        if (tenantId == null) {
+            return List.of();
+        }
+        return territoryRepository.findByTenantId(tenantId);
+    }
+
+    public Territory territory(Long id) {
+        String tenantId = getCurrentTenantId();
+        if (tenantId == null) {
+            return null;
+        }
+        return territoryRepository.findByIdAndTenantId(id, tenantId).orElse(null);
     }
 
     // Tenant queries

@@ -1,7 +1,10 @@
 """Chat endpoints for interacting with the AI agent."""
 import traceback
 import logging
-from fastapi import APIRouter, HTTPException, Query, Path
+import base64
+import json
+from fastapi import APIRouter, HTTPException, Query, Path, File, UploadFile, Form, Request
+from typing import Optional
 from google.adk.runners import Runner
 from google.genai import types
 
@@ -41,12 +44,15 @@ router = APIRouter(tags=["chat"])
     
     **Note**: The session must be created first using the sessions endpoint.
     Multiple concurrent chats are supported by using different session IDs.
+    
+    Supports both JSON (application/json) and multipart/form-data (for file uploads).
+    Allowed file types: CSV, PDF, TXT.
     """,
     response_description="Agent's response to the chat message"
 )
 async def chat(
+    request_obj: Request,
     session_id: str = Path(..., description="The session ID for this conversation", example="session-uuid-123"),
-    request: ChatRequest = ...,
     user_id: str = Query(..., description="The user ID sending the message", example="user123")
 ):
     """
@@ -54,8 +60,51 @@ async def chat(
     
     The agent will use the JWT token stored in session state for GraphQL API authentication.
     The session ID is specified in the URL path, enabling multiple concurrent chat sessions.
+    
+    Supports both JSON requests (application/json) and multipart/form-data (for file uploads).
     """
     try:
+        # Determine message and file content based on content type
+        chat_message = ""
+        file_content = None
+        file_name = None
+        file_type = None
+        
+        content_type = request_obj.headers.get("content-type", "")
+        
+        if "multipart/form-data" in content_type:
+            # Handle form data with file upload
+            form = await request_obj.form()
+            chat_message = form.get("message", "")
+            file = form.get("file")
+            
+            if file and hasattr(file, 'filename') and file.filename:
+                # Validate file type
+                allowed_types = ['text/csv', 'application/pdf', 'text/plain']
+                allowed_extensions = ['.csv', '.pdf', '.txt']
+                file_extension = '.' + (file.filename or '').split('.')[-1].lower()
+                
+                if file.content_type not in allowed_types and file_extension not in allowed_extensions:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Only CSV, PDF, and TXT files are allowed."
+                    )
+                
+                # Read file content and encode as base64
+                file_bytes = await file.read()
+                file_content = base64.b64encode(file_bytes).decode('utf-8')
+                file_name = file.filename
+                file_type = file.content_type
+        else:
+            # Handle JSON request
+            body = await request_obj.json()
+            chat_request = ChatRequest(**body)
+            chat_message = chat_request.message
+            if chat_request.file_content:
+                file_content = chat_request.file_content
+                file_name = chat_request.file_name
+                file_type = chat_request.file_type
+        
         # Get session to retrieve JWT token
         session = await session_service.get_session(
             app_name=APP_NAME,
@@ -77,13 +126,36 @@ async def chat(
         # Set token in context for tools to access
         token_context.set(jwt_token)
         
+        # Build message text with file information if file is present
+        message_text = chat_message
+        if file_content and file_name:
+            message_text += f"\n\n[File attached: {file_name}]\n"
+            if file_type == 'text/csv' or file_name.endswith('.csv'):
+                try:
+                    # Decode and include CSV content in message
+                    csv_content = base64.b64decode(file_content).decode('utf-8')
+                    message_text += f"\nCSV Content:\n{csv_content}\n"
+                except Exception as e:
+                    logging.warning(f"Could not decode CSV file: {e}")
+                    message_text += f"\n[CSV file content could not be decoded]\n"
+            elif file_type == 'text/plain' or file_name.endswith('.txt'):
+                try:
+                    # Decode and include text content in message
+                    text_content = base64.b64decode(file_content).decode('utf-8')
+                    message_text += f"\nText Content:\n{text_content}\n"
+                except Exception as e:
+                    logging.warning(f"Could not decode text file: {e}")
+                    message_text += f"\n[Text file content could not be decoded]\n"
+            elif file_type == 'application/pdf' or file_name.endswith('.pdf'):
+                message_text += f"\n[PDF file: {file_name} - Please review the attached PDF document]\n"
+        
         # Add user query to history
         await add_user_query_to_history(
             session_service,
             APP_NAME,
             user_id,
             session_id,
-            request.message
+            message_text
         )
         
         # Create runner
@@ -94,7 +166,7 @@ async def chat(
         )
         
         # Create message content
-        content = types.Content(role="user", parts=[types.Part(text=request.message)])
+        content = types.Content(role="user", parts=[types.Part(text=message_text)])
         
         # Process message through agent
         final_response_text = None

@@ -31,6 +31,7 @@ import {
   ListItem,
   ListItemText,
   ListItemSecondaryAction,
+  InputAdornment,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -41,6 +42,7 @@ import {
   PersonAdd as PersonAddIcon,
   PersonRemove as PersonRemoveIcon,
   SwapHoriz as SwapHorizIcon,
+  Search as SearchIcon,
 } from '@mui/icons-material';
 import {
   getAllDepartments,
@@ -67,12 +69,19 @@ import {
 } from '../api/teamService';
 import { graphqlRequest } from '../api/graphqlClient';
 import { isHrAdmin } from '../api/authService';
-import { Department, User, Team } from '../types';
+import { Department, User, Team, Territory } from '../types';
+import {
+  getAllTerritories,
+  createTerritory,
+  updateTerritory,
+  deleteTerritory,
+} from '../api/territoryService';
 
 const HRAdminPage: React.FC = () => {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
+  const [territories, setTerritories] = useState<Territory[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedTab, setSelectedTab] = useState(0);
@@ -94,6 +103,15 @@ const HRAdminPage: React.FC = () => {
   const [createUserDialogOpen, setCreateUserDialogOpen] = useState(false);
   const [createTeamDialogOpen, setCreateTeamDialogOpen] = useState(false);
   const [assignUserToTeamDialogOpen, setAssignUserToTeamDialogOpen] = useState(false);
+  const [createTerritoryDialogOpen, setCreateTerritoryDialogOpen] = useState(false);
+  const [editTerritoryDialogOpen, setEditTerritoryDialogOpen] = useState(false);
+  const [selectedTerritory, setSelectedTerritory] = useState<Territory | null>(null);
+
+  // Search states
+  const [userSearchQuery, setUserSearchQuery] = useState('');
+  const [teamSearchQuery, setTeamSearchQuery] = useState('');
+  const [departmentSearchQuery, setDepartmentSearchQuery] = useState('');
+  const [territorySearchQuery, setTerritorySearchQuery] = useState('');
 
   // Form states
   const [newDeptName, setNewDeptName] = useState('');
@@ -104,6 +122,12 @@ const HRAdminPage: React.FC = () => {
   const [selectedMoveUserId, setSelectedMoveUserId] = useState('');
   const [selectedMoveDeptId, setSelectedMoveDeptId] = useState('');
   
+  // Territory form states
+  const [newTerritoryName, setNewTerritoryName] = useState('');
+  const [newTerritoryDescription, setNewTerritoryDescription] = useState('');
+  const [editTerritoryName, setEditTerritoryName] = useState('');
+  const [editTerritoryDescription, setEditTerritoryDescription] = useState('');
+
   // User onboarding form states
   const [newUserFirstName, setNewUserFirstName] = useState('');
   const [newUserLastName, setNewUserLastName] = useState('');
@@ -171,10 +195,11 @@ const HRAdminPage: React.FC = () => {
       // #region agent log
       fetch('http://127.0.0.1:7243/ingest/60ac4750-15ef-4ef4-ab7a-abf2ce117b9d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HRAdminPage.tsx:129',message:'loadData entry',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
       // #endregion
-      const [deptsData, usersData, teamsData] = await Promise.all([
+      const [deptsData, usersData, teamsData, territoriesData] = await Promise.all([
         getAllDepartments(),
         getAllUsersAPI(),
         getAllTeams(),
+        getAllTerritories(),
       ]);
       // #region agent log
       fetch('http://127.0.0.1:7243/ingest/60ac4750-15ef-4ef4-ab7a-abf2ce117b9d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HRAdminPage.tsx:137',message:'loadData after fetch',data:{deptsCount:deptsData.length,usersCount:usersData.length,teamsCount:teamsData.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
@@ -182,6 +207,7 @@ const HRAdminPage: React.FC = () => {
       setDepartments(deptsData);
       setUsers(usersData);
       setTeams(teamsData);
+      setTerritories(territoriesData);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load data');
     } finally {
@@ -292,6 +318,80 @@ const HRAdminPage: React.FC = () => {
       await loadData();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete department');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Territory handlers
+  const handleCreateTerritory = async () => {
+    if (!newTerritoryName.trim()) {
+      setError('Please enter a territory name');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    try {
+      await createTerritory({
+        name: newTerritoryName.trim(),
+        description: newTerritoryDescription.trim() || undefined,
+      });
+      await loadData();
+      setCreateTerritoryDialogOpen(false);
+      setNewTerritoryName('');
+      setNewTerritoryDescription('');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create territory');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEditTerritory = (territory: Territory) => {
+    setSelectedTerritory(territory);
+    setEditTerritoryName(territory.name);
+    setEditTerritoryDescription(territory.description || '');
+    setEditTerritoryDialogOpen(true);
+  };
+
+  const handleUpdateTerritory = async () => {
+    if (!selectedTerritory || !editTerritoryName.trim()) {
+      setError('Please enter a territory name');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    try {
+      await updateTerritory(selectedTerritory.id, {
+        name: editTerritoryName.trim(),
+        description: editTerritoryDescription.trim() || undefined,
+      });
+      await loadData();
+      setEditTerritoryDialogOpen(false);
+      setSelectedTerritory(null);
+      setEditTerritoryName('');
+      setEditTerritoryDescription('');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update territory');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteTerritory = async (id: string) => {
+    if (!window.confirm('Are you sure you want to delete this territory? All goals using this territory will be reassigned to Global.')) {
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    try {
+      await deleteTerritory(id);
+      await loadData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete territory');
     } finally {
       setLoading(false);
     }
@@ -693,12 +793,28 @@ const HRAdminPage: React.FC = () => {
         <Tab label="Team Management" icon={<PeopleIcon />} />
         <Tab label="All Departments" icon={<BusinessIcon />} />
         <Tab label="Department Details" icon={<BusinessIcon />} />
+        <Tab label="Territories" icon={<BusinessIcon />} />
       </Tabs>
 
       {loading && <CircularProgress sx={{ mb: 2 }} />}
 
       {selectedTab === 0 && (
-        <TableContainer component={Paper}>
+        <>
+          <TextField
+            fullWidth
+            placeholder="Search users by name, email, title, department, or role..."
+            value={userSearchQuery}
+            onChange={(e) => setUserSearchQuery(e.target.value)}
+            sx={{ mb: 2 }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon />
+                </InputAdornment>
+              ),
+            }}
+          />
+          <TableContainer component={Paper}>
           <Table>
             <TableHead>
               <TableRow>
@@ -711,7 +827,24 @@ const HRAdminPage: React.FC = () => {
               </TableRow>
             </TableHead>
             <TableBody>
-              {users.map((user) => (
+              {users
+                .filter((user) => {
+                  if (!userSearchQuery.trim()) return true;
+                  const query = userSearchQuery.toLowerCase();
+                  const fullName = `${user.firstName} ${user.lastName}`.toLowerCase();
+                  const email = user.email?.toLowerCase() || '';
+                  const title = user.title?.toLowerCase() || '';
+                  const department = user.department?.name?.toLowerCase() || '';
+                  const role = user.role?.toLowerCase() || '';
+                  return (
+                    fullName.includes(query) ||
+                    email.includes(query) ||
+                    title.includes(query) ||
+                    department.includes(query) ||
+                    role.includes(query)
+                  );
+                })
+                .map((user) => (
                 <TableRow key={user.id} hover>
                   <TableCell>{user.firstName} {user.lastName}</TableCell>
                   <TableCell>{user.email}</TableCell>
@@ -738,11 +871,25 @@ const HRAdminPage: React.FC = () => {
             </TableBody>
           </Table>
         </TableContainer>
+        </>
       )}
 
       {selectedTab === 1 && !selectedTeam && (
         <>
-          <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2, gap: 2 }}>
+            <TextField
+              fullWidth
+              placeholder="Search teams by name, department, or team lead..."
+              value={teamSearchQuery}
+              onChange={(e) => setTeamSearchQuery(e.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon />
+                  </InputAdornment>
+                ),
+              }}
+            />
             <Button
               variant="contained"
               startIcon={<AddIcon />}
@@ -763,7 +910,20 @@ const HRAdminPage: React.FC = () => {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {teams.map((team) => (
+                {teams
+                  .filter((team) => {
+                    if (!teamSearchQuery.trim()) return true;
+                    const query = teamSearchQuery.toLowerCase();
+                    const name = team.name?.toLowerCase() || '';
+                    const department = team.department?.name?.toLowerCase() || '';
+                    const teamLead = `${team.teamLead.firstName} ${team.teamLead.lastName}`.toLowerCase();
+                    return (
+                      name.includes(query) ||
+                      department.includes(query) ||
+                      teamLead.includes(query)
+                    );
+                  })
+                  .map((team) => (
                   <TableRow
                     key={team.id}
                     hover
@@ -863,9 +1023,20 @@ const HRAdminPage: React.FC = () => {
             return null; 
           })()}
           {/* #endregion */}
-          <Typography variant="body2" sx={{ mb: 2, color: 'text.secondary' }}>
-            Debug: Tab 2 active, {departments.length} departments loaded
-          </Typography>
+          <TextField
+            fullWidth
+            placeholder="Search departments by name, description, parent department, or manager..."
+            value={departmentSearchQuery}
+            onChange={(e) => setDepartmentSearchQuery(e.target.value)}
+            sx={{ mb: 2 }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon />
+                </InputAdornment>
+              ),
+            }}
+          />
           {departments.length === 0 ? (
             <Card>
               <CardContent>
@@ -893,7 +1064,24 @@ const HRAdminPage: React.FC = () => {
                     // #endregion
                     return null;
                   })()}
-                  {departments.map((dept) => (
+                  {departments
+                    .filter((dept) => {
+                      if (!departmentSearchQuery.trim()) return true;
+                      const query = departmentSearchQuery.toLowerCase();
+                      const name = dept.name?.toLowerCase() || '';
+                      const description = dept.smallDescription?.toLowerCase() || '';
+                      const parentDept = dept.parentDepartment?.name?.toLowerCase() || '';
+                      const manager = dept.manager
+                        ? `${dept.manager.firstName} ${dept.manager.lastName}`.toLowerCase()
+                        : '';
+                      return (
+                        name.includes(query) ||
+                        description.includes(query) ||
+                        parentDept.includes(query) ||
+                        manager.includes(query)
+                      );
+                    })
+                    .map((dept) => (
                 <TableRow
                   key={dept.id}
                   hover
@@ -1020,6 +1208,77 @@ const HRAdminPage: React.FC = () => {
           </CardContent>
         </Card>
         </>
+      )}
+
+      {selectedTab === 4 && (
+        <Box>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2, gap: 2 }}>
+            <TextField
+              fullWidth
+              placeholder="Search territories by name or description..."
+              value={territorySearchQuery}
+              onChange={(e) => setTerritorySearchQuery(e.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon />
+                  </InputAdornment>
+                ),
+              }}
+            />
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={() => setCreateTerritoryDialogOpen(true)}
+            >
+              Create Territory
+            </Button>
+          </Box>
+          <TableContainer component={Paper}>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell>Name</TableCell>
+                  <TableCell>Description</TableCell>
+                  <TableCell>Actions</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {territories
+                  .filter((territory) => {
+                    if (!territorySearchQuery.trim()) return true;
+                    const query = territorySearchQuery.toLowerCase();
+                    const name = territory.name?.toLowerCase() || '';
+                    const description = territory.description?.toLowerCase() || '';
+                    return name.includes(query) || description.includes(query);
+                  })
+                  .map((territory) => (
+                  <TableRow key={territory.id}>
+                    <TableCell>{territory.name}</TableCell>
+                    <TableCell>{territory.description || 'N/A'}</TableCell>
+                    <TableCell>
+                      <IconButton
+                        size="small"
+                        onClick={() => handleEditTerritory(territory)}
+                        disabled={territory.name === 'Global'}
+                      >
+                        <EditIcon />
+                      </IconButton>
+                      <IconButton
+                        size="small"
+                        onClick={() => handleDeleteTerritory(territory.id)}
+                        disabled={territory.name === 'Global'}
+                        color="error"
+                      >
+                        <DeleteIcon />
+                      </IconButton>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </Box>
       )}
 
       {/* Create Department Dialog */}
@@ -1763,6 +2022,104 @@ const HRAdminPage: React.FC = () => {
           </Button>
           <Button onClick={handleUpdateTeam} variant="contained" disabled={loading}>
             Update Team
+          </Button>
+        </DialogActions>
+      </Dialog>
+      {/* Create Territory Dialog */}
+      <Dialog
+        open={createTerritoryDialogOpen}
+        onClose={() => {
+          setCreateTerritoryDialogOpen(false);
+          setNewTerritoryName('');
+          setNewTerritoryDescription('');
+        }}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Create Territory</DialogTitle>
+        <DialogContent>
+          <TextField
+            fullWidth
+            margin="normal"
+            label="Territory Name"
+            value={newTerritoryName}
+            onChange={(e) => setNewTerritoryName(e.target.value)}
+            required
+            autoFocus
+          />
+          <TextField
+            fullWidth
+            margin="normal"
+            label="Description"
+            value={newTerritoryDescription}
+            onChange={(e) => setNewTerritoryDescription(e.target.value)}
+            multiline
+            rows={3}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => {
+              setCreateTerritoryDialogOpen(false);
+              setNewTerritoryName('');
+              setNewTerritoryDescription('');
+            }}
+          >
+            Cancel
+          </Button>
+          <Button onClick={handleCreateTerritory} variant="contained" disabled={loading}>
+            Create Territory
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Edit Territory Dialog */}
+      <Dialog
+        open={editTerritoryDialogOpen}
+        onClose={() => {
+          setEditTerritoryDialogOpen(false);
+          setSelectedTerritory(null);
+          setEditTerritoryName('');
+          setEditTerritoryDescription('');
+        }}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Edit Territory</DialogTitle>
+        <DialogContent>
+          <TextField
+            fullWidth
+            margin="normal"
+            label="Territory Name"
+            value={editTerritoryName}
+            onChange={(e) => setEditTerritoryName(e.target.value)}
+            required
+            autoFocus
+            disabled={selectedTerritory?.name === 'Global'}
+          />
+          <TextField
+            fullWidth
+            margin="normal"
+            label="Description"
+            value={editTerritoryDescription}
+            onChange={(e) => setEditTerritoryDescription(e.target.value)}
+            multiline
+            rows={3}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => {
+              setEditTerritoryDialogOpen(false);
+              setSelectedTerritory(null);
+              setEditTerritoryName('');
+              setEditTerritoryDescription('');
+            }}
+          >
+            Cancel
+          </Button>
+          <Button onClick={handleUpdateTerritory} variant="contained" disabled={loading}>
+            Update Territory
           </Button>
         </DialogActions>
       </Dialog>

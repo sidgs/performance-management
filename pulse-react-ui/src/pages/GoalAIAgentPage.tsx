@@ -15,6 +15,7 @@ import {
   listSessions,
   getSessionState,
   sendChatMessage,
+  sendChatMessageWithFile,
   deleteSession,
   getUserIdFromToken,
   getUserNameFromToken,
@@ -35,6 +36,7 @@ const GoalAIAgentPage: React.FC = () => {
   const [isLoadingChat, setIsLoadingChat] = useState<boolean>(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [isCreatingSession, setIsCreatingSession] = useState<boolean>(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
 
   // Initialize page and create/fetch sessions
   useEffect(() => {
@@ -192,16 +194,19 @@ const GoalAIAgentPage: React.FC = () => {
   }, [userId, messages, loadSessionMessages]);
 
   // Handle sending a chat message
-  const handleSendMessage = useCallback(async (message: string) => {
+  const handleSendMessage = useCallback(async (message: string, file?: File) => {
     if (!selectedSessionId || !userId || isLoadingChat) return;
+    if (!message.trim() && !file) return;
 
     setIsLoadingChat(true);
 
     // Add user message to UI immediately
     const userMessage: ChatMessage = {
       role: 'user',
-      content: message,
+      content: message || (file ? `Uploaded file: ${file.name}` : ''),
       timestamp: new Date().toISOString(),
+      fileName: file?.name,
+      fileType: file?.type,
     };
 
     setMessages((prev) => {
@@ -212,7 +217,9 @@ const GoalAIAgentPage: React.FC = () => {
     });
 
     try {
-      const response: ChatResponse = await sendChatMessage(selectedSessionId, userId, message);
+      const response: ChatResponse = file
+        ? await sendChatMessageWithFile(selectedSessionId, userId, message || '', file)
+        : await sendChatMessage(selectedSessionId, userId, message);
 
       // Add agent response to UI
       const agentMessage: ChatMessage = {
@@ -341,9 +348,17 @@ const GoalAIAgentPage: React.FC = () => {
       </Box>
 
       {/* Main Chat Interface */}
-      <Grid container spacing={0} sx={{ height: 'calc(100vh - 250px)', minHeight: '600px' }}>
+      <Grid container spacing={0} sx={{ height: 'calc(100vh - 250px)', minHeight: '600px', alignItems: 'stretch' }}>
         {/* Session List Sidebar */}
-        <Grid item xs={12} md={3.5} sx={{ height: '100%' }}>
+        <Grid 
+          item 
+          xs={12} 
+          md={sidebarCollapsed ? 0.5 : 3.5} 
+          sx={{ 
+            height: '100%',
+            display: { xs: sidebarCollapsed ? 'none' : 'block', md: 'block' }
+          }}
+        >
           <Box sx={{ height: '100%' }}>
             <SessionList
               sessions={sessions}
@@ -352,12 +367,19 @@ const GoalAIAgentPage: React.FC = () => {
               onCreateSession={handleCreateSession}
               onDeleteSession={handleDeleteSession}
               isLoading={isCreatingSession}
+              collapsed={sidebarCollapsed}
+              onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
             />
           </Box>
         </Grid>
 
         {/* Chat Interface */}
-        <Grid item xs={12} md={8.5} sx={{ height: '100%' }}>
+        <Grid 
+          item 
+          xs={12} 
+          md={sidebarCollapsed ? 11.5 : 8.5} 
+          sx={{ height: '100%' }}
+        >
           <Box sx={{ height: '100%', bgcolor: 'background.paper' }}>
             <ChatInterface
               sessionId={selectedSessionId}

@@ -8,9 +8,11 @@ import com.performancemanagement.model.Department;
 import com.performancemanagement.model.Goal;
 import com.performancemanagement.model.KPI;
 import com.performancemanagement.model.Team;
+import com.performancemanagement.model.Territory;
 import com.performancemanagement.model.User;
 import com.performancemanagement.repository.DepartmentRepository;
 import com.performancemanagement.repository.GoalRepository;
+import com.performancemanagement.repository.TerritoryRepository;
 import com.performancemanagement.repository.UserRepository;
 import com.performancemanagement.repository.KPIRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,6 +40,12 @@ public class GoalService {
     private KPIRepository kpiRepository;
 
     @Autowired
+    private TerritoryService territoryService;
+
+    @Autowired
+    private TerritoryRepository territoryRepository;
+
+    @Autowired
     private DepartmentRepository departmentRepository;
     
     private String getCurrentTenantId() {
@@ -56,8 +64,9 @@ public class GoalService {
      * Check if a user can view a goal based on RBAC rules:
      * 1. User owns the goal or is assigned to it
      * 2. User is department manager of goal owner's or assigned user's department
-     * 3. User is in same team as goal owner or any assigned user
-     * 4. Otherwise return false
+     * 3. User is team lead of goal owner's or assigned user's team
+     * 4. Exclude goals owned by user's manager
+     * 5. Otherwise return false
      */
     public boolean canUserViewGoal(User currentUser, Goal goal) {
         if (currentUser == null || goal == null) {
@@ -75,6 +84,12 @@ public class GoalService {
             if (isAssigned) {
                 return true;
             }
+        }
+
+        // Exclusion: User should NOT see goals owned by their manager
+        if (goal.getOwner() != null && currentUser.getManager() != null &&
+            Objects.equals(goal.getOwner().getId(), currentUser.getManager().getId())) {
+            return false;
         }
 
         // Rule 2: User is department manager of goal owner's or assigned user's department
@@ -99,23 +114,24 @@ public class GoalService {
             }
         }
 
-        // Rule 3: User is in same team as goal owner or any assigned user
-        if (currentUser.getTeam() != null) {
-            Team userTeam = currentUser.getTeam();
-            
-            // Check if goal owner is in the same team
-            if (goal.getOwner() != null && goal.getOwner().getTeam() != null && 
-                Objects.equals(goal.getOwner().getTeam().getId(), userTeam.getId())) {
+        // Rule 3: User is team lead of goal owner's or assigned user's team
+        if (goal.getOwner() != null && goal.getOwner().getTeam() != null) {
+            Team ownerTeam = goal.getOwner().getTeam();
+            if (ownerTeam.getTeamLead() != null && 
+                Objects.equals(ownerTeam.getTeamLead().getId(), currentUser.getId())) {
                 return true;
             }
-            
-            // Check if any assigned user is in the same team
-            if (goal.getAssignedUsers() != null) {
-                boolean isTeamMember = goal.getAssignedUsers().stream()
-                        .anyMatch(user -> user.getTeam() != null && 
-                                Objects.equals(user.getTeam().getId(), userTeam.getId()));
-                if (isTeamMember) {
-                    return true;
+        }
+        
+        // Check assigned users' teams
+        if (goal.getAssignedUsers() != null) {
+            for (User assignedUser : goal.getAssignedUsers()) {
+                if (assignedUser.getTeam() != null) {
+                    Team assignedUserTeam = assignedUser.getTeam();
+                    if (assignedUserTeam.getTeamLead() != null && 
+                        Objects.equals(assignedUserTeam.getTeamLead().getId(), currentUser.getId())) {
+                        return true;
+                    }
                 }
             }
         }
@@ -146,6 +162,17 @@ public class GoalService {
             Goal parent = goalRepository.findByIdAndTenantId(goalDTO.getParentGoalId(), tenantId)
                     .orElseThrow(() -> new IllegalArgumentException("Parent goal not found"));
             goal.setParentGoal(parent);
+        }
+
+        // Handle territory - default to Global if not provided
+        if (goalDTO.getTerritoryId() != null) {
+            Territory territory = territoryRepository.findByIdAndTenantId(goalDTO.getTerritoryId(), tenantId)
+                    .orElseThrow(() -> new IllegalArgumentException("Territory not found"));
+            goal.setTerritory(territory);
+        } else {
+            // Default to Global territory
+            Territory globalTerritory = territoryService.ensureGlobalTerritory();
+            goal.setTerritory(globalTerritory);
         }
 
         Goal savedGoal = goalRepository.save(goal);
@@ -222,6 +249,13 @@ public class GoalService {
         
         if (goalDTO.getStatus() != null) {
             goal.setStatus(goalDTO.getStatus());
+        }
+
+        // Update territory if provided
+        if (goalDTO.getTerritoryId() != null) {
+            Territory territory = territoryRepository.findByIdAndTenantId(goalDTO.getTerritoryId(), tenantId)
+                    .orElseThrow(() -> new IllegalArgumentException("Territory not found"));
+            goal.setTerritory(territory);
         }
         
         if (goalDTO.getConfidential() != null) {
@@ -468,11 +502,7 @@ public class GoalService {
             throw new IllegalStateException("Cannot assign users to a locked goal");
         }
         
-        // Validate that goal has at least one KPI
-        List<KPI> kpis = kpiRepository.findByGoalIdAndTenantId(goalId, tenantId);
-        if (kpis == null || kpis.isEmpty()) {
-            throw new IllegalStateException("Cannot assign a goal without KPIs. A goal must have at least one KPI.");
-        }
+        // KPI validation removed - KPIs are now optional for goal assignment
         
         User user = userRepository.findByEmailAndTenantId(userEmail, tenantId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
@@ -637,6 +667,12 @@ public class GoalService {
         
         dto.setLocked(goal.getLocked() != null ? goal.getLocked() : false);
         dto.setConfidential(goal.getConfidential() != null ? goal.getConfidential() : false);
+        
+        // Include territory information
+        if (goal.getTerritory() != null) {
+            dto.setTerritoryId(goal.getTerritory().getId());
+            dto.setTerritoryName(goal.getTerritory().getName());
+        }
         
         return dto;
     }

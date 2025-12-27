@@ -185,6 +185,11 @@ query GetGoal($id: ID!) {
         }
         locked
         confidential
+        territory {
+            id
+            name
+            description
+        }
         kpis {
             id
             description
@@ -233,6 +238,11 @@ query GetGoals {
         }
         locked
         confidential
+        territory {
+            id
+            name
+            description
+        }
     }
 }
 """
@@ -629,6 +639,26 @@ query GetTenants {
 }
 """
 
+GET_TERRITORIES = """
+query GetTerritories {
+    territories {
+        id
+        name
+        description
+    }
+}
+"""
+
+GET_TERRITORY = """
+query GetTerritory($id: ID!) {
+    territory(id: $id) {
+        id
+        name
+        description
+    }
+}
+"""
+
 # ===== USER MUTATIONS =====
 
 CREATE_USER = """
@@ -735,6 +765,11 @@ mutation CreateGoal($input: GoalInput!) {
         }
         locked
         confidential
+        territory {
+            id
+            name
+            description
+        }
         kpis {
             id
             description
@@ -767,6 +802,11 @@ mutation UpdateGoal($id: ID!, $input: GoalInput!) {
         }
         locked
         confidential
+        territory {
+            id
+            name
+            description
+        }
         kpis {
             id
             description
@@ -1184,6 +1224,34 @@ mutation UpdateGoalNote($id: ID!, $content: String!) {
 DELETE_GOAL_NOTE = """
 mutation DeleteGoalNote($id: ID!) {
     deleteGoalNote(id: $id)
+}
+"""
+
+# ===== TERRITORY MUTATIONS =====
+
+CREATE_TERRITORY = """
+mutation CreateTerritory($input: TerritoryInput!) {
+    createTerritory(input: $input) {
+        id
+        name
+        description
+    }
+}
+"""
+
+UPDATE_TERRITORY = """
+mutation UpdateTerritory($id: ID!, $input: TerritoryInput!) {
+    updateTerritory(id: $id, input: $input) {
+        id
+        name
+        description
+    }
+}
+"""
+
+DELETE_TERRITORY = """
+mutation DeleteTerritory($id: ID!) {
+    deleteTerritory(id: $id)
 }
 """
 

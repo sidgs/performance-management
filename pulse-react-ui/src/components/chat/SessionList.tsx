@@ -16,6 +16,8 @@ import {
   Add as AddIcon,
   Delete as DeleteIcon,
   Chat as ChatIcon,
+  ChevronLeft as ChevronLeftIcon,
+  ChevronRight as ChevronRightIcon,
 } from '@mui/icons-material';
 import type { SessionInfo } from '../../api/agentService';
 
@@ -26,6 +28,8 @@ interface SessionListProps {
   onCreateSession: () => void;
   onDeleteSession?: (sessionId: string) => void;
   isLoading?: boolean;
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
 }
 
 const SessionList: React.FC<SessionListProps> = ({
@@ -35,6 +39,8 @@ const SessionList: React.FC<SessionListProps> = ({
   onCreateSession,
   onDeleteSession,
   isLoading = false,
+  collapsed = false,
+  onToggleCollapse,
 }) => {
   const formatDate = (dateString?: string) => {
     if (!dateString) return 'Unknown';
@@ -68,6 +74,41 @@ const SessionList: React.FC<SessionListProps> = ({
     }
   };
 
+  if (collapsed) {
+    return (
+      <Box
+        sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          height: '100%',
+          borderRight: 1,
+          borderColor: 'divider',
+          bgcolor: 'background.paper',
+          width: 60,
+          alignItems: 'center',
+          pt: 2,
+        }}
+      >
+        <IconButton
+          onClick={onToggleCollapse}
+          sx={{ mb: 2 }}
+          color="primary"
+        >
+          <ChevronRightIcon />
+        </IconButton>
+        <IconButton
+          onClick={onCreateSession}
+          disabled={isLoading}
+          color="primary"
+          sx={{ mb: 2 }}
+        >
+          <AddIcon />
+        </IconButton>
+        <ChatIcon color="primary" />
+      </Box>
+    );
+  }
+
   return (
     <Box
       sx={{
@@ -81,10 +122,21 @@ const SessionList: React.FC<SessionListProps> = ({
     >
       {/* Header */}
       <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
-        <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <ChatIcon color="primary" />
-          Sessions
-        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+          <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <ChatIcon color="primary" />
+            Sessions
+          </Typography>
+          {onToggleCollapse && (
+            <IconButton
+              onClick={onToggleCollapse}
+              size="small"
+              color="primary"
+            >
+              <ChevronLeftIcon />
+            </IconButton>
+          )}
+        </Box>
         <Button
           fullWidth
           variant="contained"
@@ -138,6 +190,7 @@ const SessionList: React.FC<SessionListProps> = ({
                       selected={isSelected}
                       onClick={() => onSelectSession(session.session_id)}
                       sx={{
+                        py: 1.5,
                         '&.Mui-selected': {
                           bgcolor: 'primary.main',
                           color: 'primary.contrastText',
@@ -156,8 +209,8 @@ const SessionList: React.FC<SessionListProps> = ({
                     >
                       <ListItemText
                         primary={
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-                            <Typography variant="body2" fontWeight={isSelected ? 600 : 500}>
+                          <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                            <Typography variant="body2" component="span" fontWeight={isSelected ? 600 : 500}>
                               {truncateSessionId(session.session_id)}
                             </Typography>
                             {session.interaction_count > 0 && (
@@ -175,8 +228,8 @@ const SessionList: React.FC<SessionListProps> = ({
                           </Box>
                         }
                         secondary={
-                          <Box>
-                            <Typography variant="caption" display="block">
+                          <Box component="span">
+                            <Typography variant="caption" component="span" display="block">
                               {formatDate(session.created_at)}
                             </Typography>
                             {session.is_expired && (

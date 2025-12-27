@@ -27,5 +27,7 @@ public class GoalDTO {
     private Boolean confidential = false;
     private LocalDate assignedDate;
     private LocalDate targetCompletionDate;
+    private Long territoryId;
+    private String territoryName;
     private List<KPIDTO> kpis;
 }

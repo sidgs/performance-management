@@ -1,0 +1,171 @@
+image: sidgs.jfrog.io/sami/bb-pipeline-runner:1.0.0
+
+definitions:
+  services:
+    docker:
+      memory: 3072
+
+  steps:
+    - step: &release-version
+        name: Release Version
+        script:
+          - |
+            # Get release version from script
+            RELEASE_VERSION=$(./release-version.sh)
+            SCRIPT_EXIT_CODE=$?
+            if [ $SCRIPT_EXIT_CODE -ne 0 ]; then
+              echo "Failed to get release version. Script exited with code $SCRIPT_EXIT_CODE"
+              exit $SCRIPT_EXIT_CODE
+            fi
+            if [ -z "$RELEASE_VERSION" ]; then
+              echo "Could not extract version from tag/branch. Skipping build."
+              exit 0
+            fi
+            echo "Release version: ${RELEASE_VERSION}"
+            export RELEASE_VERSION=${RELEASE_VERSION}
+        after-script:
+          - echo "RELEASE_VERSION=${RELEASE_VERSION}" >> $BB_ENV_FILE_PATH
+    - step: &build-pulse-agent-ai
+        name: Build and Push Pulse Agent AI
+        services:
+          - docker
+        caches:
+          - docker
+        script:
+          - |
+            # Get release version from script
+            RELEASE_VERSION=${RELEASE_VERSION}
+            echo "Building Pulse Agent AI Docker image for release: ${RELEASE_VERSION}..."
+            cd pulse-agent-ai
+            docker build -t sidgs.jfrog.io/sidgs/pulse-agent-ai:latest .
+            docker tag sidgs.jfrog.io/sidgs/pulse-agent-ai:latest sidgs.jfrog.io/sidgs/pulse-agent-ai:${BITBUCKET_COMMIT}
+            docker tag sidgs.jfrog.io/sidgs/pulse-agent-ai:latest sidgs.jfrog.io/sidgs/pulse-agent-ai:${RELEASE_VERSION}
+            echo "Logging in to JFrog registry..."
+            docker login -u ${JFROG_DOCKER_USERNAME} -p ${JFROG_DOCKER_PASSWORD} sidgs.jfrog.io
+            echo "Pushing Pulse Agent AI Docker image..."
+            docker push sidgs.jfrog.io/sidgs/pulse-agent-ai:latest
+            docker push sidgs.jfrog.io/sidgs/pulse-agent-ai:${BITBUCKET_COMMIT}
+            docker push sidgs.jfrog.io/sidgs/pulse-agent-ai:${RELEASE_VERSION}
+        after-script:
+          - docker logout sidgs.jfrog.io
+
+    - step: &build-pulse-java-api
+        name: Build and Push Pulse Java API
+        services:
+          - docker
+        caches:
+          - docker
+        script:
+          - |
+            # Get release version from script
+            RELEASE_VERSION=${RELEASE_VERSION}
+            echo "Building Pulse Java API Docker image for release: ${RELEASE_VERSION}..."
+            cd pulse-java-api
+            docker build -t sidgs.jfrog.io/sidgs/pulse-java-api:latest .
+            docker tag sidgs.jfrog.io/sidgs/pulse-java-api:latest sidgs.jfrog.io/sidgs/pulse-java-api:${BITBUCKET_COMMIT}
+            docker tag sidgs.jfrog.io/sidgs/pulse-java-api:latest sidgs.jfrog.io/sidgs/pulse-java-api:${RELEASE_VERSION}
+            echo "Logging in to JFrog registry..."
+            docker login -u ${JFROG_DOCKER_USERNAME} -p ${JFROG_DOCKER_PASSWORD} sidgs.jfrog.io
+            echo "Pushing Pulse Java API Docker image..."
+            docker push sidgs.jfrog.io/sidgs/pulse-java-api:latest
+            docker push sidgs.jfrog.io/sidgs/pulse-java-api:${BITBUCKET_COMMIT}
+            docker push sidgs.jfrog.io/sidgs/pulse-java-api:${RELEASE_VERSION}
+        after-script:
+          - docker logout sidgs.jfrog.io
+
+    - step: &deploy-manual
+        name: Deploy to Kubernetes
+        trigger: manual
+        oidc: true
+        script:
+          - |
+            # Get release version from script
+            RELEASE_VERSION=${RELEASE_VERSION}
+            echo "Deploying release ${RELEASE_VERSION} to Kubernetes..."
+            
+
+            # Assume AWS role using OIDC
+          - export AWS_ROLE_ARN=${BB_AWS_ROLE_ARN}
+          - export AWS_WEB_IDENTITY_TOKEN_FILE=$(pwd)/web-identity-token
+          - echo $BITBUCKET_STEP_OIDC_TOKEN > $AWS_WEB_IDENTITY_TOKEN_FILE
+
+            # AWS config
+          - export AWS_DEFAULT_REGION=${AWS_REGION:-us-east-1}
+          - aws sts get-caller-identity
+            
+          - |  
+            echo "Updating kubeconfig for EKS cluster ${EKS_CLUSTER_NAME}..."
+            aws eks update-kubeconfig \
+              --region ${AWS_REGION:-us-east-1} \
+              --name ${EKS_CLUSTER_NAME}
+            echo "Kubeconfig updated successfully!"
+          - | 
+            cd pulse-helm-chart
+            echo "Setting Helm release name and namespace..."
+            # Set Helm release name (can be configured via variable)
+            HELM_RELEASE_NAME=${HELM_RELEASE_NAME:-pulse-performance-management}
+            HELM_NAMESPACE=${HELM_NAMESPACE:-sidgs-apps}
+            VALUES_FILE=${VALUES_FILE:-values-release.yaml}
+            # Upgrade Helm release with new image tags
+            echo "Upgrading Helm release ${HELM_RELEASE_NAME} in namespace ${HELM_NAMESPACE}..."
+            helm upgrade --install ${HELM_RELEASE_NAME} ./pulse-helm-chart \
+              --namespace ${HELM_NAMESPACE} \
+              --set javaApi.image.tag=${RELEASE_VERSION} \
+              --set agentAi.image.tag=${RELEASE_VERSION} \
+              --values ${VALUES_FILE} \
+              --wait \
+              --timeout 10m
+
+            # If this is a branch (not a tag), do a rolling restart of the deployments
+            if [[ -z "${BITBUCKET_TAG}" && -n "${BITBUCKET_BRANCH}" ]]; then
+              echo "Performing rolling restart of deployments (branch: ${BITBUCKET_BRANCH})..."
+              kubectl rollout restart deployment/pulse-java-api -n ${HELM_NAMESPACE}
+              kubectl rollout restart deployment/pulse-agent-ai -n ${HELM_NAMESPACE}
+            fi
+            echo "Deployment completed successfully!"
+
+pipelines:
+  tags:
+    'release/*':
+      - step: *release-version
+      - step:
+          <<: *build-pulse-agent-ai
+      - step:
+          <<: *build-pulse-java-api
+      - step:
+          <<: *deploy-manual
+  branches:
+    'release/*':
+      - step:
+          <<: *release-version
+      - step:
+          <<: *build-pulse-agent-ai
+          condition:
+            changesets:
+              includePaths:
+                - pulse-agent-ai/**
+      - step:
+          <<: *build-pulse-java-api
+          condition:
+            changesets:
+              includePaths:
+                - pulse-java-api/**
+      - step:
+          <<: *deploy-manual
+    'hotfix/*':
+      - step:
+          <<: *release-version
+      - step:
+          <<: *build-pulse-agent-ai
+          condition:
+            changesets:
+              includePaths:
+                - pulse-agent-ai/**
+      - step:
+          <<: *build-pulse-java-api
+          condition:
+            changesets:
+              includePaths:
+                - pulse-java-api/**
+      - step:
+          <<: *deploy-manual

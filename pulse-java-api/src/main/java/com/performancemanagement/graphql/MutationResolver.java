@@ -16,7 +16,11 @@ import com.performancemanagement.service.GoalService;
 import com.performancemanagement.service.KPIService;
 import com.performancemanagement.service.GoalNoteService;
 import com.performancemanagement.service.TeamService;
+import com.performancemanagement.service.TerritoryService;
 import com.performancemanagement.service.UserService;
+import com.performancemanagement.model.Territory;
+import com.performancemanagement.repository.TerritoryRepository;
+import com.performancemanagement.dto.TerritoryDTO;
 import com.performancemanagement.model.Team;
 import com.performancemanagement.model.GoalNote;
 import graphql.kickstart.tools.GraphQLMutationResolver;
@@ -67,6 +71,12 @@ public class MutationResolver implements GraphQLMutationResolver {
 
     @Autowired
     private TeamService teamService;
+
+    @Autowired
+    private TerritoryService territoryService;
+
+    @Autowired
+    private TerritoryRepository territoryRepository;
 
     @Autowired
     private TeamRepository teamRepository;
@@ -179,6 +189,7 @@ public class MutationResolver implements GraphQLMutationResolver {
             goalDTO.setTargetCompletionDate(LocalDate.parse(input.getTargetCompletionDate()));
         }
         goalDTO.setParentGoalId(input.getParentGoalId());
+        goalDTO.setTerritoryId(input.getTerritoryId());
         
         // Convert KPI inputs to DTOs
         if (input.getKpis() != null && !input.getKpis().isEmpty()) {
@@ -214,6 +225,7 @@ public class MutationResolver implements GraphQLMutationResolver {
             goalDTO.setTargetCompletionDate(LocalDate.parse(input.getTargetCompletionDate()));
         }
         goalDTO.setParentGoalId(input.getParentGoalId());
+        goalDTO.setTerritoryId(input.getTerritoryId());
         
         var updated = goalService.updateGoal(id, goalDTO);
         String tenantId = com.performancemanagement.config.TenantContext.getCurrentTenantId();
@@ -332,6 +344,39 @@ public class MutationResolver implements GraphQLMutationResolver {
     public Boolean deleteGoalNote(Long id) {
         try {
             goalNoteService.deleteNote(id);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    // Territory mutations
+    public Territory createTerritory(TerritoryInput input) {
+        authorizationService.requireHrAdmin();
+        var territoryDTO = new TerritoryDTO();
+        territoryDTO.setName(input.getName());
+        territoryDTO.setDescription(input.getDescription());
+        
+        var created = territoryService.createTerritory(territoryDTO);
+        String tenantId = com.performancemanagement.config.TenantContext.getCurrentTenantId();
+        return territoryRepository.findByIdAndTenantId(created.getId(), tenantId).orElse(null);
+    }
+
+    public Territory updateTerritory(Long id, TerritoryInput input) {
+        authorizationService.requireHrAdmin();
+        var territoryDTO = new TerritoryDTO();
+        territoryDTO.setName(input.getName());
+        territoryDTO.setDescription(input.getDescription());
+        
+        var updated = territoryService.updateTerritory(id, territoryDTO);
+        String tenantId = com.performancemanagement.config.TenantContext.getCurrentTenantId();
+        return territoryRepository.findByIdAndTenantId(updated.getId(), tenantId).orElse(null);
+    }
+
+    public Boolean deleteTerritory(Long id) {
+        try {
+            authorizationService.requireHrAdmin();
+            territoryService.deleteTerritory(id);
             return true;
         } catch (Exception e) {
             return false;
@@ -508,6 +553,7 @@ public class MutationResolver implements GraphQLMutationResolver {
         private Goal.GoalStatus status;
         private Long parentGoalId;
         private Boolean confidential;
+        private Long territoryId;
         private List<KPIInput> kpis;
 
         // Getters and setters
@@ -531,6 +577,8 @@ public class MutationResolver implements GraphQLMutationResolver {
         public void setParentGoalId(Long parentGoalId) { this.parentGoalId = parentGoalId; }
         public Boolean getConfidential() { return confidential; }
         public void setConfidential(Boolean confidential) { this.confidential = confidential; }
+        public Long getTerritoryId() { return territoryId; }
+        public void setTerritoryId(Long territoryId) { this.territoryId = territoryId; }
         public List<KPIInput> getKpis() { return kpis; }
         public void setKpis(List<KPIInput> kpis) { this.kpis = kpis; }
     }
@@ -613,5 +661,16 @@ public class MutationResolver implements GraphQLMutationResolver {
         public void setDepartmentId(Long departmentId) { this.departmentId = departmentId; }
         public String getTeamLeadEmail() { return teamLeadEmail; }
         public void setTeamLeadEmail(String teamLeadEmail) { this.teamLeadEmail = teamLeadEmail; }
+    }
+
+    public static class TerritoryInput {
+        private String name;
+        private String description;
+
+        // Getters and setters
+        public String getName() { return name; }
+        public void setName(String name) { this.name = name; }
+        public String getDescription() { return description; }
+        public void setDescription(String description) { this.description = description; }
     }
 }

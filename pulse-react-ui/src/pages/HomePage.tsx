@@ -42,7 +42,8 @@ import {
 
 import { graphqlRequest } from '../api/graphqlClient';
 import { getCurrentUserEmail } from '../api/authService';
-import type { Goal, GoalStatus, User } from '../types';
+import type { Goal, GoalStatus, User, Territory } from '../types';
+import { getAllTerritories } from '../api/territoryService';
 
 // GraphQL-backed data will be loaded on mount
 
@@ -75,6 +76,7 @@ const HomePage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [goals, setGoals] = useState<Goal[]>([]);
   const [users, setUsers] = useState<User[]>([]);
+  const [territories, setTerritories] = useState<Territory[]>([]);
   const [filteredGoals, setFilteredGoals] = useState<Goal[]>([]);
   const [showAll, setShowAll] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -88,6 +90,7 @@ const HomePage: React.FC = () => {
   const [newGoalLongDesc, setNewGoalLongDesc] = useState('');
   const [newGoalOwnerEmail, setNewGoalOwnerEmail] = useState('');
   const [newGoalStatus, setNewGoalStatus] = useState<GoalStatus>('DRAFT');
+  const [newGoalTerritoryId, setNewGoalTerritoryId] = useState<string>('');
   const [createGoalLoading, setCreateGoalLoading] = useState(false);
   const [createGoalError, setCreateGoalError] = useState<string | null>(null);
 
@@ -97,6 +100,15 @@ const HomePage: React.FC = () => {
       setLoading(true);
       setError(null);
       try {
+        // Fetch territories
+        const territoriesData = await getAllTerritories();
+        setTerritories(territoriesData);
+        // Set default to Global territory
+        const globalTerritory = territoriesData.find(t => t.name === 'Global');
+        if (globalTerritory) {
+          setNewGoalTerritoryId(globalTerritory.id);
+        }
+
         const data = await graphqlRequest<{ goals: Goal[]; users: User[] }>(
           `
             query GetDashboardData {
@@ -384,6 +396,7 @@ const HomePage: React.FC = () => {
           ownerEmail: newGoalOwnerEmail.trim(),
           status: newGoalStatus,
           parentGoalId: isSubGoal && selectedParentGoal ? selectedParentGoal : null,
+          territoryId: newGoalTerritoryId || null,
         },
       };
 
@@ -932,6 +945,21 @@ const HomePage: React.FC = () => {
                 <MenuItem value="ACHIEVED">Achieved</MenuItem>
                 <MenuItem value="ARCHIVED">Archived</MenuItem>
                 <MenuItem value="RETIRED">Retired</MenuItem>
+              </Select>
+            </FormControl>
+
+            <FormControl fullWidth>
+              <InputLabel>Territory</InputLabel>
+              <Select
+                value={newGoalTerritoryId}
+                label="Territory"
+                onChange={(e) => setNewGoalTerritoryId(e.target.value)}
+              >
+                {territories.map((territory) => (
+                  <MenuItem key={territory.id} value={territory.id}>
+                    {territory.name}
+                  </MenuItem>
+                ))}
               </Select>
             </FormControl>
           </Box>

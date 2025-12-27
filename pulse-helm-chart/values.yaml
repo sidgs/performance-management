@@ -167,7 +167,7 @@ agentAi:
 
 # PostgreSQL Database (optional - can use external database)
 postgresql:
-  enabled: true
+  enabled: false
   auth:
     database: performance_management
     username: postgres
@@ -186,7 +186,7 @@ postgresql:
 
 # Redis (optional - can use external Redis)
 redis:
-  enabled: true
+  enabled: false
   auth:
     enabled: false
     password: ""  # Set via secret or use redis.auth.existingSecret

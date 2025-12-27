@@ -29,6 +29,10 @@ type Query {
     # Goal note queries
     goalNotes(goalId: ID!): [GoalNote!]!
     
+    # Territory queries
+    territories: [Territory!]!
+    territory(id: ID!): Territory
+    
     # Tenant queries
     tenants: [Tenant]
 }
@@ -79,6 +83,11 @@ type Mutation {
     createGoalNote(goalId: ID!, content: String!): GoalNote
     updateGoalNote(id: ID!, content: String!): GoalNote
     deleteGoalNote(id: ID!): Boolean
+    
+    # Territory mutations
+    createTerritory(input: TerritoryInput!): Territory
+    updateTerritory(id: ID!, input: TerritoryInput!): Territory
+    deleteTerritory(id: ID!): Boolean
 }
 
 type User {
@@ -119,6 +128,7 @@ type Goal {
     assignedUsers: [User]
     locked: Boolean!
     confidential: Boolean!
+    territory: Territory
     kpis: [KPI!]!
     notes: [GoalNote!]!
 }
@@ -180,6 +190,12 @@ enum DepartmentStatus {
     RETIRED
 }
 
+type Territory {
+    id: ID!
+    name: String!
+    description: String
+}
+
 type Tenant {
     fqdn: String!
     name: String!
@@ -206,7 +222,13 @@ input GoalInput {
     status: GoalStatus
     parentGoalId: ID
     confidential: Boolean
+    territoryId: ID
     kpis: [KPIInput!]
+}
+
+input TerritoryInput {
+    name: String!
+    description: String
 }
 
 input KPIInput {

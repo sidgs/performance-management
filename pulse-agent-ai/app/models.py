@@ -19,6 +19,9 @@ class CreateSessionResponse(BaseModel):
 class ChatRequest(BaseModel):
     """Request model for sending a chat message to the agent."""
     message: str = Field(..., description="The message to send to the agent", example="Create a goal for improving customer satisfaction")
+    file_content: Optional[str] = Field(None, description="Base64 encoded file content")
+    file_name: Optional[str] = Field(None, description="Name of the uploaded file")
+    file_type: Optional[str] = Field(None, description="MIME type of the uploaded file")
 
 
 class ChatResponse(BaseModel):

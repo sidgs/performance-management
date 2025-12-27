@@ -15,7 +15,7 @@ import java.util.Set;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@EqualsAndHashCode(exclude = {"owner", "parentGoal", "childGoals", "assignedUsers", "kpis"})
+@EqualsAndHashCode(exclude = {"owner", "parentGoal", "childGoals", "assignedUsers", "kpis", "territory"})
 public class Goal {
 
     @Id
@@ -72,6 +72,10 @@ public class Goal {
 
     @Column(name = "confidential", nullable = false)
     private Boolean confidential = false;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "territory_id")
+    private Territory territory;
 
     @OneToMany(mappedBy = "goal", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<KPI> kpis = new HashSet<>();

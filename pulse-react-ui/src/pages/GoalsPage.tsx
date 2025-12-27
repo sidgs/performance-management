@@ -63,6 +63,8 @@ import Tab from '@mui/material/Tab';
 
 import { graphqlRequest } from '../api/graphqlClient';
 import { getCurrentUserEmail } from '../api/authService';
+import { getAllTerritories } from '../api/territoryService';
+import { Territory } from '../types';
 import { approveGoal } from '../api/goalService';
 import type { Goal, GoalStatus, User, KPI, KPIStatus, GoalNote } from '../types';
 import NoteCard from '../components/notes/NoteCard';
@@ -75,6 +77,7 @@ import PersonRemoveIcon from '@mui/icons-material/PersonRemove';
 const GoalsPage: React.FC = () => {
   const [goals, setGoals] = useState<Goal[]>([]);
   const [users, setUsers] = useState<User[]>([]);
+  const [territories, setTerritories] = useState<Territory[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<GoalStatus | 'all'>('all');
   const [filterOwner, setFilterOwner] = useState<string>('all');
@@ -94,6 +97,7 @@ const GoalsPage: React.FC = () => {
   const [editStatus, setEditStatus] = useState<GoalStatus>('DRAFT');
   const [editCompletionDate, setEditCompletionDate] = useState('');
   const [editConfidential, setEditConfidential] = useState(false);
+  const [editTerritoryId, setEditTerritoryId] = useState<string>('');
   const [editLoading, setEditLoading] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
   
@@ -115,6 +119,7 @@ const GoalsPage: React.FC = () => {
   const [newGoalStatus, setNewGoalStatus] = useState<GoalStatus>('DRAFT');
   const [newGoalConfidential, setNewGoalConfidential] = useState(false);
   const [newGoalAssignedUsers, setNewGoalAssignedUsers] = useState<string[]>([]);
+  const [newGoalTerritoryId, setNewGoalTerritoryId] = useState<string>('');
   const [createGoalLoading, setCreateGoalLoading] = useState(false);
   const [createGoalError, setCreateGoalError] = useState<string | null>(null);
   
@@ -153,12 +158,25 @@ const GoalsPage: React.FC = () => {
   const [isCreatingNote, setIsCreatingNote] = useState(false);
   const [newNoteContent, setNewNoteContent] = useState('');
   const [createNoteLoading, setCreateNoteLoading] = useState(false);
-  // Load goals and users from GraphQL API
+
+  // Around line 253-298, add state for managed departments:
+  const [managedDepartments, setManagedDepartments] = useState<Department[]>([]);
+
+  // Load goals, users, and territories from GraphQL API
   useEffect(() => {
-    const fetchGoals = async () => {
+    const fetchData = async () => {
       setLoading(true);
       setError(null);
       try {
+        // Fetch territories
+        const territoriesData = await getAllTerritories();
+        setTerritories(territoriesData);
+        // Set default to Global territory
+        const globalTerritory = territoriesData.find(t => t.name === 'Global');
+        if (globalTerritory) {
+          setNewGoalTerritoryId(globalTerritory.id);
+        }
+
         const data = await graphqlRequest<{ goals: Goal[]; users: User[] }>(
           `
             query GetGoalsAndUsers {
@@ -282,6 +300,32 @@ const GoalsPage: React.FC = () => {
             console.error('Failed to fetch current user:', err);
           }
         }
+
+        // Fetch departments managed by current user
+        if (currentUserEmail) {
+          try {
+            const managedDeptsData = await graphqlRequest<{ departmentsManagedByMe: Department[] }>(
+              `
+                query GetDepartmentsManagedByMe {
+                  departmentsManagedByMe {
+                    id
+                    name
+                    users {
+                      id
+                      firstName
+                      lastName
+                      email
+                      title
+                    }
+                  }
+                }
+              `
+            );
+            setManagedDepartments(managedDeptsData.departmentsManagedByMe || []);
+          } catch (err) {
+            console.error('Failed to fetch managed departments:', err);
+          }
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load goals');
       } finally {
@@ -289,7 +333,7 @@ const GoalsPage: React.FC = () => {
       }
     };
 
-    fetchGoals();
+    fetchData();
   }, []);
 
   // Filter goals based on search and filters
@@ -654,6 +698,7 @@ const GoalsPage: React.FC = () => {
     setEditStatus(goal.status);
     setEditCompletionDate(goal.completionDate || '');
     setEditConfidential(goal.confidential || false);
+    setEditTerritoryId(goal.territory?.id || '');
     setEditError(null);
     setEditDialogOpen(true);
   };
@@ -731,6 +776,7 @@ const GoalsPage: React.FC = () => {
             completionDate: editCompletionDate || null,
             parentGoalId: editingGoal.parentGoal?.id || null,
             confidential: editConfidential,
+            territoryId: editTerritoryId || null,
           },
         }
       );
@@ -989,6 +1035,7 @@ const GoalsPage: React.FC = () => {
             status: newGoalStatus,
             parentGoalId: selectedParentGoal && selectedParentGoal !== 'root' ? selectedParentGoal : null,
             confidential: newGoalConfidential,
+            territoryId: newGoalTerritoryId || null,
           },
       };
 
@@ -1105,7 +1152,7 @@ const GoalsPage: React.FC = () => {
       });
     }
     
-    // Add department members
+    // Add department members (from department user belongs to)
     if (currentUser?.department?.users) {
       currentUser.department.users.forEach(member => {
         if (!assignable.find(u => u.email === member.email)) {
@@ -1113,6 +1160,17 @@ const GoalsPage: React.FC = () => {
         }
       });
     }
+    
+    // Add members from departments the user manages
+    managedDepartments.forEach(dept => {
+      if (dept.users) {
+        dept.users.forEach(member => {
+          if (!assignable.find(u => u.email === member.email)) {
+            assignable.push(member);
+          }
+        });
+      }
+    });
     
     return assignable;
   };
@@ -1678,6 +1736,13 @@ const GoalsPage: React.FC = () => {
                     <Typography variant="body2" color="text.secondary">
                       Created: {formatDate(goal.creationDate)}
                     </Typography>
+                    {goal.territory && (
+                      <Chip
+                        label={goal.territory.name}
+                        size="small"
+                        variant="outlined"
+                      />
+                    )}
                   </Box>
                 </Box>
               </Box>
@@ -1835,6 +1900,7 @@ const GoalsPage: React.FC = () => {
             <TableCell>Goal Description</TableCell>
             <TableCell>Owner</TableCell>
             <TableCell>Status</TableCell>
+            <TableCell>Territory</TableCell>
             <TableCell>KPIs</TableCell>
             <TableCell>Created</TableCell>
             <TableCell>Assigned To</TableCell>
@@ -1878,6 +1944,19 @@ const GoalsPage: React.FC = () => {
                     icon={statusConfig[goal.status].icon}
                     size="small"
                   />
+                </TableCell>
+                <TableCell>
+                  {goal.territory ? (
+                    <Chip
+                      label={goal.territory.name}
+                      size="small"
+                      variant="outlined"
+                    />
+                  ) : (
+                    <Typography variant="body2" color="text.secondary">
+                      Global
+                    </Typography>
+                  )}
                 </TableCell>
                 <TableCell>
                   {goal.kpis && goal.kpis.length > 0 ? (
@@ -2301,6 +2380,11 @@ const GoalsPage: React.FC = () => {
                     <Grid item xs={6}>
                       <Typography variant="body2"><strong>Child Goals:</strong> {selectedGoal.childGoals.length}</Typography>
                     </Grid>
+                    {selectedGoal.territory && (
+                      <Grid item xs={6}>
+                        <Typography variant="body2"><strong>Territory:</strong> {selectedGoal.territory.name}</Typography>
+                      </Grid>
+                    )}
                   </Grid>
                 </Box>
 
@@ -2743,6 +2827,21 @@ const GoalsPage: React.FC = () => {
                 shrink: true,
               }}
             />
+
+            <FormControl fullWidth>
+              <InputLabel>Territory</InputLabel>
+              <Select
+                value={editTerritoryId}
+                label="Territory"
+                onChange={(e) => setEditTerritoryId(e.target.value)}
+              >
+                {territories.map((territory) => (
+                  <MenuItem key={territory.id} value={territory.id}>
+                    {territory.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
           </Box>
         </DialogContent>
         <DialogActions>
@@ -2911,6 +3010,21 @@ const GoalsPage: React.FC = () => {
                 <MenuItem value="ACHIEVED">Achieved</MenuItem>
                 <MenuItem value="ARCHIVED">Archived</MenuItem>
                 <MenuItem value="RETIRED">Retired</MenuItem>
+              </Select>
+            </FormControl>
+
+            <FormControl fullWidth>
+              <InputLabel>Territory</InputLabel>
+              <Select
+                value={newGoalTerritoryId}
+                label="Territory"
+                onChange={(e) => setNewGoalTerritoryId(e.target.value)}
+              >
+                {territories.map((territory) => (
+                  <MenuItem key={territory.id} value={territory.id}>
+                    {territory.name}
+                  </MenuItem>
+                ))}
               </Select>
             </FormControl>
 

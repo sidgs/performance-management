@@ -257,6 +257,57 @@ export async function sendChatMessage(
 }
 
 /**
+ * Send a chat message with file attachment to the agent
+ */
+export async function sendChatMessageWithFile(
+  sessionId: string,
+  userId: string,
+  message: string,
+  file: File
+): Promise<ChatResponse> {
+  const token = await getAuthToken();
+  
+  if (!token) {
+    throw new Error('Authentication required. Please log in.');
+  }
+
+  // Create FormData for multipart/form-data
+  const formData = new FormData();
+  formData.append('message', message || '');
+  formData.append('file', file);
+
+  // Use relative URL when proxied (when VITE_AGENT_API_URL is not set), otherwise use full URL
+  const useProxy = !import.meta.env.VITE_AGENT_API_URL;
+  const url = useProxy && `${AGENT_API_PATH}/chat/${sessionId}?user_id=${encodeURIComponent(userId)}`.startsWith('/')
+    ? `${AGENT_API_PATH}/chat/${sessionId}?user_id=${encodeURIComponent(userId)}`  // Use relative URL for Vite proxy
+    : `${AGENT_API_PATH}/chat/${sessionId}?user_id=${encodeURIComponent(userId)}`.startsWith('/')
+    ? `${AGENT_API_BASE_URL}${AGENT_API_PATH}/chat/${sessionId}?user_id=${encodeURIComponent(userId)}`  // Use full URL when VITE_AGENT_API_URL is set
+    : `${AGENT_API_PATH}/chat/${sessionId}?user_id=${encodeURIComponent(userId)}`;
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      // Don't set Content-Type - let browser set it with boundary for multipart/form-data
+    },
+    body: formData,
+  });
+
+  if (!response.ok) {
+    if (response.status === 401 || response.status === 403) {
+      localStorage.removeItem('user_auth_token');
+      localStorage.removeItem('epm_user_auth_token');
+      window.dispatchEvent(new Event('authchange'));
+      throw new Error('Authentication failed. Please log in again.');
+    }
+    const errorText = await response.text();
+    throw new Error(`API error: ${response.status} ${errorText || response.statusText}`);
+  }
+
+  return response.json();
+}
+
+/**
  * Delete a session
  */
 export async function deleteSession(

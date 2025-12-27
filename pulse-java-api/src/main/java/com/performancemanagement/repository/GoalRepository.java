@@ -44,6 +44,9 @@ public interface GoalRepository extends JpaRepository<Goal, Long> {
            "AND (g.owner.id = :userId OR au.id = :userId)")
     List<Goal> findGoalsForUser(@Param("tenantId") String tenantId, @Param("userId") Long userId);
     
+    @Query("SELECT g FROM Goal g WHERE g.territory = :territory AND g.tenant.fqdn = :tenantId")
+    List<Goal> findByTerritoryAndTenantId(@Param("territory") com.performancemanagement.model.Territory territory, @Param("tenantId") String tenantId);
+    
     // Legacy methods for backward compatibility - will be filtered by service layer
     List<Goal> findByOwnerEmail(String email);
     List<Goal> findByParentGoalId(Long parentGoalId);

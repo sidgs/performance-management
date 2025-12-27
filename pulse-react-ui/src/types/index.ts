@@ -24,6 +24,12 @@ export interface Team {
   users?: User[];
 }
 
+export interface Territory {
+  id: string;
+  name: string;
+  description?: string;
+}
+
 export interface Goal {
   id: string;
   shortDescription: string;
@@ -39,6 +45,7 @@ export interface Goal {
   assignedUsers: User[];
   locked: boolean;
   confidential: boolean;
+  territory?: Territory;
   kpis: KPI[];
   notes: GoalNote[];
 }

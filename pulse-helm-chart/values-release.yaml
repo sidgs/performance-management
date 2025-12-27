@@ -1,0 +1,70 @@
+# Development environment overrides
+# Use with: helm install pulse-performance-management ./pulse-helm-chart -f values-dev.yaml
+
+# Java API Configuration - External Database
+javaApi:
+  config:
+    # External PostgreSQL database configuration
+    database:
+      type: postgresql
+      host: postgres-dev-sl.sidglobal.cloud  # Replace with your external PostgreSQL hostname
+      port: 5432
+      name: pulse-data
+      username: pulse  # Replace with your database username
+      password: "pulse"  # Set password directly as environment variable (recommended for dev)
+      # Alternative: Use passwordEnvVar to reference an existing secret key
+      # passwordEnvVar: "DB_PASSWORD"  # References key from pulse-java-api-env secret
+    
+    # External Redis configuration
+    redis:
+      host: redis  # Replace with your external Redis hostname
+      port: 6379
+      # password: "your-redis-password"  # Set password directly as environment variable (optional, if Redis requires auth)
+      # Alternative: Use passwordEnvVar to reference an existing secret key
+      # passwordEnvVar: "REDIS_PASSWORD"  # References key from pulse-java-api-env secret
+      timeout: 2000ms
+
+# Agent AI Configuration - External Database
+agentAi:
+  config:
+    # External PostgreSQL database configuration for session storage
+    database:
+      host: postgres-dev-sl.sidglobal.cloud  # Replace with your external PostgreSQL hostname (can be same as Java API)
+      port: 5432
+      name: pulse-agent-sessions  # Can use same database or different database on same host
+      user: pulse  # Replace with your database username
+      password: "pulse"  # Set password directly as environment variable (recommended for dev)
+      # Alternative: Use passwordEnvVar to reference an existing secret key
+      # passwordEnvVar: "AGENT_DB_PASSWORD"  # References key from pulse-agent-ai-env secret
+
+# Disable internal PostgreSQL (using external database)
+postgresql:
+  enabled: false
+
+# Disable internal Redis (using external Redis)
+redis:
+  enabled: false
+
+# Ingress configuration for development
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    # Add any ingress annotations needed for your environment
+    # nginx.ingress.kubernetes.io/ssl-redirect: "false"  # Uncomment if not using TLS in dev
+  hosts:
+    - host: "*apps.sidgs.net"  # Replace with your dev hostname
+      paths:
+        - path: /api/v1/epm
+          pathType: Prefix
+          service: pulse-java-api
+        - path: /api/v1/pulse-epm-agent
+          pathType: Prefix
+          service: pulse-agent-ai
+  tls: []
+  # Uncomment and configure if using TLS in dev environment
+  # tls:
+  #   - secretName: performance-management-dev-tls
+  #     hosts:
+  #       - performance-management-dev.example.com
+

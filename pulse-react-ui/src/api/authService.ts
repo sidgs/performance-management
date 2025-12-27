@@ -184,11 +184,12 @@ export async function getAuthToken(): Promise<string | null> {
 
 /**
  * Clear the stored JWT token
- * Clears both primary and backup tokens
+ * Clears both primary and backup tokens, plus any legacy 'token' key
  */
 export function clearAuthToken(): void {
   localStorage.removeItem(TOKEN_STORAGE_KEY);
   localStorage.removeItem(WIDGET_TOKEN_STORAGE_KEY);
+  localStorage.removeItem('token'); // Clear legacy 'token' key if it exists
 }
 
 /**
