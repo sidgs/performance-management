@@ -16,6 +16,14 @@ elif [ -n "${BITBUCKET_BRANCH}" ]; then
   fi
 fi
 
+if [ "${BITBUCKET_BRANCH}" = "develop" ]; then
+  RELEASE_VERSION="latest"
+  echo "RELEASE_VERSION=latest" >> $BB_ENV_FILE_PATH
+  echo "RELEASE_VERSION=latest" > release-version.txt
+  exit 0
+fi
+
+
 # Validate that RELEASE_VERSION matches semantic versioning: x.y.z or x.y.z-rcN (N=1-99)
 if [ -n "${RELEASE_VERSION}" ]; then
   if ! [[ "${RELEASE_VERSION}" =~ ^([0-9]{1,2})\.([0-9]{1,2})\.([0-9]{1,2})(-rc([1-9][0-9]?))?$ ]]; then
@@ -24,4 +32,5 @@ if [ -n "${RELEASE_VERSION}" ]; then
   fi
 fi
 # Output the version (empty string if not found)
-echo "${RELEASE_VERSION}"
+echo "RELEASE_VERSION=${RELEASE_VERSION}" >> $BB_ENV_FILE_PATH
+echo "RELEASE_VERSION=${RELEASE_VERSION}" > release-version.txt

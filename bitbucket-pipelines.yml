@@ -24,7 +24,8 @@ definitions:
             echo "Release version: ${RELEASE_VERSION}"
             export RELEASE_VERSION=${RELEASE_VERSION}
         after-script:
-          - echo "RELEASE_VERSION=${RELEASE_VERSION}" >> $BB_ENV_FILE_PATH
+          # - echo "RELEASE_VERSION=${RELEASE_VERSION}" >> $BB_ENV_FILE_PATH
+          - cat release-version.txt > $BB_ENV_FILE_PATH
     - step: &build-pulse-agent-ai
         name: Build and Push Pulse Agent AI
         services:
@@ -147,6 +148,23 @@ pipelines:
       - step:
           <<: *deploy-manual
   branches:
+    'develop':
+      - step:
+          <<: *release-version
+      - step:
+          <<: *build-pulse-agent-ai
+          condition:
+            changesets:
+              includePaths:
+                - pulse-agent-ai/**
+      - step:
+          <<: *build-pulse-java-api
+          condition:
+            changesets:
+              includePaths:
+                - pulse-java-api/**
+      - step:
+          <<: *deploy-manual
     'release/*':
       - step:
           <<: *release-version
