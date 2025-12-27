@@ -24,6 +24,9 @@ definitions:
             fi
             echo "Release version: ${RELEASE_VERSION}"
             export RELEASE_VERSION=${RELEASE_VERSION}
+        artifacts:
+          - release-version.txt
+
         after-script:
           # - echo "RELEASE_VERSION=${RELEASE_VERSION}" >> $BB_ENV_FILE_PATH
           - cat release-version.txt > $BB_ENV_FILE_PATH
@@ -35,6 +38,12 @@ definitions:
           - docker
         script:
           - |
+            cat release-version.txt
+            # Source the release-version.txt file to export RELEASE_VERSION
+            if [ -f release-version.txt ]; then
+              source release-version.txt && export RELEASE_VERSION
+              echo "RELEASE_VERSION=${RELEASE_VERSION}" 
+            fi
             # Get release version from script
             RELEASE_VERSION=${RELEASE_VERSION}
             if [ -z "${RELEASE_VERSION}" ]; then
@@ -63,8 +72,13 @@ definitions:
           - docker
         script:
           - |
+            cat release-version.txt
+            # Source the release-version.txt file to export RELEASE_VERSION
+            if [ -f release-version.txt ]; then
+              source release-version.txt && export RELEASE_VERSION
+              echo "RELEASE_VERSION=${RELEASE_VERSION}" 
+            fi
             # Get release version from script
-            RELEASE_VERSION=${RELEASE_VERSION}
             if [ -z "${RELEASE_VERSION}" ]; then
               echo "RELEASE_VERSION is not set. Skipping build."
               exit 0
@@ -90,7 +104,12 @@ definitions:
         script:
           - |
             # Get release version from script
-            RELEASE_VERSION=${RELEASE_VERSION}
+            cat release-version.txt
+            # Source the release-version.txt file to export RELEASE_VERSION
+            if [ -f release-version.txt ]; then
+              source release-version.txt && export RELEASE_VERSION
+              echo "RELEASE_VERSION=${RELEASE_VERSION}" 
+            fi
             if [ -z "${RELEASE_VERSION}" ]; then
               echo "RELEASE_VERSION is not set. Skipping deployment."
               exit 0
@@ -158,12 +177,14 @@ pipelines:
             changesets:
               includePaths:
                 - pulse-agent-ai/**
+                - bitbucket-pipelines.yml
       - step:
           <<: *build-pulse-java-api
           condition:
             changesets:
               includePaths:
                 - pulse-java-api/**
+                - bitbucket-pipelines.yml
       - step:
           <<: *deploy-manual
     'release/*':
