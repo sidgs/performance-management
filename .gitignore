@@ -31,3 +31,4 @@ node_modules/
 .DS_Store
 .postman/
 *.db
+__pycache__/
