@@ -68,3 +68,13 @@ ingress:
   #     hosts:
   #       - performance-management-dev.example.com
 
+secrets:
+  javaApi:
+    databasePassword: "pulse"
+  agentAi:
+    databasePassword: "pulse"
+    googleCloudProject: "sami-ai-agentspace"
+    googleApiKey: "AIzaSyAj5ETkRyxaKrhdsoB6HDWDS5eY93X4JRE"
+    jwtSecretKey: ""
+  postgresql:
+    password: "pulse"
