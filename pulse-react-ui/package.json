@@ -30,6 +30,8 @@
   },
   "scripts": {
     "dev": "VITE_WIDGET_MODE=true vite",
+    "dev:standalone": "VITE_WIDGET_MODE=false vite",
+
     "build": "tsc && vite build",
     "clean": "rm -rf dist", 
     "preview": "vite preview"

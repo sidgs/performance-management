@@ -153,8 +153,8 @@ definitions:
           - export AWS_DEFAULT_REGION=${AWS_REGION:-us-east-1}
           - aws sts get-caller-identity
           - |
-            echo "Syncing dist/ to S3 bucket ${S3_BUCKET:-sami-x-apps}/pulse-ui/version/${RELEASE_VERSION}/..."
-            aws s3 sync pulse-react-ui/dist/ s3://${S3_BUCKET:-sami-x-apps}/pulse-ui/version/${RELEASE_VERSION}/ --delete
+            echo "Syncing dist/ to S3 bucket ${S3_BUCKET:-sami-x-apps}/pulse-ui/version/${RELEASE_VERSION}/epm..."
+            aws s3 sync pulse-react-ui/dist/ s3://${S3_BUCKET:-sami-x-apps}/pulse-ui/version/${RELEASE_VERSION}/epm --delete
             echo "UI sync completed successfully!"
 
     - step: &deploy-manual
