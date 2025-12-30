@@ -60,14 +60,12 @@ import { createUser, getAllUsers as getAllUsersAPI, updateUser } from '../api/us
 import {
   getAllTeams,
   getTeamById,
-  getTeamsByDepartment,
   createTeam,
   updateTeam,
   deleteTeam,
   assignUserToTeam,
   removeUserFromTeam,
 } from '../api/teamService';
-import { graphqlRequest } from '../api/graphqlClient';
 import { isHrAdmin } from '../api/authService';
 import { Department, User, Team, Territory } from '../types';
 import {
@@ -93,7 +91,6 @@ const HRAdminPage: React.FC = () => {
 
   // Dialog states
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editUserDialogOpen, setEditUserDialogOpen] = useState(false);
   const [editDepartmentDialogOpen, setEditDepartmentDialogOpen] = useState(false);
   const [editTeamDialogOpen, setEditTeamDialogOpen] = useState(false);
@@ -300,7 +297,7 @@ const HRAdminPage: React.FC = () => {
     let current: Department | undefined = dept;
     while (current?.parentDepartment) {
       depth++;
-      current = allDepts.find(d => d.id === current.parentDepartment?.id);
+      current = allDepts.find(d => d.id === current?.parentDepartment?.id);
     }
     const indent = '  '.repeat(depth);
     return `${indent}└─ ${dept.name}`;

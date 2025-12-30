@@ -57,7 +57,7 @@ function createUserFromNameAndEmail(email?: string, name?: string): User | undef
     firstName,
     lastName,
     email,
-    title: undefined,
+    title: '',
   } as User;
 }
 

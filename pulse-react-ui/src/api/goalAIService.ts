@@ -77,7 +77,7 @@ export async function getAgentContext(): Promise<AgentContext | null> {
  */
 export async function sendMessageToAgent(
   message: string,
-  conversationHistory?: AgentMessage[],
+  _conversationHistory?: AgentMessage[],
   sessionId?: string
 ): Promise<AgentResponse> {
   const context = await getAgentContext();
@@ -121,7 +121,7 @@ export async function sendMessageToAgent(
  * @param goalIds - Optional array of goal IDs to get insights for (if empty, analyzes all user goals)
  * @returns Insights about the goals
  */
-export async function getGoalInsights(goalIds?: string[]): Promise<string[]> {
+export async function getGoalInsights(_goalIds?: string[]): Promise<string[]> {
   // TODO: Implement actual API call
   // This will call the agent with user context and goal data
 
@@ -162,9 +162,9 @@ export async function getRecommendations(): Promise<string[]> {
  * @returns Result of the action
  */
 export async function performGoalAction(
-  action: string,
-  goalId: string,
-  parameters?: Record<string, unknown>
+  _action: string,
+  _goalId: string,
+  _parameters?: Record<string, unknown>
 ): Promise<{ success: boolean; message: string; data?: unknown }> {
   // TODO: Implement actual API call
   // The agent will receive the action request along with user context and auth token

@@ -32,7 +32,6 @@ import {
   Avatar,
   Tooltip,
   Checkbox,
-  FormGroup,
   FormControlLabel,
   List,
   ListItem,
@@ -66,7 +65,8 @@ import { getCurrentUserEmail } from '../api/authService';
 import { getAllTerritories } from '../api/territoryService';
 import { Territory } from '../types';
 import { approveGoal } from '../api/goalService';
-import type { Goal, GoalStatus, User, KPI, KPIStatus, GoalNote } from '../types';
+import type { Goal, GoalStatus, User, KPI, GoalNote, Department } from '../types';
+import { KPIStatus } from '../types';
 import NoteCard from '../components/notes/NoteCard';
 import RichTextEditor from '../components/notes/RichTextEditor';
 import LockIcon from '@mui/icons-material/Lock';
@@ -86,7 +86,7 @@ const GoalsPage: React.FC = () => {
   const [selectedGoal, setSelectedGoal] = useState<Goal | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'hierarchy'>('list');
   const [loading, setLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
+  const [_error, setError] = useState<string | null>(null);
   
   // Edit dialog state
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -108,7 +108,7 @@ const GoalsPage: React.FC = () => {
   
   // Current user and team members
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [teamMembers, setTeamMembers] = useState<User[]>([]);
+  const [_teamMembers, setTeamMembers] = useState<User[]>([]);
   
   // Create goal dialog states
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -141,7 +141,7 @@ const GoalsPage: React.FC = () => {
   const [editingKpi, setEditingKpi] = useState<KPI | null>(null);
   const [kpiGoalId, setKpiGoalId] = useState<string | null>(null);
   const [kpiDescription, setKpiDescription] = useState('');
-  const [kpiStatus, setKpiStatus] = useState<KPIStatus>('NOT_STARTED');
+  const [kpiStatus, setKpiStatus] = useState<KPIStatus>(KPIStatus.NOT_STARTED);
   const [kpiCompletionPercentage, setKpiCompletionPercentage] = useState<number>(0);
   const [kpiDueDate, setKpiDueDate] = useState('');
   const [kpiLoading, setKpiLoading] = useState(false);
@@ -358,6 +358,7 @@ const GoalsPage: React.FC = () => {
     APPROVED: { label: 'Approved', color: 'info' as const, icon: <CheckCircleIcon /> },
     PUBLISHED: { label: 'Published', color: 'primary' as const, icon: <PublishedIcon /> },
     ACHIEVED: { label: 'Achieved', color: 'success' as const, icon: <CheckCircleIcon /> },
+    ARCHIVED: { label: 'Archived', color: 'default' as const, icon: <DraftIcon /> },
     RETIRED: { label: 'Retired', color: 'warning' as const, icon: <PendingIcon /> },
   };
 
@@ -585,7 +586,7 @@ const GoalsPage: React.FC = () => {
     setCreateNoteLoading(true);
     setNotesError(null);
     try {
-      const data = await graphqlRequest<{ createGoalNote: GoalNote }>(
+      await graphqlRequest<{ createGoalNote: GoalNote }>(
         `
           mutation CreateGoalNote($goalId: ID!, $content: String!) {
             createGoalNote(goalId: $goalId, content: $content) {
@@ -726,7 +727,7 @@ const GoalsPage: React.FC = () => {
     setEditError(null);
 
     try {
-      const data = await graphqlRequest<{ updateGoal: Goal }>(
+      await graphqlRequest<{ updateGoal: Goal }>(
         `
           mutation UpdateGoal($id: ID!, $input: GoalInput!) {
             updateGoal(id: $id, input: $input) {
@@ -844,6 +845,144 @@ const GoalsPage: React.FC = () => {
       setEditError(err instanceof Error ? err.message : 'Failed to update goal');
     } finally {
       setEditLoading(false);
+    }
+  };
+
+  // Handle lock goal
+  const handleLockGoal = async (goalId: string) => {
+    setLockLoading(goalId);
+    try {
+      await graphqlRequest<{ lockGoal: Goal }>(
+        `
+          mutation LockGoal($id: ID!) {
+            lockGoal(id: $id) {
+              id
+              locked
+            }
+          }
+        `,
+        { id: goalId }
+      );
+      
+      // Refresh goals list
+      const refreshData = await graphqlRequest<{ goals: Goal[] }>(
+        `
+          query GetGoals {
+            goals {
+              id
+              shortDescription
+              longDescription
+              creationDate
+              completionDate
+              status
+              locked
+              confidential
+              owner {
+                id
+                firstName
+                lastName
+                email
+                title
+              }
+              childGoals {
+                id
+                status
+                locked
+              }
+              assignedUsers {
+                id
+                firstName
+                lastName
+                email
+                title
+              }
+            }
+          }
+        `
+      );
+      
+      setGoals(refreshData.goals ?? []);
+      
+      // Update selectedGoal if it's the one we just locked
+      if (selectedGoal && selectedGoal.id === goalId) {
+        const updatedGoal = refreshData.goals?.find(g => g.id === goalId);
+        if (updatedGoal) {
+          setSelectedGoal(updatedGoal);
+        }
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to lock goal');
+    } finally {
+      setLockLoading(null);
+    }
+  };
+
+  // Handle unlock goal
+  const handleUnlockGoal = async (goalId: string) => {
+    setLockLoading(goalId);
+    try {
+      await graphqlRequest<{ unlockGoal: Goal }>(
+        `
+          mutation UnlockGoal($id: ID!) {
+            unlockGoal(id: $id) {
+              id
+              locked
+            }
+          }
+        `,
+        { id: goalId }
+      );
+      
+      // Refresh goals list
+      const refreshData = await graphqlRequest<{ goals: Goal[] }>(
+        `
+          query GetGoals {
+            goals {
+              id
+              shortDescription
+              longDescription
+              creationDate
+              completionDate
+              status
+              locked
+              confidential
+              owner {
+                id
+                firstName
+                lastName
+                email
+                title
+              }
+              childGoals {
+                id
+                status
+                locked
+              }
+              assignedUsers {
+                id
+                firstName
+                lastName
+                email
+                title
+              }
+            }
+          }
+        `
+      );
+      
+      setGoals(refreshData.goals ?? []);
+      
+      // Update selectedGoal if it's the one we just unlocked
+      if (selectedGoal && selectedGoal.id === goalId) {
+        const updatedGoal = refreshData.goals?.find(g => g.id === goalId);
+        if (updatedGoal) {
+          setSelectedGoal(updatedGoal);
+        }
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to unlock goal');
+    } finally {
+      setLockLoading(null);
     }
   };
 
@@ -1164,7 +1303,7 @@ const GoalsPage: React.FC = () => {
     // Add members from departments the user manages
     managedDepartments.forEach(dept => {
       if (dept.users) {
-        dept.users.forEach(member => {
+        dept.users.forEach((member: User) => {
           if (!assignable.find(u => u.email === member.email)) {
             assignable.push(member);
           }
@@ -1183,7 +1322,7 @@ const GoalsPage: React.FC = () => {
     setAssignError(null);
 
     try {
-      const result = await graphqlRequest<{ assignGoalToUser: Goal }>(
+      await graphqlRequest<{ assignGoalToUser: Goal }>(
         `
           mutation AssignGoalToUser($goalId: ID!, $userEmail: String!) {
             assignGoalToUser(goalId: $goalId, userEmail: $userEmail) {
@@ -1558,7 +1697,7 @@ const GoalsPage: React.FC = () => {
       setKpiDialogOpen(false);
       setEditingKpi(null);
       setKpiDescription('');
-      setKpiStatus('NOT_STARTED');
+      setKpiStatus(KPIStatus.NOT_STARTED);
       setKpiCompletionPercentage(0);
       setKpiDueDate('');
     } catch (err) {
@@ -2344,7 +2483,7 @@ const GoalsPage: React.FC = () => {
               </Typography>
             </DialogTitle>
             <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-              <Tabs value={goalDetailsTab} onChange={(e, newValue) => setGoalDetailsTab(newValue)}>
+              <Tabs value={goalDetailsTab} onChange={(_e, newValue) => setGoalDetailsTab(newValue)}>
                 <Tab label="Details" />
                 <Tab label="KPIs" />
                 <Tab label="Notes" icon={<NotesIcon />} iconPosition="start" />
@@ -2510,7 +2649,7 @@ const GoalsPage: React.FC = () => {
                         setEditingKpi(null);
                         setKpiGoalId(selectedGoal.id);
                         setKpiDescription('');
-                        setKpiStatus('NOT_STARTED');
+                        setKpiStatus(KPIStatus.NOT_STARTED);
                         setKpiCompletionPercentage(0);
                         setKpiDueDate('');
                         setKpiError(null);

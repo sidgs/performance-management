@@ -17,7 +17,6 @@ import {
   SmartToy as AgentIcon,
   Person as PersonIcon,
   AttachFile as AttachFileIcon,
-  Close as CloseIcon,
 } from '@mui/icons-material';
 import ReactMarkdown from 'react-markdown';
 

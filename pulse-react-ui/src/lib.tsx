@@ -3,7 +3,6 @@ import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { BrowserRouter } from 'react-router-dom';
 import App from './App';
-import PerformanceManagementWidget from './components/PerformanceManagementWidget';
 
 // Re-export all your components
 export { default as App } from './App';

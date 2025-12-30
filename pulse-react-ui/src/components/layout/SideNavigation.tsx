@@ -15,7 +15,6 @@ import {
   //Dashboard as DashboardIcon,
   //Assessment as AssessmentIcon,
   BarChart as BarChartIcon,
-  People as PeopleIcon,
   ExpandLess,
   ExpandMore,
   Home as HomeIcon,

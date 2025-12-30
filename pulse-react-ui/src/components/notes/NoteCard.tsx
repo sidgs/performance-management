@@ -20,7 +20,7 @@ import {
   Delete as DeleteIcon,
 } from '@mui/icons-material';
 import RichTextEditor from './RichTextEditor';
-import type { GoalNote, User } from '../../types';
+import type { GoalNote } from '../../types';
 import { getCurrentUserEmail } from '../../api/authService';
 
 interface NoteCardProps {

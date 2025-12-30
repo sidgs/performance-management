@@ -49,7 +49,7 @@ interface PerformanceManagementWidgetProps {
  */
 const PerformanceManagementWidget: React.FC<PerformanceManagementWidgetProps> = ({ 
   token,
-  apiBaseUrl 
+  apiBaseUrl: _apiBaseUrl 
 }) => {
   // Enable widget mode IMMEDIATELY (synchronously) - this must happen before App renders
   // so that App can detect widget mode on first render

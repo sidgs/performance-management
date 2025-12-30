@@ -1,69 +1,36 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-import { resolve } from 'path'; // Keep only resolve from path
-import dts from 'vite-plugin-dts';
 
-export default defineConfig({
-  plugins: [
-    react(),
-    dts({
-      insertTypesEntry: true,
-      outDir: 'dist/types',
-      include: ['src'],
-      exclude: ['**/*.test.ts', '**/*.test.tsx', '**/*.spec.ts', '**/*.spec.tsx'],
-      staticImport: true,
-      rollupTypes: true,
-    }),
-  ],
-  build: {
-    lib: {
-      entry: resolve(__dirname, 'src/lib.tsx'),
-      name: 'SIDGSPerformance', // Global variable name (for UMD)
-      fileName: (format) => `sidgs-performance.${format}.js`,
-      formats: ['umd', 'es'], // UMD is required, ES is optional but recommended
-    },
-    rollupOptions: {
-      // Externalize React and ReactDOM (and other peer dependencies)
-      external: [
-        'react',
-        'react-dom',
-        'react-router-dom',
-        '@mui/material',
-        '@mui/icons-material',
-        '@emotion/react',
-        '@emotion/styled',
-      ],
-      output: {
-        globals: {
-          react: 'React',
-          'react-dom': 'ReactDOM',
-          'react-router-dom': 'ReactRouterDOM',
-          '@mui/material': 'MaterialUI',
-          '@mui/icons-material': 'MaterialUIIcons',
-          '@emotion/react': 'EmotionReact',
-          '@emotion/styled': 'EmotionStyled',
+// https://vitejs.dev/config/
+export default defineConfig(({ mode }) => {
+  // Automatically set ENV_TYPE to 'dev' in development mode
+  const envType = mode === 'development' ? 'dev' : 'prod';
+
+  return {
+    plugins: [react()],
+    server: {
+      port: 3000,
+      host: '0.0.0.0',
+      allowedHosts: ['localhost', '127.0.0.1', '0.0.0.0', '*.gosami.ai', 'apps.sidglobal.cloud'],
+      proxy: {
+        // Proxy all API calls for the EPM backend to the Spring Boot app
+        '/api/v1/epm': {
+          target: 'http://localhost:9081',
+          changeOrigin: true,
+          secure: false,
         },
-        exports: 'named',
+        // Proxy all API calls for the agent API to the FastAPI app
+        '/api/v1/pulse-epm-agent': {
+          target: 'http://localhost:8001',
+          changeOrigin: true,
+          secure: false,
+        },
       },
     },
-    minify: true,
-    sourcemap: true,
-    emptyOutDir: true,
-  },
-  server: {
-    proxy: {
-      // Proxy all API calls for the EPM backend to the Spring Boot app
-      '/api/v1/epm': {
-        target: 'http://localhost:9081',
-        changeOrigin: true,
-        secure: false,
-      },
-      // Proxy all API calls for the agent API to the FastAPI app
-      '/api/v1/pulse-epm-agent': {
-        target: 'http://localhost:8001',
-        changeOrigin: true,
-        secure: false,
-      },
+    // Expose ENV_TYPE to the client via define
+    // This replaces import.meta.env.ENV_TYPE at build time
+    define: {
+      'import.meta.env.ENV_TYPE': JSON.stringify(envType),
     },
-  },
+  };
 });

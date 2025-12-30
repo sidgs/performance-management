@@ -13,7 +13,6 @@ import {
   InputBase,
   IconButton,
   TextField,
-  Paper,
   AvatarGroup,
   Dialog,
   DialogTitle,
@@ -305,8 +304,9 @@ const HomePage: React.FC = () => {
     navigate('/goals');
   };
 
-  // Handle create goal dialog
-  const handleOpenCreateDialog = (asSubGoal: boolean = false) => {
+  // Handle create goal dialog (currently unused but kept for future use)
+  // @ts-ignore - Unused but kept for future implementation
+  const _handleOpenCreateDialog = (_asSubGoal: boolean = false) => {
     if (users.length === 0) {
       setCreateGoalError('No users available. Please wait for users to load or create a user first.');
       return;
@@ -324,7 +324,7 @@ const HomePage: React.FC = () => {
       }
     }
     
-    setIsSubGoal(asSubGoal);
+    setIsSubGoal(_asSubGoal);
     setSelectedParentGoal('');
     setNewGoalShortDesc('');
     setNewGoalLongDesc('');
