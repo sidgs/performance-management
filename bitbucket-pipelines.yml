@@ -100,9 +100,6 @@ definitions:
     - step: &build-ui
         name: Build UI
         image: node:22.12.0
-        caches:
-          - node
-          - pulse-react-ui/node_modules
         script:
           - |
             cat release-version.txt
