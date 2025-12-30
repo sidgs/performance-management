@@ -1,7 +1,7 @@
 {
   "name": "@sidgs/performance-app",
   "version": "1.0.0",
-  "description": "Enterprise Performance Management Application",
+  "description": "Enterprise Performance Management Application (epm)",
   "type": "module",
 
 
