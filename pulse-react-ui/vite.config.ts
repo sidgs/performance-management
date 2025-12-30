@@ -7,6 +7,7 @@ export default defineConfig(({ mode }) => {
   const envType = mode === 'development' ? 'dev' : 'prod';
 
   return {
+    base: './', // Use relative paths for assets in dist/index.html
     plugins: [react()],
     server: {
       port: 3000,
