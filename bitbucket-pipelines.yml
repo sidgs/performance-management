@@ -97,6 +97,69 @@ definitions:
         after-script:
           - docker logout sidgs.jfrog.io
 
+    - step: &build-ui
+        name: Build UI
+        image: node:22.12.0
+        caches:
+          - node
+          - pulse-react-ui/node_modules
+        script:
+          - |
+            cat release-version.txt
+            # Source the release-version.txt file to export RELEASE_VERSION
+            if [ -f release-version.txt ]; then
+              source release-version.txt && export RELEASE_VERSION
+              echo "RELEASE_VERSION=${RELEASE_VERSION}" 
+            fi
+            if [ -z "${RELEASE_VERSION}" ]; then
+              echo "RELEASE_VERSION is not set. Skipping build."
+              exit 0
+            fi
+            echo "Building Pulse React UI for release: ${RELEASE_VERSION}..."
+            cd pulse-react-ui
+            echo "Installing npm dependencies..."
+            npm install
+            echo "Building UI..."
+            npm run build
+            if [ ! -d "dist" ]; then
+              echo "Error: dist directory not found after build"
+              exit 1
+            fi
+            echo "UI build completed successfully!"
+        artifacts:
+          - pulse-react-ui/dist/**
+    - step: &sync-ui
+        name: Sync UI to S3
+        oidc: true
+        script:
+          - |
+            cat release-version.txt
+            # Source the release-version.txt file to export RELEASE_VERSION
+            if [ -f release-version.txt ]; then
+              source release-version.txt && export RELEASE_VERSION
+              echo "RELEASE_VERSION=${RELEASE_VERSION}" 
+            fi
+            if [ -z "${RELEASE_VERSION}" ]; then
+              echo "RELEASE_VERSION is not set. Skipping sync."
+              exit 0
+            fi
+            if [ ! -d "pulse-react-ui/dist" ]; then
+              echo "Error: dist directory not found. Build step may have failed."
+              exit 1
+            fi
+            echo "Syncing UI to S3 for release: ${RELEASE_VERSION}..."
+          # Assume AWS role using OIDC
+          - export AWS_ROLE_ARN=${BB_AWS_ROLE_ARN}
+          - export AWS_WEB_IDENTITY_TOKEN_FILE=$(pwd)/web-identity-token
+          - echo $BITBUCKET_STEP_OIDC_TOKEN > $AWS_WEB_IDENTITY_TOKEN_FILE
+          # AWS config
+          - export AWS_DEFAULT_REGION=${AWS_REGION:-us-east-1}
+          - aws sts get-caller-identity
+          - |
+            echo "Syncing dist/ to S3 bucket ${S3_BUCKET:-sami-x-apps}/pulse-ui/${RELEASE_VERSION}/..."
+            aws s3 sync pulse-react-ui/dist/ s3://${S3_BUCKET:-sami-x-apps}/pulse-ui/${RELEASE_VERSION}/ --delete
+            echo "UI sync completed successfully!"
+
     - step: &deploy-manual
         name: Deploy to Kubernetes
         trigger: manual
@@ -161,6 +224,10 @@ pipelines:
     'release/*':
       - step: *release-version
       - step:
+          <<: *build-ui
+      - step:
+          <<: *sync-ui
+      - step:
           <<: *build-pulse-agent-ai
       - step:
           <<: *build-pulse-java-api
@@ -170,6 +237,10 @@ pipelines:
     'develop':
       - step:
           <<: *release-version
+      - step:
+          <<: *build-ui
+      - step:
+          <<: *sync-ui
       - step:
           <<: *build-pulse-agent-ai
           condition:
@@ -190,6 +261,10 @@ pipelines:
       - step:
           <<: *release-version
       - step:
+          <<: *build-ui
+      - step:
+          <<: *sync-ui
+      - step:
           <<: *build-pulse-agent-ai
           condition:
             changesets:
@@ -206,6 +281,10 @@ pipelines:
     'hotfix/*':
       - step:
           <<: *release-version
+      - step:
+          <<: *build-ui
+      - step:
+          <<: *sync-ui
       - step:
           <<: *build-pulse-agent-ai
           condition:
