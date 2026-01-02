@@ -1,0 +1,430 @@
+{
+  "tenant": {
+    "fqdn": "localhost",
+    "name": "TechConsult Demo",
+    "active": true
+  },
+  "users": [
+    {
+      "firstName": "Sarah",
+      "lastName": "Chen",
+      "email": "sarah.chen@techconsult.demo",
+      "title": "Chief Executive Officer",
+      "role": "EPM_ADMIN",
+      "departmentName": null
+    },
+    {
+      "firstName": "Michael",
+      "lastName": "Rodriguez",
+      "email": "michael.rodriguez@techconsult.demo",
+      "title": "VP of Engineering",
+      "role": "USER",
+      "departmentName": "Engineering"
+    },
+    {
+      "firstName": "Emily",
+      "lastName": "Watson",
+      "email": "emily.watson@techconsult.demo",
+      "title": "VP of Consulting",
+      "role": "USER",
+      "departmentName": "Consulting"
+    },
+    {
+      "firstName": "David",
+      "lastName": "Kim",
+      "email": "david.kim@techconsult.demo",
+      "title": "VP of Sales",
+      "role": "USER",
+      "departmentName": "Sales"
+    },
+    {
+      "firstName": "Jennifer",
+      "lastName": "Martinez",
+      "email": "jennifer.martinez@techconsult.demo",
+      "title": "VP of Human Resources",
+      "role": "HR_ADMIN",
+      "departmentName": "HR"
+    },
+    {
+      "firstName": "Robert",
+      "lastName": "Taylor",
+      "email": "robert.taylor@techconsult.demo",
+      "title": "VP of Operations",
+      "role": "USER",
+      "departmentName": "Operations"
+    },
+    {
+      "firstName": "Amanda",
+      "lastName": "Johnson",
+      "email": "amanda.johnson@techconsult.demo",
+      "title": "Engineering Manager",
+      "role": "USER",
+      "departmentName": "Engineering"
+    },
+    {
+      "firstName": "James",
+      "lastName": "Brown",
+      "email": "james.brown@techconsult.demo",
+      "title": "Senior Software Engineer",
+      "role": "USER",
+      "departmentName": "Engineering"
+    },
+    {
+      "firstName": "Lisa",
+      "lastName": "Anderson",
+      "email": "lisa.anderson@techconsult.demo",
+      "title": "Software Engineer",
+      "role": "USER",
+      "departmentName": "Engineering"
+    },
+    {
+      "firstName": "Christopher",
+      "lastName": "Lee",
+      "email": "christopher.lee@techconsult.demo",
+      "title": "Consulting Manager",
+      "role": "USER",
+      "departmentName": "Consulting"
+    },
+    {
+      "firstName": "Jessica",
+      "lastName": "White",
+      "email": "jessica.white@techconsult.demo",
+      "title": "Senior Consultant",
+      "role": "USER",
+      "departmentName": "Consulting"
+    },
+    {
+      "firstName": "Daniel",
+      "lastName": "Harris",
+      "email": "daniel.harris@techconsult.demo",
+      "title": "Consultant",
+      "role": "USER",
+      "departmentName": "Consulting"
+    },
+    {
+      "firstName": "Michelle",
+      "lastName": "Clark",
+      "email": "michelle.clark@techconsult.demo",
+      "title": "Sales Manager",
+      "role": "USER",
+      "departmentName": "Sales"
+    },
+    {
+      "firstName": "Matthew",
+      "lastName": "Lewis",
+      "email": "matthew.lewis@techconsult.demo",
+      "title": "Account Executive",
+      "role": "USER",
+      "departmentName": "Sales"
+    },
+    {
+      "firstName": "Nicole",
+      "lastName": "Walker",
+      "email": "nicole.walker@techconsult.demo",
+      "title": "Business Development Representative",
+      "role": "USER",
+      "departmentName": "Sales"
+    },
+    {
+      "firstName": "Kevin",
+      "lastName": "Hall",
+      "email": "kevin.hall@techconsult.demo",
+      "title": "HR Manager",
+      "role": "HR_ADMIN",
+      "departmentName": "HR"
+    },
+    {
+      "firstName": "Stephanie",
+      "lastName": "Allen",
+      "email": "stephanie.allen@techconsult.demo",
+      "title": "HR Coordinator",
+      "role": "MANAGER_ASSISTANT",
+      "departmentName": "HR"
+    },
+    {
+      "firstName": "Ryan",
+      "lastName": "Young",
+      "email": "ryan.young@techconsult.demo",
+      "title": "Operations Manager",
+      "role": "USER",
+      "departmentName": "Operations"
+    },
+    {
+      "firstName": "Ashley",
+      "lastName": "King",
+      "email": "ashley.king@techconsult.demo",
+      "title": "Operations Coordinator",
+      "role": "USER",
+      "departmentName": "Operations"
+    }
+  ],
+  "departments": [
+    {
+      "name": "Engineering",
+      "smallDescription": "Software development and technical delivery team responsible for building and maintaining our technology platform and client solutions.",
+      "managerEmail": "michael.rodriguez@techconsult.demo",
+      "managerAssistantEmail": "amanda.johnson@techconsult.demo",
+      "creationDate": "2024-01-15",
+      "status": "ACTIVE"
+    },
+    {
+      "name": "Consulting",
+      "smallDescription": "Client consulting services team providing strategic technology advisory and implementation services to enterprise clients.",
+      "managerEmail": "emily.watson@techconsult.demo",
+      "managerAssistantEmail": "christopher.lee@techconsult.demo",
+      "creationDate": "2024-01-15",
+      "status": "ACTIVE"
+    },
+    {
+      "name": "Sales",
+      "smallDescription": "Business development and sales team focused on acquiring new clients and expanding relationships with existing customers.",
+      "managerEmail": "david.kim@techconsult.demo",
+      "coOwnerEmail": "michelle.clark@techconsult.demo",
+      "creationDate": "2024-01-15",
+      "status": "ACTIVE"
+    },
+    {
+      "name": "HR",
+      "smallDescription": "Human resources and talent management team responsible for recruitment, employee relations, and organizational development.",
+      "managerEmail": "jennifer.martinez@techconsult.demo",
+      "managerAssistantEmail": "stephanie.allen@techconsult.demo",
+      "creationDate": "2024-01-15",
+      "status": "ACTIVE"
+    },
+    {
+      "name": "Operations",
+      "smallDescription": "Business operations and administration team managing facilities, procurement, and internal processes.",
+      "managerEmail": "robert.taylor@techconsult.demo",
+      "creationDate": "2024-01-15",
+      "status": "ACTIVE"
+    }
+  ],
+  "goals": [
+    {
+      "shortDescription": "Achieve 30% revenue growth in Q1",
+      "longDescription": "Drive company-wide revenue growth through strategic client acquisition, expansion of existing accounts, and introduction of new service offerings. Focus on high-value consulting engagements and technology solutions.",
+      "ownerEmail": "sarah.chen@techconsult.demo",
+      "creationDate": "2024-01-01",
+      "targetCompletionDate": "2024-03-31",
+      "status": "PUBLISHED",
+      "assignedUserEmails": [],
+      "kpis": [
+        {
+          "description": "Close 5 new enterprise deals worth $500K+ each",
+          "status": "IN_PROGRESS",
+          "completionPercentage": 40,
+          "dueDate": "2024-03-31"
+        },
+        {
+          "description": "Expand 3 existing accounts by 25%",
+          "status": "IN_PROGRESS",
+          "completionPercentage": 33,
+          "dueDate": "2024-03-31"
+        },
+        {
+          "description": "Launch 2 new service offerings",
+          "status": "NOT_STARTED",
+          "completionPercentage": 0,
+          "dueDate": "2024-03-15"
+        }
+      ]
+    },
+    {
+      "shortDescription": "Enhance platform scalability and performance",
+      "longDescription": "Improve our technology platform to handle 3x current load, reduce response times by 50%, and implement automated scaling capabilities. This will support our growth and improve client satisfaction.",
+      "ownerEmail": "michael.rodriguez@techconsult.demo",
+      "creationDate": "2024-01-10",
+      "targetCompletionDate": "2024-06-30",
+      "status": "PUBLISHED",
+      "assignedUserEmails": [
+        "amanda.johnson@techconsult.demo",
+        "james.brown@techconsult.demo",
+        "lisa.anderson@techconsult.demo"
+      ],
+      "parentGoalShortDescription": "Achieve 30% revenue growth in Q1",
+      "kpis": [
+        {
+          "description": "Complete infrastructure audit and identify bottlenecks",
+          "status": "ACHIEVED",
+          "completionPercentage": 100,
+          "dueDate": "2024-02-15"
+        },
+        {
+          "description": "Implement caching layer for 80% of database queries",
+          "status": "IN_PROGRESS",
+          "completionPercentage": 60,
+          "dueDate": "2024-04-30"
+        },
+        {
+          "description": "Deploy auto-scaling infrastructure",
+          "status": "NOT_STARTED",
+          "completionPercentage": 0,
+          "dueDate": "2024-06-15"
+        }
+      ]
+    },
+    {
+      "shortDescription": "Deliver 10 successful client engagements",
+      "longDescription": "Ensure successful delivery of consulting projects with high client satisfaction scores. Focus on quality delivery, on-time completion, and measurable business outcomes for clients.",
+      "ownerEmail": "emily.watson@techconsult.demo",
+      "creationDate": "2024-01-10",
+      "targetCompletionDate": "2024-03-31",
+      "status": "PUBLISHED",
+      "assignedUserEmails": [
+        "christopher.lee@techconsult.demo",
+        "jessica.white@techconsult.demo",
+        "daniel.harris@techconsult.demo"
+      ],
+      "parentGoalShortDescription": "Achieve 30% revenue growth in Q1",
+      "kpis": [
+        {
+          "description": "Complete 10 consulting projects with 90%+ client satisfaction",
+          "status": "IN_PROGRESS",
+          "completionPercentage": 50,
+          "dueDate": "2024-03-31"
+        },
+        {
+          "description": "Achieve 95% on-time delivery rate",
+          "status": "IN_PROGRESS",
+          "completionPercentage": 85,
+          "dueDate": "2024-03-31"
+        },
+        {
+          "description": "Secure 3 project extensions or follow-on work",
+          "status": "NOT_STARTED",
+          "completionPercentage": 0,
+          "dueDate": "2024-03-31"
+        }
+      ]
+    },
+    {
+      "shortDescription": "Improve employee retention to 95%",
+      "longDescription": "Implement comprehensive retention strategies including competitive compensation, professional development opportunities, improved work-life balance, and enhanced company culture initiatives.",
+      "ownerEmail": "jennifer.martinez@techconsult.demo",
+      "creationDate": "2024-01-05",
+      "targetCompletionDate": "2024-12-31",
+      "status": "PUBLISHED",
+      "assignedUserEmails": [
+        "kevin.hall@techconsult.demo",
+        "stephanie.allen@techconsult.demo"
+      ],
+      "kpis": [
+        {
+          "description": "Conduct quarterly employee satisfaction surveys",
+          "status": "IN_PROGRESS",
+          "completionPercentage": 25,
+          "dueDate": "2024-12-31"
+        },
+        {
+          "description": "Launch mentorship program for all employees",
+          "status": "NOT_STARTED",
+          "completionPercentage": 0,
+          "dueDate": "2024-06-30"
+        },
+        {
+          "description": "Reduce voluntary turnover to below 5%",
+          "status": "IN_PROGRESS",
+          "completionPercentage": 70,
+          "dueDate": "2024-12-31"
+        }
+      ]
+    },
+    {
+      "shortDescription": "Optimize operational efficiency",
+      "longDescription": "Streamline internal processes, reduce operational costs by 15%, and improve cross-department collaboration through better tools and workflows.",
+      "ownerEmail": "robert.taylor@techconsult.demo",
+      "creationDate": "2024-01-08",
+      "targetCompletionDate": "2024-06-30",
+      "status": "PUBLISHED",
+      "assignedUserEmails": [
+        "ryan.young@techconsult.demo",
+        "ashley.king@techconsult.demo"
+      ],
+      "kpis": [
+        {
+          "description": "Reduce operational costs by 15%",
+          "status": "IN_PROGRESS",
+          "completionPercentage": 30,
+          "dueDate": "2024-06-30"
+        },
+        {
+          "description": "Implement new project management tool across all departments",
+          "status": "NOT_STARTED",
+          "completionPercentage": 0,
+          "dueDate": "2024-04-30"
+        },
+        {
+          "description": "Reduce average procurement processing time by 40%",
+          "status": "IN_PROGRESS",
+          "completionPercentage": 50,
+          "dueDate": "2024-05-31"
+        }
+      ]
+    },
+    {
+      "shortDescription": "Increase sales pipeline by 40%",
+      "longDescription": "Build a robust sales pipeline through strategic prospecting, relationship building, and effective lead qualification. Focus on high-value opportunities and improve conversion rates.",
+      "ownerEmail": "david.kim@techconsult.demo",
+      "creationDate": "2024-01-12",
+      "targetCompletionDate": "2024-06-30",
+      "status": "PUBLISHED",
+      "assignedUserEmails": [
+        "michelle.clark@techconsult.demo",
+        "matthew.lewis@techconsult.demo",
+        "nicole.walker@techconsult.demo"
+      ],
+      "kpis": [
+        {
+          "description": "Generate 50 new qualified leads per month",
+          "status": "IN_PROGRESS",
+          "completionPercentage": 45,
+          "dueDate": "2024-06-30"
+        },
+        {
+          "description": "Achieve 25% lead-to-opportunity conversion rate",
+          "status": "IN_PROGRESS",
+          "completionPercentage": 60,
+          "dueDate": "2024-06-30"
+        },
+        {
+          "description": "Close 15 new deals in Q2",
+          "status": "NOT_STARTED",
+          "completionPercentage": 0,
+          "dueDate": "2024-06-30"
+        }
+      ]
+    },
+    {
+      "shortDescription": "Implement code quality standards",
+      "longDescription": "Establish and enforce coding standards, implement automated testing, and improve code review processes to ensure high-quality software delivery.",
+      "ownerEmail": "amanda.johnson@techconsult.demo",
+      "creationDate": "2024-01-15",
+      "targetCompletionDate": "2024-04-30",
+      "status": "DRAFT",
+      "assignedUserEmails": [
+        "james.brown@techconsult.demo",
+        "lisa.anderson@techconsult.demo"
+      ],
+      "kpis": [
+        {
+          "description": "Achieve 80% code coverage with unit tests",
+          "status": "NOT_STARTED",
+          "completionPercentage": 0,
+          "dueDate": "2024-04-30"
+        },
+        {
+          "description": "Implement automated code review process",
+          "status": "NOT_STARTED",
+          "completionPercentage": 0,
+          "dueDate": "2024-03-31"
+        },
+        {
+          "description": "Reduce bug rate by 30%",
+          "status": "NOT_STARTED",
+          "completionPercentage": 0,
+          "dueDate": "2024-04-30"
+        }
+      ]
+    }
+  ]
+}

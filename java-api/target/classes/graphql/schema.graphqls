@@ -1,0 +1,229 @@
+type Query {
+    # User queries
+    user(id: ID!): User
+    userByEmail(email: String!): User
+    users: [User]
+    teamMembers(managerId: ID!): [User]
+    
+    # Goal queries
+    goal(id: ID!): Goal
+    goals: [Goal]
+    goalsByOwner(email: String!): [Goal]
+    allGoalsForHR: [Goal]
+    
+    # Department queries
+    department(id: ID!): Department
+    departments: [Department]
+    rootDepartments: [Department]
+    departmentsManagedByMe: [Department]
+    
+    # Goal approval queries
+    goalsPendingApproval(departmentId: ID!): [Goal]
+    departmentMembersGoals(departmentId: ID!): [Goal]
+    
+    # Goal note queries
+    goalNotes(goalId: ID!): [GoalNote!]!
+    
+    # Tenant queries
+    tenants: [Tenant]
+}
+
+type Mutation {
+    # User mutations
+    createUser(input: UserInput!): User
+    updateUser(id: ID!, input: UserInput!): User
+    deleteUser(id: ID!): Boolean
+    setUserManager(userId: ID!, managerId: ID): User
+    
+    # Goal mutations
+    createGoal(input: GoalInput!): Goal
+    updateGoal(id: ID!, input: GoalInput!): Goal
+    assignGoalToUser(goalId: ID!, userEmail: String!): Goal
+    unassignGoalFromUser(goalId: ID!, userEmail: String!): Goal
+    lockGoal(id: ID!): Goal
+    unlockGoal(id: ID!): Goal
+    deleteGoal(id: ID!): Boolean
+    updateTargetCompletionDate(goalId: ID!, targetCompletionDate: String): Goal
+    approveGoal(goalId: ID!): Goal
+    
+    # KPI mutations
+    createKPI(goalId: ID!, input: KPIInput!): KPI
+    updateKPI(id: ID!, input: KPIUpdateInput!): KPI
+    deleteKPI(id: ID!): Boolean
+    
+    # Department mutations
+    createDepartment(input: DepartmentInput!): Department
+    updateDepartment(id: ID!, input: DepartmentInput!): Department
+    assignUserToDepartment(departmentId: ID!, userEmail: String!): Department
+    deleteDepartment(id: ID!): Boolean
+    setDepartmentManager(departmentId: ID!, userEmail: String!): Department
+    assignManagerAssistant(departmentId: ID!, userEmail: String!): Department
+    moveUserToDepartment(userId: ID!, departmentId: ID!): Department
+    
+    # Bulk upload mutation
+    bulkUploadUsers(csvData: String!): BulkUploadResult
+    
+    # Goal note mutations
+    createGoalNote(goalId: ID!, content: String!): GoalNote
+    updateGoalNote(id: ID!, content: String!): GoalNote
+    deleteGoalNote(id: ID!): Boolean
+}
+
+type User {
+    id: ID!
+    firstName: String!
+    lastName: String!
+    email: String!
+    title: String
+    role: UserRole
+    department: Department
+    manager: User
+    teamMembers: [User]
+    assignedGoals: [Goal]
+    ownedGoals: [Goal]
+}
+
+enum UserRole {
+    EPM_ADMIN
+    HR_ADMIN
+    USER
+    MANAGER_ASSISTANT
+}
+
+type Goal {
+    id: ID!
+    shortDescription: String!
+    longDescription: String!
+    owner: User!
+    creationDate: String!
+    completionDate: String
+    assignedDate: String
+    targetCompletionDate: String
+    status: GoalStatus!
+    parentGoal: Goal
+    childGoals: [Goal]
+    assignedUsers: [User]
+    locked: Boolean!
+    confidential: Boolean!
+    kpis: [KPI!]!
+    notes: [GoalNote!]!
+}
+
+type KPI {
+    id: ID!
+    description: String!
+    status: KPIStatus!
+    completionPercentage: Int!
+    dueDate: String!
+    goal: Goal!
+}
+
+enum KPIStatus {
+    NOT_STARTED
+    IN_PROGRESS
+    ACHIEVED
+    NOT_ACHIEVED
+    COMPLETED
+}
+
+enum GoalStatus {
+    DRAFT
+    PENDING_APPROVAL
+    APPROVED
+    PUBLISHED
+    ACHIEVED
+    ARCHIVED
+    RETIRED
+}
+
+type Department {
+    id: ID!
+    name: String!
+    smallDescription: String!
+    manager: User
+    managerAssistant: User
+    coOwner: User
+    creationDate: String!
+    status: DepartmentStatus!
+    parentDepartment: Department
+    childDepartments: [Department]
+    users: [User]
+}
+
+enum DepartmentStatus {
+    ACTIVE
+    DEPRECATED
+    RETIRED
+}
+
+type Tenant {
+    fqdn: String!
+    name: String!
+    active: Boolean!
+}
+
+input UserInput {
+    firstName: String!
+    lastName: String!
+    email: String!
+    title: String
+    managerId: ID
+    departmentId: ID
+}
+
+input GoalInput {
+    shortDescription: String!
+    longDescription: String!
+    ownerEmail: String!
+    creationDate: String
+    completionDate: String
+    assignedDate: String
+    targetCompletionDate: String
+    status: GoalStatus
+    parentGoalId: ID
+    confidential: Boolean
+    kpis: [KPIInput!]
+}
+
+input KPIInput {
+    description: String!
+    status: KPIStatus
+    completionPercentage: Int
+    dueDate: String!
+}
+
+input KPIUpdateInput {
+    description: String
+    status: KPIStatus
+    completionPercentage: Int
+    dueDate: String
+}
+
+input DepartmentInput {
+    name: String!
+    smallDescription: String!
+    managerEmail: String
+    managerAssistantEmail: String
+    coOwnerEmail: String
+    creationDate: String
+    status: DepartmentStatus
+    parentDepartmentId: ID
+}
+
+type GoalNote {
+    id: ID!
+    goal: Goal!
+    author: User!
+    content: String!
+    createdAt: String!
+    updatedAt: String!
+}
+
+type BulkUploadResult {
+    totalRows: Int!
+    usersCreated: Int!
+    usersUpdated: Int!
+    departmentsCreated: Int!
+    departmentsUpdated: Int!
+    errors: [String!]!
+}
