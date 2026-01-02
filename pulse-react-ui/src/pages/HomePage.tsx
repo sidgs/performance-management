@@ -40,7 +40,7 @@ import {
 } from '@mui/icons-material';
 
 import { graphqlRequest } from '../api/graphqlClient';
-import { getCurrentUserEmail } from '../api/authService';
+import { useAuth } from '../contexts/AuthContext';
 import type { Goal, GoalStatus, User, Territory } from '../types';
 import { getAllTerritories } from '../api/territoryService';
 
@@ -72,6 +72,7 @@ const statusConfig = {
 
 const HomePage: React.FC = () => {
   const navigate = useNavigate();
+  const { userEmail } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [goals, setGoals] = useState<Goal[]>([]);
   const [users, setUsers] = useState<User[]>([]);
@@ -169,13 +170,10 @@ const HomePage: React.FC = () => {
   // Update owner email when users are loaded and dialog is open
   useEffect(() => {
     if (createDialogOpen && !newGoalOwnerEmail && users.length > 0) {
-      // Get the logged-in user's email from JWT token
-      const currentUserEmail = getCurrentUserEmail();
-      
       // Try to find the logged-in user in the users list, otherwise use first user
       let defaultOwnerEmail = users[0].email;
-      if (currentUserEmail) {
-        const currentUser = users.find(user => user.email.toLowerCase() === currentUserEmail.toLowerCase());
+      if (userEmail) {
+        const currentUser = users.find(user => user.email.toLowerCase() === userEmail.toLowerCase());
         if (currentUser) {
           defaultOwnerEmail = currentUser.email;
         }
@@ -183,7 +181,7 @@ const HomePage: React.FC = () => {
       
       setNewGoalOwnerEmail(defaultOwnerEmail);
     }
-  }, [createDialogOpen, users, newGoalOwnerEmail]);
+  }, [createDialogOpen, users, newGoalOwnerEmail, userEmail]);
 
   // Filter goals based on search query
   useEffect(() => {
@@ -313,7 +311,7 @@ const HomePage: React.FC = () => {
     }
     
     // Get the logged-in user's email from JWT token
-    const currentUserEmail = getCurrentUserEmail();
+    const currentUserEmail = userEmail;
     
     // Try to find the logged-in user in the users list, otherwise use first user
     let defaultOwnerEmail = users[0].email;

@@ -21,7 +21,7 @@ import {
 } from '@mui/icons-material';
 import RichTextEditor from './RichTextEditor';
 import type { GoalNote } from '../../types';
-import { getCurrentUserEmail } from '../../api/authService';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface NoteCardProps {
   note: GoalNote;
@@ -43,8 +43,8 @@ const NoteCard: React.FC<NoteCardProps> = ({
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const currentUserEmail = getCurrentUserEmail();
-  const isAuthor = note.author.email === currentUserEmail;
+  const { userEmail } = useAuth();
+  const isAuthor = note.author.email === userEmail;
 
   const formatDate = (dateString: string) => {
     try {

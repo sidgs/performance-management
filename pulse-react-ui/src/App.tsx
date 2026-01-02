@@ -1,6 +1,6 @@
 import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import theme from './theme/theme';
 import HomePage from './pages/HomePage';
@@ -18,6 +18,7 @@ import HRGoalSearchPage from './pages/HRGoalSearchPage';
 import DepartmentManagementPage from './pages/DepartmentManagementPage';
 import { isAuthenticated, isDevMode, setupParentTokenListener, initializeWidgetAuth } from './api/authService';
 import { isWidgetMode } from './utils/widgetMode';
+import { AuthProvider } from './contexts/AuthContext';
 
 function App() {
   const [authenticated, setAuthenticated] = useState<boolean | null>(null);
@@ -133,9 +134,11 @@ function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <Router>
-        {routesContent}
-      </Router>
+      <AuthProvider>
+        <Router>
+          {routesContent}
+        </Router>
+      </AuthProvider>
     </ThemeProvider>
   );
 }

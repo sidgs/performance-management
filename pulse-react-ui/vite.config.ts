@@ -20,6 +20,11 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           secure: false,
         },
+        '/api/v1/auth': {
+          target: 'http://localhost:8000',
+          changeOrigin: true,
+          secure: false,
+        },
         // Proxy all API calls for the agent API to the FastAPI app
         '/api/v1/pulse-epm-agent': {
           target: 'http://localhost:8001',

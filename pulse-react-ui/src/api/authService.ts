@@ -151,35 +151,48 @@ export function initializeWidgetAuth(): void {
 }
 
 /**
- * Get or create a JWT token for the current user
- * Priority:
- * 1. user_auth_token (primary)
- * 2. epm_user_auth_token (backup for widget mode)
- * 3. Authorization header (widget mode)
+ * Get JWT token for the current user
+ * If token is not stored, fetches it from /api/v1/auth/jwt
+ * Uses a single token stored in TOKEN_STORAGE_KEY for security
  */
 export async function getAuthToken(): Promise<string | null> {
-  // First, check primary token (user_auth_token)
-  const primaryToken = localStorage.getItem(TOKEN_STORAGE_KEY);
-  if (primaryToken) {
-    return primaryToken;
+  // First, check if token is already stored
+  const storedToken = localStorage.getItem(TOKEN_STORAGE_KEY);
+  if (storedToken) {
+    return storedToken;
   }
 
-  // Second, check backup token (epm_user_auth_token) - widget mode
-  const backupToken = localStorage.getItem(WIDGET_TOKEN_STORAGE_KEY);
-  if (backupToken) {
-    return backupToken;
-  }
+  // If no token stored, fetch from API
+  try {
+    const response = await fetch('/api/v1/auth/jwt', {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
 
-  // Third, check Authorization header (widget mode)
-  const headerToken = getTokenFromAuthorizationHeader();
-  if (headerToken) {
-    // Store in backup key for future use
-    localStorage.setItem(WIDGET_TOKEN_STORAGE_KEY, headerToken);
-    return headerToken;
-  }
+    if (!response.ok) {
+      console.error('Failed to fetch JWT token:', response.status, response.statusText);
+      return null;
+    }
 
-  // No token found
-  return null;
+    const responseData = await response.json();
+    
+    // Extract token from response.data.token
+    const token = responseData?.data?.token || responseData?.token;
+    
+    if (token) {
+      // Store the token for future use
+      localStorage.setItem(TOKEN_STORAGE_KEY, token);
+      return token;
+    }
+
+    console.error('No token found in API response');
+    return null;
+  } catch (error) {
+    console.error('Error fetching JWT token:', error);
+    return null;
+  }
 }
 
 /**

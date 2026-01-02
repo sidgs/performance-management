@@ -1,0 +1,11 @@
+[project]
+name = "pulse-mock-auth-api"
+version = "0.1.0"
+description = "Mock Authentication API for Performance Management System"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi>=0.104.0",
+    "uvicorn>=0.24.0",
+]
+

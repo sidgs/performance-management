@@ -1,10 +1,11 @@
 import React, { useEffect } from 'react';
 import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
-import { BrowserRouter } from 'react-router-dom';
+import { HashRouter } from 'react-router-dom';
 import App from '../App';
 import { setWidgetMode } from '../utils/widgetMode';
 import { initializeWidgetAuth } from '../api/authService';
+import { AuthProvider } from '../contexts/AuthContext';
 import theme from '../theme/theme';
 
 interface PerformanceManagementWidgetProps {
@@ -79,9 +80,11 @@ const PerformanceManagementWidget: React.FC<PerformanceManagementWidgetProps> = 
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>
+      <AuthProvider>
+        <HashRouter>
+          <App />
+        </HashRouter>
+      </AuthProvider>
     </ThemeProvider>
   );
 };

@@ -31,10 +31,11 @@ import {
   Person as PersonIcon,
 } from '@mui/icons-material';
 import { graphqlRequest } from '../api/graphqlClient';
-import { getCurrentUserEmail } from '../api/authService';
+import { useAuth } from '../contexts/AuthContext';
 import type { User } from '../types';
 
 const TeamManagementPage: React.FC = () => {
+  const { userEmail } = useAuth();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [teamMembers, setTeamMembers] = useState<User[]>([]);
   const [allUsers, setAllUsers] = useState<User[]>([]);
@@ -51,8 +52,7 @@ const TeamManagementPage: React.FC = () => {
       setLoading(true);
       setError(null);
       try {
-        const currentUserEmail = getCurrentUserEmail();
-        if (!currentUserEmail) {
+        if (!userEmail) {
           setError('User not authenticated');
           return;
         }
@@ -77,7 +77,7 @@ const TeamManagementPage: React.FC = () => {
               }
             }
           `,
-          { email: currentUserEmail }
+          { email: userEmail }
         );
 
         if (userData.userByEmail) {
@@ -159,7 +159,7 @@ const TeamManagementPage: React.FC = () => {
       );
 
       // Refresh team members
-      const currentUserEmail = getCurrentUserEmail();
+      const currentUserEmail = userEmail;
       const userData = await graphqlRequest<{ userByEmail: User }>(
         `
           query GetCurrentUser($email: String!) {
@@ -222,7 +222,7 @@ const TeamManagementPage: React.FC = () => {
       );
 
       // Refresh team members
-      const currentUserEmail = getCurrentUserEmail();
+      const currentUserEmail = userEmail;
       const userData = await graphqlRequest<{ userByEmail: User }>(
         `
           query GetCurrentUser($email: String!) {

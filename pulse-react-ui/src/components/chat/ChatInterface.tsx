@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { getCurrentUserRoles } from '../../api/authService';
+import { useAuth } from '../../contexts/AuthContext';
 import {
   Box,
   TextField,
@@ -44,15 +44,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 }) => {
   const [inputMessage, setInputMessage] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [userRoles, setUserRoles] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Load user roles on mount
-  useEffect(() => {
-    const roles = getCurrentUserRoles();
-    setUserRoles(roles);
-  }, []);
+  const { userRoles } = useAuth();
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {

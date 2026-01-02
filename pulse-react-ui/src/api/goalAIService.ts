@@ -39,11 +39,17 @@ interface AgentContext {
 /**
  * Get the current user context to pass to the AI agent
  * This includes user email, roles, auth token, and available goals
+ * 
+ * @param userEmail - Optional user email from AuthContext (preferred over JWT parsing)
+ * @param userRoles - Optional user roles from AuthContext (preferred over JWT parsing)
  */
-export async function getAgentContext(): Promise<AgentContext | null> {
+export async function getAgentContext(
+  userEmail?: string | null,
+  userRoles?: string[]
+): Promise<AgentContext | null> {
   try {
-    const email = getCurrentUserEmail();
-    const roles = getCurrentUserRoles();
+    const email = userEmail || getCurrentUserEmail();
+    const roles = userRoles || getCurrentUserRoles();
     const token = await getAuthToken();
 
     if (!email || !token) {
@@ -78,9 +84,11 @@ export async function getAgentContext(): Promise<AgentContext | null> {
 export async function sendMessageToAgent(
   message: string,
   _conversationHistory?: AgentMessage[],
-  sessionId?: string
+  sessionId?: string,
+  userEmail?: string | null,
+  userName?: string | null
 ): Promise<AgentResponse> {
-  const context = await getAgentContext();
+  const context = await getAgentContext(userEmail);
   if (!context) {
     throw new Error('Unable to get user context for agent');
   }
@@ -93,9 +101,9 @@ export async function sendMessageToAgent(
   // If no session ID provided, create a new session
   let currentSessionId = sessionId;
   if (!currentSessionId) {
-    const userEmail = getCurrentUserEmail();
-    const userName = getUserNameFromToken();
-    const sessionResponse = await createSession(userId, userEmail || undefined, userName || undefined);
+    const email = userEmail || getCurrentUserEmail();
+    const name = userName || getUserNameFromToken();
+    const sessionResponse = await createSession(userId, email || undefined, name || undefined);
     currentSessionId = sessionResponse.session_id;
   }
 
@@ -121,11 +129,15 @@ export async function sendMessageToAgent(
  * @param goalIds - Optional array of goal IDs to get insights for (if empty, analyzes all user goals)
  * @returns Insights about the goals
  */
-export async function getGoalInsights(_goalIds?: string[]): Promise<string[]> {
+export async function getGoalInsights(
+  _goalIds?: string[],
+  userEmail?: string | null,
+  userRoles?: string[]
+): Promise<string[]> {
   // TODO: Implement actual API call
   // This will call the agent with user context and goal data
 
-  const context = await getAgentContext();
+  const context = await getAgentContext(userEmail, userRoles);
   if (!context) {
     throw new Error('Unable to get user context for agent');
   }
@@ -139,11 +151,14 @@ export async function getGoalInsights(_goalIds?: string[]): Promise<string[]> {
  * 
  * @returns Recommendations for improving goal achievement
  */
-export async function getRecommendations(): Promise<string[]> {
+export async function getRecommendations(
+  userEmail?: string | null,
+  userRoles?: string[]
+): Promise<string[]> {
   // TODO: Implement actual API call
   // The agent will analyze user's goals, progress, and provide recommendations
 
-  const context = await getAgentContext();
+  const context = await getAgentContext(userEmail, userRoles);
   if (!context) {
     throw new Error('Unable to get user context for agent');
   }
@@ -164,13 +179,15 @@ export async function getRecommendations(): Promise<string[]> {
 export async function performGoalAction(
   _action: string,
   _goalId: string,
-  _parameters?: Record<string, unknown>
+  _parameters?: Record<string, unknown>,
+  userEmail?: string | null,
+  userRoles?: string[]
 ): Promise<{ success: boolean; message: string; data?: unknown }> {
   // TODO: Implement actual API call
   // The agent will receive the action request along with user context and auth token
   // It will then make the appropriate backend API call on behalf of the user
 
-  const context = await getAgentContext();
+  const context = await getAgentContext(userEmail, userRoles);
   if (!context) {
     throw new Error('Unable to get user context for agent');
   }
@@ -188,8 +205,11 @@ export async function performGoalAction(
  * 
  * @returns Session ID for the conversation
  */
-export async function initializeAgentSession(): Promise<string> {
-  const context = await getAgentContext();
+export async function initializeAgentSession(
+  userEmail?: string | null,
+  userName?: string | null
+): Promise<string> {
+  const context = await getAgentContext(userEmail);
   if (!context) {
     throw new Error('Unable to get user context for agent');
   }
@@ -199,9 +219,9 @@ export async function initializeAgentSession(): Promise<string> {
     throw new Error('Unable to get user ID from token');
   }
 
-  const userEmail = getCurrentUserEmail();
-  const userName = getUserNameFromToken();
-  const sessionResponse = await createSession(userId, userEmail || undefined, userName || undefined);
+  const email = userEmail || getCurrentUserEmail();
+  const name = userName || getUserNameFromToken();
+  const sessionResponse = await createSession(userId, email || undefined, name || undefined);
   
   return sessionResponse.session_id;
 }

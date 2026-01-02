@@ -61,7 +61,7 @@ import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
 
 import { graphqlRequest } from '../api/graphqlClient';
-import { getCurrentUserEmail } from '../api/authService';
+import { useAuth } from '../contexts/AuthContext';
 import { getAllTerritories } from '../api/territoryService';
 import { Territory } from '../types';
 import { approveGoal } from '../api/goalService';
@@ -75,6 +75,7 @@ import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import PersonRemoveIcon from '@mui/icons-material/PersonRemove';
 
 const GoalsPage: React.FC = () => {
+  const { userEmail } = useAuth();
   const [goals, setGoals] = useState<Goal[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [territories, setTerritories] = useState<Territory[]>([]);
@@ -255,7 +256,7 @@ const GoalsPage: React.FC = () => {
         setUsers(data.users ?? []);
         
         // Fetch current user and team members
-        const currentUserEmail = getCurrentUserEmail();
+        const currentUserEmail = userEmail;
         if (currentUserEmail) {
           try {
             const userData = await graphqlRequest<{ userByEmail: User }>(
@@ -683,7 +684,7 @@ const GoalsPage: React.FC = () => {
   // Handle edit goal
   const handleEditGoal = (goal: Goal) => {
     if (goal.locked) {
-      const currentUserEmail = getCurrentUserEmail();
+      const currentUserEmail = userEmail;
       if (goal.owner.email !== currentUserEmail) {
         setError('This goal is locked. Only the owner can unlock and edit it.');
         return;
@@ -715,7 +716,7 @@ const GoalsPage: React.FC = () => {
 
     // Check if goal is locked
     if (editingGoal.locked) {
-      const currentUserEmail = getCurrentUserEmail();
+      const currentUserEmail = userEmail;
       if (editingGoal.owner.email !== currentUserEmail) {
         setEditError('This goal is locked. Only the owner can unlock and edit it.');
         setEditLoading(false);
@@ -1086,13 +1087,10 @@ const GoalsPage: React.FC = () => {
       return;
     }
     
-    // Get the logged-in user's email from JWT token
-    const currentUserEmail = getCurrentUserEmail();
-    
     // Try to find the logged-in user in the users list, otherwise use first user
     let defaultOwnerEmail = users[0].email;
-    if (currentUserEmail) {
-      const currentUser = users.find(user => user.email.toLowerCase() === currentUserEmail.toLowerCase());
+    if (userEmail) {
+      const currentUser = users.find(user => user.email.toLowerCase() === userEmail.toLowerCase());
       if (currentUser) {
         defaultOwnerEmail = currentUser.email;
       }
@@ -1902,7 +1900,7 @@ const GoalsPage: React.FC = () => {
                     size="small" 
                     onClick={() => handleEditGoal(goal)} 
                     color="primary"
-                    disabled={goal.locked && goal.owner.email !== getCurrentUserEmail()}
+                    disabled={goal.locked && goal.owner.email !== userEmail}
                   >
                     <EditIcon />
                   </IconButton>
@@ -1912,7 +1910,7 @@ const GoalsPage: React.FC = () => {
                     size="small"
                     onClick={() => goal.locked ? handleUnlockGoal(goal.id) : handleLockGoal(goal.id)}
                     color={goal.locked ? "warning" : "default"}
-                    disabled={lockLoading === goal.id || (goal.locked && goal.owner.email !== getCurrentUserEmail())}
+                    disabled={lockLoading === goal.id || (goal.locked && goal.owner.email !== userEmail)}
                   >
                     {goal.locked ? <LockIcon /> : <LockOpenIcon />}
                   </IconButton>
@@ -2147,7 +2145,7 @@ const GoalsPage: React.FC = () => {
                         size="small" 
                         onClick={() => handleEditGoal(goal)} 
                         color="primary"
-                        disabled={goal.locked && goal.owner.email !== getCurrentUserEmail()}
+                        disabled={goal.locked && goal.owner.email !== userEmail}
                       >
                         <EditIcon />
                       </IconButton>
@@ -2157,7 +2155,7 @@ const GoalsPage: React.FC = () => {
                         size="small"
                         onClick={() => goal.locked ? handleUnlockGoal(goal.id) : handleLockGoal(goal.id)}
                         color={goal.locked ? "warning" : "default"}
-                        disabled={lockLoading === goal.id || (goal.locked && goal.owner.email !== getCurrentUserEmail())}
+                        disabled={lockLoading === goal.id || (goal.locked && goal.owner.email !== userEmail)}
                       >
                         {goal.locked ? <LockIcon /> : <LockOpenIcon />}
                       </IconButton>

@@ -18,16 +18,16 @@ import {
   sendChatMessageWithFile,
   deleteSession,
   getUserIdFromToken,
-  getUserNameFromToken,
   type SessionInfo,
   type ChatResponse,
 } from '../api/agentService';
-import { getCurrentUserEmail } from '../api/authService';
+import { useAuth } from '../contexts/AuthContext';
 import ChatInterface from '../components/chat/ChatInterface';
 import SessionList from '../components/chat/SessionList';
 import type { ChatMessage } from '../components/chat/ChatInterface';
 
 const GoalAIAgentPage: React.FC = () => {
+  const { userEmail, userName } = useAuth();
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [sessions, setSessions] = useState<SessionInfo[]>([]);
@@ -67,8 +67,6 @@ const GoalAIAgentPage: React.FC = () => {
 
         // Auto-create a new session if none exist
         if (fetchedSessions.length === 0) {
-          const userEmail = getCurrentUserEmail();
-          const userName = getUserNameFromToken();
           const sessionResponse = await createSession(extractedUserId, userEmail || undefined, userName || undefined);
           const newSessionId = sessionResponse.session_id;
           
@@ -153,9 +151,6 @@ const GoalAIAgentPage: React.FC = () => {
 
     setIsCreatingSession(true);
     try {
-      const userEmail = getCurrentUserEmail();
-      const userName = getUserNameFromToken();
-      
       const response = await createSession(userId, userEmail || undefined, userName || undefined);
       const newSessionId = response.session_id;
 
@@ -179,7 +174,7 @@ const GoalAIAgentPage: React.FC = () => {
     } finally {
       setIsCreatingSession(false);
     }
-  }, [userId, isCreatingSession]);
+  }, [userId, isCreatingSession, userEmail, userName]);
 
   // Handle selecting a session
   const handleSelectSession = useCallback(async (sessionId: string) => {

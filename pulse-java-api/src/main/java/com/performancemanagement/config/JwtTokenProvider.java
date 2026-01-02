@@ -15,8 +15,12 @@ import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.Date;
 import java.util.List;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import java.util.Map;
 
 /**
  * Utility for parsing and validating JWT tokens.
@@ -61,14 +65,20 @@ public class JwtTokenProvider {
 
         try {
             if (isUnsignedAllowed) {
-                // Accept unsigned tokens (alg=none) by parsing without a signing key
-                // but still enforce expiration manually.
-                claims = Jwts.parserBuilder()
-                        .build()
-                        .parseClaimsJwt(token)
-                        .getBody();
+                // When unsigned tokens are allowed, try to parse without signature verification
+                // First try as unsigned token (alg=none)
+                try {
+                    claims = Jwts.parserBuilder()
+                            .build()
+                            .parseClaimsJwt(token)
+                            .getBody();
+                } catch (Exception unsignedEx) {
+                    // If that fails, it might be a signed token - parse without signature verification
+                    logger.debug("JWT parsing as unsigned failed, attempting to parse without signature verification: {}", unsignedEx.getMessage());
+                    claims = parseClaimsWithoutVerification(token);
+                }
             } else {
-                // Standard signed JWT parsing
+                // Standard signed JWT parsing with signature verification
                 Jws<Claims> jwsClaims = Jwts.parserBuilder()
                         .setSigningKey(secretKey)
                         .build()
@@ -76,18 +86,14 @@ public class JwtTokenProvider {
                 claims = jwsClaims.getBody();
             }
         } catch (Exception ex) {
-            logger.debug("JWT parsing failed (unsigned attempt): {} - {}", ex.getClass().getSimpleName(), ex.getMessage());
-            // If parsing as unsecured JWT fails in dev/local, fall back to signed parsing
+            logger.debug("JWT parsing failed: {} - {}", ex.getClass().getSimpleName(), ex.getMessage());
+            // If parsing failed and unsigned is allowed, try parsing without verification
             if (isUnsignedAllowed) {
                 try {
-                    Jws<Claims> jwsClaims = Jwts.parserBuilder()
-                            .setSigningKey(secretKey)
-                            .build()
-                            .parseClaimsJws(token);
-                    claims = jwsClaims.getBody();
-                    logger.debug("JWT parsing succeeded with signed token fallback");
-                } catch (Exception signedEx) {
-                    logger.debug("JWT parsing failed (signed fallback): {} - {}", signedEx.getClass().getSimpleName(), signedEx.getMessage());
+                    claims = parseClaimsWithoutVerification(token);
+                    logger.debug("JWT parsing succeeded without signature verification");
+                } catch (Exception unverifiedEx) {
+                    logger.debug("JWT parsing failed (unverified attempt): {} - {}", unverifiedEx.getClass().getSimpleName(), unverifiedEx.getMessage());
                     return null;
                 }
             } else {
@@ -155,6 +161,60 @@ public class JwtTokenProvider {
         }
 
         return new JwtUserDetails(username, email, tenantId, roles, permissions);
+    }
+
+    /**
+     * Parse JWT claims without signature verification.
+     * This is used when isUnsignedAllowed is true to accept tokens with mismatched signatures.
+     */
+    private Claims parseClaimsWithoutVerification(String token) {
+        try {
+            // Split the JWT into parts: header.payload.signature
+            String[] parts = token.split("\\.");
+            if (parts.length != 3) {
+                throw new IllegalArgumentException("Invalid JWT token format");
+            }
+            
+            // Decode the payload (second part)
+            String payload = parts[1];
+            // Add padding if needed for Base64 decoding
+            StringBuilder payloadBuilder = new StringBuilder(payload);
+            while (payloadBuilder.length() % 4 != 0) {
+                payloadBuilder.append("=");
+            }
+            payload = payloadBuilder.toString();
+            
+            byte[] decodedBytes = Base64.getUrlDecoder().decode(payload);
+            String jsonPayload = new String(decodedBytes, StandardCharsets.UTF_8);
+            
+            // Parse JSON and create Claims object
+            ObjectMapper mapper = new ObjectMapper();
+            Map<String, Object> claimsMap = mapper.readValue(jsonPayload, Map.class);
+            
+            // Convert expiration timestamp to Date if present
+            if (claimsMap.containsKey("exp")) {
+                Object expObj = claimsMap.get("exp");
+                if (expObj instanceof Number expNumber) {
+                    long expSeconds = expNumber.longValue();
+                    claimsMap.put("exp", new Date(expSeconds * 1000));
+                }
+            }
+            
+            // Convert issued at timestamp to Date if present
+            if (claimsMap.containsKey("iat")) {
+                Object iatObj = claimsMap.get("iat");
+                if (iatObj instanceof Number iatNumber) {
+                    long iatSeconds = iatNumber.longValue();
+                    claimsMap.put("iat", new Date(iatSeconds * 1000));
+                }
+            }
+            
+            // Create Claims object from the map
+            return Jwts.claims(claimsMap);
+        } catch (IllegalArgumentException | JsonProcessingException e) {
+            logger.debug("Failed to parse JWT claims without verification: {}", e.getMessage());
+            throw new RuntimeException("Failed to parse JWT without verification", e);
+        }
     }
 
     private boolean isUnsignedAllowed() {

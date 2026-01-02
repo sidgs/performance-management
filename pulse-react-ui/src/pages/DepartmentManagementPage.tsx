@@ -48,9 +48,10 @@ import {
 import { getGoalsPendingApproval, approveGoal } from '../api/goalService';
 import { graphqlRequest } from '../api/graphqlClient';
 import { Department, Goal, User, GoalStatus } from '../types';
-import { getCurrentUserEmail } from '../api/authService';
+import { useAuth } from '../contexts/AuthContext';
 
 const DepartmentManagementPage: React.FC = () => {
+  const { userEmail } = useAuth();
   const [departments, setDepartments] = useState<Department[]>([]);
   const [selectedDepartment, setSelectedDepartment] = useState<Department | null>(null);
   const [departmentMembers, setDepartmentMembers] = useState<User[]>([]);
@@ -206,7 +207,7 @@ const DepartmentManagementPage: React.FC = () => {
 
   const handleEditGoal = (goal: Goal) => {
     if (goal.locked) {
-      const currentUserEmail = getCurrentUserEmail();
+      const currentUserEmail = userEmail;
       if (goal.owner.email !== currentUserEmail) {
         setError('This goal is locked. Only the owner can unlock and edit it.');
         return;
@@ -235,7 +236,7 @@ const DepartmentManagementPage: React.FC = () => {
 
     // Check if goal is locked
     if (editingGoal.locked) {
-      const currentUserEmail = getCurrentUserEmail();
+      const currentUserEmail = userEmail;
       if (editingGoal.owner.email !== currentUserEmail) {
         setEditError('This goal is locked. Only the owner can unlock and edit it.');
         setEditLoading(false);
@@ -478,7 +479,7 @@ const DepartmentManagementPage: React.FC = () => {
                                   edge="end"
                                   aria-label="edit"
                                   onClick={() => handleEditGoal(goal)}
-                                  disabled={goal.locked && goal.owner.email !== getCurrentUserEmail()}
+                                  disabled={goal.locked && goal.owner.email !== userEmail}
                                 >
                                   <EditIcon />
                                 </IconButton>
